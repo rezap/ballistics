@@ -1,0 +1,9 @@
+[package]
+name = "ballistics-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Point-mass exterior ballistics solver (bullet drop, wind drift, zero angle) ported from pyBallistics/GNU Ballistics"
+
+[dependencies]
