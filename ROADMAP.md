@@ -5,10 +5,11 @@ Python port of the GNU Ballistics Library), aimed at a web application that
 helps hunters make more ethical shot decisions by visualizing bullet drop,
 wind drift and hit point on game animals.
 
-## Phase 1 — Replicate the Python engine in Rust (this commit starts it)
+## Phase 1 — Replicate, then complete, the engine in Rust
 
 Goal: a `ballistics-core` crate whose numbers match pyBallistics bit-for-bit
-(within floating-point tolerance), so later phases build on a verified
+(within floating-point tolerance) where pyBallistics is correct, and that
+fixes the known upstream gaps, so Phase 2 builds on a verified, complete
 foundation instead of re-deriving the physics.
 
 - [x] Port `constants.py`, `drag.py` (G1/G2/G3/G5/G6/G7/G8 tables + `retard`),
@@ -19,29 +20,38 @@ foundation instead of re-deriving the physics.
 - [x] Golden-value parity tests generated directly from the Python source
       (see module-level `#[cfg(test)]` blocks and `tests/parity.rs`).
 - [x] `ballistics-cli` demo binary mirroring `example.py`.
-- [ ] **1.1 Wire up G2/G3/G5/G6/G7/G8 into `retard()`.** Upstream Python only
-      ever dispatches to G1 in `drag.retard()` — the dict lookup is built
+- [x] **1.1 Wire up G2/G3/G5/G6/G7/G8 into `retard()`.** Upstream Python only
+      ever dispatched to G1 in `drag.retard()` — the dict lookup was built
       with a single `"G1"` key, so requesting any other drag function
-      actually raises a `TypeError` in the Python code. This Rust port
-      mirrors that (as a typed `DragError` instead of a panic) for faithful
-      Phase 1 parity. Real projectiles use G1 or G7 depending on bullet
-      shape, so this needs fixing before the app is useful for boat-tail /
-      VLD bullets commonly used in hunting.
-- [ ] **1.2 Make the load/atmosphere/rifle profile configurable.** Both
-      `bdc.py`/`bdc.rs` hardcode a single reference rifle+load+atmosphere and
-      `calcBDC()`'s `range` argument is unused upstream — `calc_bdc()`
-      matches that today. Replace with a proper `TrajectoryInput`/`Rifle`/
-      `Load`/`Atmosphere` struct so any BC, muzzle velocity, sight height,
-      zero range, and weather can be simulated (needed for phase 2).
-- [ ] **1.3 Review the incline/cant compensation angle-unit quirk.**
-      `utils.py`'s `get_incline_compensation`/`get_cant_compensation` feed
+      actually raised a `TypeError` there. All seven drag functions are now
+      fully wired up in `drag::retard()` (see `drag::DragFunction::ALL` and
+      the `every_drag_function_is_wired_up` test), so G7/G8 boat-tail match
+      loads work as well as G1.
+- [x] **1.2 Make the load/atmosphere/rifle profile configurable.** Added
+      `profile::{Load, Rifle, Atmosphere, Shot, TrajectoryRequest}` — any BC,
+      drag function, muzzle velocity, sight height, zero range, atmosphere
+      and wind/angle can now be solved via `TrajectoryRequest::solve()`
+      without editing code. `bdc::calc_bdc()` is kept as a thin wrapper
+      around the specific hardcoded profile from upstream `bdc.py`, purely
+      as a regression fixture against its golden values.
+- [x] **1.3 Fix the incline/cant compensation angle-unit bug.**
+      `utils.py`'s `get_incline_compensation`/`get_cant_compensation` fed
       angle arguments straight into `sin`/`cos` with no degrees→radians
-      conversion (`example.py` calls them with `-15` and `90`, i.e. degrees,
-      which is almost certainly a bug upstream). Decide the correct
-      behavior and fix it in both this port and (optionally) upstream
-      pyBallistics.
-- [ ] Property/fuzz tests around the trajectory integrator (e.g. dt/step
-      stability, extreme BCs) once the above are settled.
+      conversion, even though its only caller (`example.py`) passed degree
+      values (`-15`, `90`). `utils::incline_compensation` /
+      `utils::cant_compensation` now take degrees and convert internally;
+      this is a deliberate, intentional divergence from the unfixed Python
+      behavior (documented on both functions).
+- [x] Property-style tests around the trajectory integrator: every drag
+      function converges to a plausible zero angle and produces a finite,
+      monotonically-timed trajectory (`zero_angle_converges_for_every_drag_function`,
+      `solve_produces_a_sane_trajectory_for_every_drag_function`).
+
+Phase 1 is now feature-complete. Remaining nice-to-haves, not blocking
+Phase 2:
+- [ ] Wider fuzz/property coverage (e.g. `proptest`) across extreme BCs,
+      velocities, and step sizes, if issues show up in practice.
+- [ ] Consider upstreaming the 1.3 angle-unit fix to pyBallistics itself.
 
 ## Phase 2 — Web application
 

@@ -6,6 +6,7 @@
 //! retardation.
 
 use std::fmt;
+use std::str::FromStr;
 
 /// Standard small-arms drag model.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -19,29 +20,57 @@ pub enum DragFunction {
     G8,
 }
 
-/// Error returned by [`retard`] and anything built on top of it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DragError {
-    /// The upstream pyBallistics `retard()` only ever wires up [`DragFunction::G1`]
-    /// into its retardation lookup table; passing any other drag function
-    /// crashes the Python implementation (an unpacking `TypeError`). We
-    /// surface that same limitation as a typed error instead of a panic.
-    /// See `ROADMAP.md` Phase 1.1 for wiring up the remaining tables.
-    UnsupportedDragFunction(DragFunction),
+impl DragFunction {
+    /// All supported drag functions, in the order GNU Ballistics defines them.
+    pub const ALL: [DragFunction; 7] = [
+        DragFunction::G1,
+        DragFunction::G2,
+        DragFunction::G3,
+        DragFunction::G5,
+        DragFunction::G6,
+        DragFunction::G7,
+        DragFunction::G8,
+    ];
 }
 
-impl fmt::Display for DragError {
+impl fmt::Display for DragFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DragError::UnsupportedDragFunction(func) => write!(
-                f,
-                "drag function {func:?} is not wired into the retardation table yet (matches upstream pyBallistics limitation; see ROADMAP.md Phase 1.1)"
-            ),
-        }
+        write!(f, "{self:?}")
     }
 }
 
-impl std::error::Error for DragError {}
+/// Returned by [`DragFunction::from_str`] for an unrecognized name.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ParseDragFunctionError(String);
+
+impl fmt::Display for ParseDragFunctionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "unknown drag function {:?} (expected one of G1, G2, G3, G5, G6, G7, G8)",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for ParseDragFunctionError {}
+
+impl FromStr for DragFunction {
+    type Err = ParseDragFunctionError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_uppercase().as_str() {
+            "G1" => Ok(DragFunction::G1),
+            "G2" => Ok(DragFunction::G2),
+            "G3" => Ok(DragFunction::G3),
+            "G5" => Ok(DragFunction::G5),
+            "G6" => Ok(DragFunction::G6),
+            "G7" => Ok(DragFunction::G7),
+            "G8" => Ok(DragFunction::G8),
+            _ => Err(ParseDragFunctionError(s.to_string())),
+        }
+    }
+}
 
 /// G1 drag table. Returns `None` when `vp <= 0` (no band matches).
 fn g1(vp: f64) -> Option<(f64, f64)> {
@@ -198,26 +227,17 @@ fn table(drag_function: DragFunction, vp: f64) -> Option<(f64, f64)> {
 /// Ballistic retardation for a given drag function, coefficient and
 /// projectile velocity (ft/s), in ft/s per second.
 ///
-/// NOTE: matches `drag.retard()` in pyBallistics, which only ever looks up
-/// [`DragFunction::G1`] (the other tables are defined in `drag.py` but never
-/// wired into the dispatch dict, so calling them there raises a Python
-/// `TypeError`). We return [`DragError::UnsupportedDragFunction`] instead of
-/// panicking. Widening this to the full G1-G8 set is tracked as a follow-up
-/// (see `ROADMAP.md` Phase 1.1).
-pub fn retard(
-    drag_function: DragFunction,
-    drag_coefficient: f64,
-    vp: f64,
-) -> Result<f64, DragError> {
-    if drag_function != DragFunction::G1 {
-        return Err(DragError::UnsupportedDragFunction(drag_function));
-    }
-
+/// Returns `-1.0` for velocities outside the modeled range (`vp <= 0` or
+/// `vp >= 10000`), matching the sentinel used by the original GNU
+/// Ballistics tables. Unlike upstream pyBallistics — whose `retard()` only
+/// ever dispatched [`DragFunction::G1`], silently crashing on any other
+/// drag function — every drag function here is fully wired up.
+pub fn retard(drag_function: DragFunction, drag_coefficient: f64, vp: f64) -> f64 {
     match table(drag_function, vp) {
         Some((acceleration, mass)) if vp > 0.0 && vp < 10000.0 => {
-            Ok(acceleration * vp.powf(mass) / drag_coefficient)
+            acceleration * vp.powf(mass) / drag_coefficient
         }
-        _ => Ok(-1.0),
+        _ => -1.0,
     }
 }
 
@@ -245,25 +265,34 @@ mod tests {
             (4000.0, 3298.932593732959),
         ];
         for (vp, expected) in cases {
-            let got = retard(DragFunction::G1, 0.5, vp).unwrap();
-            approx(got, expected);
+            approx(retard(DragFunction::G1, 0.5, vp), expected);
         }
     }
 
     #[test]
-    fn unsupported_drag_functions_return_typed_error() {
-        for func in [
-            DragFunction::G2,
-            DragFunction::G3,
-            DragFunction::G5,
-            DragFunction::G6,
-            DragFunction::G7,
-            DragFunction::G8,
-        ] {
-            assert_eq!(
-                retard(func, 0.5, 2000.0),
-                Err(DragError::UnsupportedDragFunction(func))
+    fn every_drag_function_is_wired_up() {
+        // Each drag function's table has an entry valid at 2000 ft/s, so
+        // retard() should produce a real (non-sentinel), finite value for
+        // all seven — this is the bug upstream pyBallistics has (it only
+        // ever dispatches G1; everything else crashes).
+        for func in DragFunction::ALL {
+            let value = retard(func, 0.3, 2000.0);
+            assert!(
+                value.is_finite() && value != -1.0,
+                "{func} produced {value}"
             );
+
+            let (acceleration, mass) = table(func, 2000.0).unwrap();
+            approx(value, acceleration * 2000.0_f64.powf(mass) / 0.3);
+        }
+    }
+
+    #[test]
+    fn retard_returns_sentinel_outside_modeled_velocity_range() {
+        for func in DragFunction::ALL {
+            assert_eq!(retard(func, 0.3, 0.0), -1.0);
+            assert_eq!(retard(func, 0.3, -5.0), -1.0);
+            assert_eq!(retard(func, 0.3, 10_000.0), -1.0);
         }
     }
 
@@ -271,5 +300,15 @@ mod tests {
     fn g1_returns_none_below_zero_velocity() {
         assert_eq!(g1(0.0), None);
         assert_eq!(g1(-5.0), None);
+    }
+
+    #[test]
+    fn drag_function_display_and_parse_roundtrip() {
+        for func in DragFunction::ALL {
+            let parsed: DragFunction = func.to_string().parse().unwrap();
+            assert_eq!(parsed, func);
+        }
+        assert!("G4".parse::<DragFunction>().is_err());
+        assert_eq!("g7".parse::<DragFunction>().unwrap(), DragFunction::G7);
     }
 }

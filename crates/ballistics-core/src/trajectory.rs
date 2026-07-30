@@ -6,7 +6,7 @@
 
 use crate::angles::{deg_to_rad, rad_to_moa};
 use crate::constants::{BALLISTICS_COMPUTATION_MAX_YARDS, GRAVITY};
-use crate::drag::{self, DragFunction};
+use crate::drag::{retard, DragFunction};
 use crate::utils::moa_to_inch;
 use crate::windage;
 
@@ -72,7 +72,7 @@ pub fn solve(
     zero_angle: f64,
     wind_speed: f64,
     wind_angle: f64,
-) -> Result<Vec<TrajectoryPoint>, drag::DragError> {
+) -> Vec<TrajectoryPoint> {
     let hwind = windage::headwind(wind_speed, wind_angle);
 
     let gy = GRAVITY * deg_to_rad(shooting_angle + zero_angle).cos();
@@ -96,7 +96,7 @@ pub fn solve(
         let dt = 0.5 / v;
 
         // Acceleration from drag retardation.
-        let dv = drag::retard(drag_function, drag_coefficient, v + hwind)?;
+        let dv = retard(drag_function, drag_coefficient, v + hwind);
         let dvx = -(vx / v) * dv;
         let dvy = -(vy / v) * dv;
 
@@ -133,7 +133,7 @@ pub fn solve(
         t += dt;
     }
 
-    Ok(points)
+    points
 }
 
 #[cfg(test)]
@@ -146,5 +146,35 @@ mod tests {
         assert_eq!(python_round(2.6), 3);
         assert_eq!(python_round(2.5), 2); // round-half-to-even
         assert_eq!(python_round(3.5), 4); // round-half-to-even
+    }
+
+    #[test]
+    fn solve_produces_a_sane_trajectory_for_every_drag_function() {
+        for func in DragFunction::ALL {
+            let bc = 0.4;
+            let vi = 2800.0;
+            let zero_angle = crate::angles::zero_angle(func, bc, vi, 1.5, 100.0, 0.0);
+            let points = solve(func, bc, vi, 1.5, 0.0, zero_angle, 10.0, 90.0);
+
+            assert!(!points.is_empty(), "{func} produced no trajectory points");
+            assert!(
+                points.len() as u32 <= BALLISTICS_COMPUTATION_MAX_YARDS,
+                "{func} exceeded the max computed range"
+            );
+
+            let mut previous_seconds = 0.0;
+            for point in &points {
+                assert!(point.seconds.is_finite(), "{func} produced non-finite time");
+                assert!(
+                    point.path_inches.is_finite(),
+                    "{func} produced non-finite path"
+                );
+                assert!(
+                    point.seconds > previous_seconds,
+                    "{func} time of flight did not increase monotonically"
+                );
+                previous_seconds = point.seconds;
+            }
+        }
     }
 }

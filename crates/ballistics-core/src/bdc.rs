@@ -1,62 +1,51 @@
-//! Bullet drop compensation solve using a fixed reference load.
-//!
-//! Ported from `bdc.py` in pyBallistics. Upstream hardcodes a specific
-//! rifle/load/atmosphere profile (.269 BC @ 3165 ft/s, 1.5" sight height,
-//! 50 yard zero, standard-ish atmosphere) and even ignores the `range`
-//! argument passed to `calcBDC()`. That's preserved as-is here for parity;
-//! making the load and atmosphere configurable is tracked in
-//! `ROADMAP.md` Phase 1.2.
+//! Bullet drop compensation using the reference load from upstream
+//! pyBallistics' `bdc.py` / `calcBDC()` (.269 BC @ 3165 ft/s, 1.5" sight
+//! height, 50 yard zero, near-standard atmosphere). Kept mainly as a
+//! regression fixture against the original Python golden values; for any
+//! other rifle/load/atmosphere, build a [`TrajectoryRequest`] directly.
 
-use crate::angles;
-use crate::atmosphere;
-use crate::drag::{self, DragFunction};
-use crate::trajectory::{self, TrajectoryPoint};
+use crate::drag::DragFunction;
+use crate::profile::{Atmosphere, Load, Rifle, Shot, TrajectoryRequest};
+use crate::trajectory::TrajectoryPoint;
+
+/// The reference rifle/load/atmosphere profile used by upstream
+/// pyBallistics' `calcBDC()`.
+pub fn reference_request() -> TrajectoryRequest {
+    TrajectoryRequest {
+        load: Load {
+            drag_function: DragFunction::G1,
+            ballistic_coefficient: 0.269,
+            muzzle_velocity: 3165.0,
+        },
+        rifle: Rifle {
+            sight_height: 1.5,
+            zero_range: 50.0,
+            zero_y_intercept: 0.0,
+        },
+        atmosphere: Atmosphere {
+            altitude: 0.0,
+            pressure: 29.59,
+            temperature: 59.0,
+            relative_humidity: 0.7,
+        },
+        shot: Shot {
+            shooting_angle: 0.0,
+            wind_speed: 0.0,
+            wind_angle: 0.0,
+        },
+    }
+}
 
 /// Computes the reference bullet-drop-compensation trajectory used by
 /// upstream pyBallistics's `calcBDC()`.
-pub fn calc_bdc() -> Result<Vec<TrajectoryPoint>, drag::DragError> {
-    // Ballistic coefficient for the projectile.
-    let mut bc = 0.269;
-    // Initial velocity, ft/s.
-    let v = 3165.0;
-    // Sight height over bore, inches.
-    let sh = 1.5;
-    // Shooting angle (uphill/downhill), degrees.
-    let angle = 0.0;
-    // Zero range, yards.
-    let zero = 50.0;
-    // Wind speed, mi/hr.
-    let windspeed = 0.0;
-    // Wind angle, degrees (0 = headwind).
-    let windangle = 0.0;
-
-    let altitude = 0.0;
-    let barometer = 29.59;
-    let temperature = 59.0;
-    let relative_humidity = 0.7;
-
-    let drag_function = DragFunction::G1;
-
-    // Correct the BC for atmospheric conditions before zeroing/solving.
-    bc = atmosphere::atmosphere_correction(bc, altitude, barometer, temperature, relative_humidity);
-
-    let zero_angle = angles::zero_angle(drag_function, bc, v, sh, zero, 0.0)?;
-
-    trajectory::solve(
-        drag_function,
-        bc,
-        v,
-        sh,
-        angle,
-        zero_angle,
-        windspeed,
-        windangle,
-    )
+pub fn calc_bdc() -> Vec<TrajectoryPoint> {
+    reference_request().solve()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::trajectory::point_at_range;
 
     fn approx(a: f64, b: f64) {
         assert!((a - b).abs() < 1e-6 * b.abs().max(1.0), "{a} !~= {b}");
@@ -64,7 +53,7 @@ mod tests {
 
     #[test]
     fn matches_python_golden_bdc_points() {
-        let points = calc_bdc().unwrap();
+        let points = calc_bdc();
         assert_eq!(points.len(), 600);
 
         let cases: &[(i64, f64, f64, f64, f64)] = &[
@@ -141,7 +130,7 @@ mod tests {
         ];
 
         for (yards, moa_correction, impact_in, path_inches, seconds) in cases.iter().copied() {
-            let point = trajectory::point_at_range(&points, yards)
+            let point = point_at_range(&points, yards)
                 .unwrap_or_else(|| panic!("missing point at {yards} yards"));
             approx(point.moa_correction, moa_correction);
             approx(point.impact_in, impact_in);
