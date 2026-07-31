@@ -84,61 +84,48 @@ Phase 2:
 
 ## Phase 3 — Ethical hunting shot assistant
 
-- [x] **Game animal database** (`ballistics-core::animals`): per-species
-      vital (heart/lung) zone dimensions (modeled as a width x height
-      ellipse, broadside), male/female shoulder height and weight ranges,
-      habitat, diet, and fun facts, compiled from hunting and wildlife-
-      biology sources (cited in `animals.rs` doc comments). Exposed via
-      `GET /api/animals`. Two species fully implemented so far, to prove
-      the data model and pipeline scale before filling in the rest:
-      - [x] Whitetail deer (*Odocoileus virginianus*)
-      - [x] Wild hog (*Sus scrofa*)
-      - [ ] Roe deer
-      - [ ] Red deer (stag)
-      - [ ] Fallow deer
-      - [ ] Elk (wapiti)
-      - [ ] American moose
-      - [ ] European moose (elk)
-      - [ ] Fox
-      - [ ] Hare
-
-      To add one: add a `Species` enum variant, a `match` arm in
-      `animals::profile()` following the existing two as a template
-      (web-search shoulder height/weight/vitals/habitat/diet/fun-facts
-      and cite sources in a doc comment above the arm, the same way), and
-      add it to `Species::ALL`. No frontend changes needed — the species
-      dropdown, vitals overlay, and info panel are all data-driven.
+- [x] **Game animal database**, data-driven so adding a species needs no
+      code change. `crates/ballistics-api/static/species.json` (alongside
+      the artwork) carries per-species vital-zone dimensions, male/female
+      size ranges, body length, habitat, diet and fun facts; the API loads
+      and validates it at startup and serves it from `GET /api/animals`.
+      Adding an animal is: drop in `<key>.raw.png`, run
+      `scripts/prep_silhouettes.py`, add a `species.json` entry.
+      - [x] Roe deer, fallow deer, elk, moose, wild hog, red fox, pigeon,
+            wild turkey
+      - [ ] Red deer (stag), hare, whitetail deer - no artwork yet. The
+            loader already serves a species without art (overlay and info
+            panel render, just no silhouette), so only data is missing.
+- [x] **Real silhouette artwork**, replacing the earlier hand-drawn canvas
+      polygons. `scripts/prep_silhouettes.py` crops each image to the
+      animal, excludes the ground shadow from that crop (it is drawn wider
+      than the animal, so including it would corrupt the pixel-to-inch
+      scale), keys out the background, and reduces the art to an alpha
+      mask the frontend tints per theme - about 50KB per animal instead of
+      3MB. `scripts/inspect_silhouettes.py` reports what it sees without
+      modifying anything.
+- [x] **User-adjustable scale.** The reference dimensions come from general
+      wildlife sources and the artwork is stylised, so neither is
+      authoritative for a particular animal. The user can re-anchor the
+      drawing against a measured body length or overall height, in inches,
+      centimetres or metres, and the override is remembered per species.
 - [x] **Fixed a real engine gap needed for this**: `windage.py`'s
       crosswind deflection formula was ported to Rust in Phase 1
-      (`windage::windage()`) but never actually wired into `solve()` —
+      (`windage::windage()`) but never actually wired into `solve()` -
       only the along-track headwind/tailwind component (which affects
       drag) was used. `TrajectoryPoint` now also carries `windage_in`
       (horizontal drift, inches), computed per point, which is what makes
-      a horizontal miss distance available for the vitals assessment
-      below.
+      a horizontal miss distance available for the vitals assessment.
 - [x] Given a rifle/load and a shot range, compute point of impact
       relative to point of aim (vertical: `path_inches`; horizontal:
       `windage_in`) and assess it against the selected species' vital
-      zone, modeled as an ellipse centered on point of aim
-      (`VitalZone::assess`, tested for center/edge/outside cases). The
-      frontend renders this as a canvas overlay plus an info panel (sizes,
-      habitat, diet, fun facts), and both update live from the
-      already-fetched trajectory when the species or shot range changes —
+      zone, modelled as an ellipse centred on point of aim
+      (`VitalZone::assess`, tested for centre/edge/outside cases and for
+      scaling across species). The frontend overlays that on the
+      silhouette with a point-of-aim crosshair, a colour-coded impact
+      marker and a one-foot scale bar, and it all updates live from the
+      already-fetched trajectory when species, range or scale changes -
       no extra network round-trip.
-- [x] **Original silhouette illustrations** (`crates/ballistics-api/static/silhouettes.js`):
-      a simple, hand-drawn (not traced or copied from any photo or
-      third-party artwork) broadside silhouette per species — real photos
-      would carry copyright/licensing risk for a publicly deployed app,
-      and a schematic body outline is the traditional way shot-placement
-      guides show this anyway. Each silhouette is authored in a fixed
-      "profile unit" coordinate system with a per-species `spanUnits`
-      (nose-tip to tail-tip) and `vitalsCenter`; the frontend converts
-      `AnimalProfile.body_length_in` and the vitals/impact inches into
-      that same coordinate space so the overlay is drawn to scale against
-      the actual body. Adding a new species' art means adding an entry to
-      `SILHOUETTES` following the existing two as a template (legs, a
-      torso ellipse or fill polygon, head/snout, ears, and small
-      species-specific details like antlers or back bristles).
 - [ ] Ethical range recommendation: combine group size (precision), drop,
       wind drift, and retained energy/velocity to suggest a maximum ethical
       range per species/cartridge combination, with clear caveats that this

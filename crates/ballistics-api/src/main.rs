@@ -4,14 +4,20 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use axum::extract::Json;
+use std::sync::Arc;
+
+use axum::extract::{Json, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
-use ballistics_core::{AnimalProfile, DragFunction, Species, TrajectoryPoint, TrajectoryRequest};
+use ballistics_core::{DragFunction, TrajectoryPoint, TrajectoryRequest};
 use serde::Serialize;
 use tower_http::services::ServeDir;
+
+mod species;
+
+use species::AnimalProfile;
 
 /// Upper bound on how long a single trajectory solve may run before the
 /// request is failed. Untrusted input (e.g. a near-zero ballistic
@@ -26,12 +32,27 @@ async fn main() {
         std::env::var("BALLISTICS_STATIC_DIR").unwrap_or_else(|_| "static".to_string());
     warn_if_static_dir_missing(&static_dir);
 
+    // Load the species data up front so a malformed entry fails loudly at
+    // startup rather than surfacing as an empty dropdown at runtime.
+    let animals = match species::load(std::path::Path::new(&static_dir)) {
+        Ok(animals) => {
+            println!("loaded {} game species", animals.len());
+            Arc::new(animals)
+        }
+        Err(problems) => {
+            eprintln!("warning: could not load game species data:\n{problems}");
+            eprintln!("         the app will run, but /api/animals will be empty.");
+            Arc::new(Vec::new())
+        }
+    };
+
     let app = Router::new()
         .route("/health", get(health))
         .route("/api/drag-functions", get(drag_functions))
-        .route("/api/animals", get(animals))
+        .route("/api/animals", get(animals_handler))
         .route("/api/trajectory", post(solve_trajectory))
-        .fallback_service(ServeDir::new(static_dir));
+        .fallback_service(ServeDir::new(static_dir))
+        .with_state(animals);
 
     let addr = resolve_addr();
 
@@ -106,13 +127,12 @@ async fn drag_functions() -> Json<Vec<String>> {
     Json(DragFunction::ALL.iter().map(|f| f.to_string()).collect())
 }
 
-async fn animals() -> Json<Vec<AnimalProfile>> {
-    Json(
-        Species::ALL
-            .iter()
-            .map(|&species| ballistics_core::animals::profile(species))
-            .collect(),
-    )
+async fn animals_handler(
+    State(animals): State<Arc<Vec<AnimalProfile>>>,
+) -> Json<Vec<AnimalProfile>> {
+    // serde only serializes Arc behind its "rc" feature; the list is a
+    // handful of small records, so cloning it is cheaper than the setup.
+    Json(animals.as_ref().clone())
 }
 
 async fn solve_trajectory(

@@ -26,7 +26,7 @@ pub mod trajectory;
 pub mod utils;
 pub mod windage;
 
-pub use animals::{AnimalProfile, HitAssessment, ParseSpeciesError, Species, VitalZone};
+pub use animals::{HitAssessment, VitalZone};
 pub use bdc::calc_bdc;
 pub use drag::{retard, DragFunction, ParseDragFunctionError};
 pub use profile::{Atmosphere, Load, Rifle, Shot, TrajectoryRequest};
