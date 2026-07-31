@@ -18,6 +18,9 @@ const tableMaxInput = document.getElementById("table-max");
 const columnToggles = document.getElementById("column-toggles");
 const expansionVelocityInput = document.getElementById("expansion-velocity");
 const minEnergyInput = document.getElementById("min-energy");
+const aimModeSelect = document.getElementById("aim-mode");
+const groupMoaInput = document.getElementById("group-moa");
+const groupWarning = document.getElementById("group-warning");
 
 let animalsList = [];
 let lastPoints = null;
@@ -28,6 +31,43 @@ const imageCache = new Map();
 // Set by the last render so pointer events can map canvas coordinates back
 // into the artwork's own pixel space.
 let lastTransform = null;
+
+// Where the crosshair sits relative to the vitals centre, in inches, when
+// aiming by hold-over. Deliberately survives a change of range: seeing
+// where one fixed hold lands across a band of ranges is what the mode is
+// for. It resets on a change of species or aim mode.
+let holdOffsetIn = { x: 0, y: 0 };
+
+// A group this wide is poor for a modern hunting rifle, so typing one is
+// more likely a slip than a real measurement - hence the confirmation.
+const IMPLAUSIBLE_GROUP_MOA = 2;
+
+// The group size actually in use, which is not simply what is in the box:
+// an implausible figure is held back until the user confirms it, so a
+// mistyped "30" cannot quietly turn every shot into a miss.
+let confirmedGroupMoa = 0;
+
+function aimMode() {
+  return aimModeSelect.value;
+}
+
+function groupMoa() {
+  return confirmedGroupMoa;
+}
+
+/// The number as typed, normalised. Anything blank, negative or unparseable
+/// means "treat the rifle as perfect", which is the default.
+function typedGroupMoa() {
+  const value = Number(groupMoaInput.value);
+  return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+/// Group diameter in inches at this range. One MOA subtends 1.047 inches
+/// per 100 yards, near enough that the shorthand "one inch at a hundred"
+/// is what most people quote.
+function groupDiameterInches(yards) {
+  return groupMoa() * 1.047 * (yards / 100);
+}
 
 // Opening index.html directly as a file (e.g. double-clicking it) gives the
 // page a "file:" origin, and browsers block fetch() entirely from there —
@@ -178,6 +218,12 @@ function round1(value) {
   return Math.round(value * 10) / 10;
 }
 
+/// One decimal place, but without a trailing ".0" - "3 MOA" reads better
+/// than "3.0 MOA", while "2.5" still needs its half.
+function formatInches(value) {
+  return String(round1(value));
+}
+
 function loadImage(src) {
   if (imageCache.has(src)) return imageCache.get(src);
   const promise = new Promise((resolve) => {
@@ -290,6 +336,11 @@ shotRangeInput.addEventListener("input", () => {
 });
 speciesSelect.addEventListener("change", () => {
   syncScaleControls();
+  // A hold measured against one animal's vitals means nothing against
+  // another's, so it does not carry over. Range changes deliberately *do*
+  // keep it: holding one aim point across a band of ranges and watching
+  // where it lands is the whole point of the mode.
+  holdOffsetIn = { x: 0, y: 0 };
   if (lastPoints) {
     renderAnimalPanel(lastPoints);
   }
@@ -371,6 +422,44 @@ expansionVelocityInput.addEventListener("input", () => {
   if (lastPoints) renderAnimalPanel(lastPoints);
 });
 
+aimModeSelect.addEventListener("change", () => {
+  // Start each hold-over session from the vitals centre, so the crosshair
+  // is somewhere predictable and switching modes is also how you undo a
+  // hold you have dragged into a corner.
+  holdOffsetIn = { x: 0, y: 0 };
+  if (lastPoints) renderAnimalPanel(lastPoints);
+});
+
+/// A group wider than a couple of MOA is worth querying rather than
+/// accepting silently: at that point the drawing would show a dispersion
+/// circle swallowing the whole animal, and the likeliest explanation is a
+/// typo or MOA/inches confusion, not a rifle that actually shoots that
+/// badly. The figure is held back until the user says they meant it.
+function onGroupMoaChanged() {
+  const typed = typedGroupMoa();
+
+  if (typed > IMPLAUSIBLE_GROUP_MOA) {
+    groupWarning.hidden = false;
+    groupWarning.innerHTML = `
+      ${formatInches(typed)} MOA is poor precision for a modern hunting
+      rifle &mdash; about ${formatInches(typed * 1.047 * 3)} in at 300 yd.
+      <button type="button" class="link-button" id="group-confirm">Use ${formatInches(typed)} MOA anyway</button>`;
+    groupWarning.querySelector("#group-confirm").addEventListener("click", () => {
+      confirmedGroupMoa = typed;
+      groupWarning.textContent = `Using ${formatInches(typed)} MOA.`;
+      if (lastPoints) renderAnimalPanel(lastPoints);
+    });
+    return;
+  }
+
+  groupWarning.hidden = true;
+  groupWarning.textContent = "";
+  confirmedGroupMoa = typed;
+  if (lastPoints) renderAnimalPanel(lastPoints);
+}
+
+groupMoaInput.addEventListener("input", onGroupMoaChanged);
+
 // Dragging the vital zone is calibration against the drawing, not a
 // preference: the anchor is positioned by eye per species, and only the
 // person looking at the illustration can say where it actually belongs.
@@ -392,7 +481,24 @@ function withinVitals(point) {
   );
 }
 
-let dragging = false;
+function withinCrosshair(point) {
+  // Only a hold-over crosshair is movable. In the other modes it is pinned
+  // to the vitals centre by definition, and dragging it would also fight
+  // the vital-zone drag underneath it.
+  if (aimMode() !== "holdover" || !lastTransform?.crosshairPx) return false;
+  const [cx, cy] = lastTransform.crosshairPx;
+  return Math.hypot(point.x - cx, point.y - cy) <= 14;
+}
+
+/// Which handle the pointer has hold of, or null. The crosshair wins ties
+/// because it sits on top and is the smaller target.
+function grabTarget(point) {
+  if (withinCrosshair(point)) return "hold";
+  if (withinVitals(point)) return "vitals";
+  return null;
+}
+
+let dragging = null;
 
 function moveAnchorTo(point) {
   const profile = currentProfile();
@@ -409,26 +515,44 @@ function moveAnchorTo(point) {
   if (lastPoints) renderAnimalPanel(lastPoints);
 }
 
+/// Moves the hold-over crosshair, in inches relative to the vitals centre.
+/// Canvas y grows downward while a positive bullet path is above the line
+/// of sight, so holding high is a *negative* canvas offset.
+function moveHoldTo(point) {
+  if (!lastTransform) return;
+  const { offsetX, offsetY, fit, centreX, centreY, inPerPx } = lastTransform;
+  holdOffsetIn = {
+    x: ((point.x - offsetX) / fit - centreX) * inPerPx,
+    y: -((point.y - offsetY) / fit - centreY) * inPerPx,
+  };
+  if (lastPoints) renderAnimalPanel(lastPoints);
+}
+
 vitalsCanvas.addEventListener("pointerdown", (event) => {
-  const point = canvasPoint(event);
-  if (!withinVitals(point)) return;
-  dragging = true;
+  const target = grabTarget(canvasPoint(event));
+  if (!target) return;
+  dragging = target;
   vitalsCanvas.setPointerCapture(event.pointerId);
   event.preventDefault();
 });
 
 vitalsCanvas.addEventListener("pointermove", (event) => {
+  const point = canvasPoint(event);
   if (!dragging) {
-    vitalsCanvas.style.cursor = withinVitals(canvasPoint(event)) ? "grab" : "default";
+    vitalsCanvas.style.cursor = grabTarget(point) ? "grab" : "default";
     return;
   }
   vitalsCanvas.style.cursor = "grabbing";
-  moveAnchorTo(canvasPoint(event));
+  if (dragging === "hold") {
+    moveHoldTo(point);
+  } else {
+    moveAnchorTo(point);
+  }
 });
 
 function endDrag(event) {
   if (!dragging) return;
-  dragging = false;
+  dragging = null;
   vitalsCanvas.style.cursor = "grab";
   if (vitalsCanvas.hasPointerCapture?.(event.pointerId)) {
     vitalsCanvas.releasePointerCapture(event.pointerId);
@@ -622,11 +746,11 @@ async function renderAnimalPanel(points) {
   // info panel, just without a silhouette behind them.
   const image = profile.image ? await loadImage(profile.image) : null;
 
-  const hit = renderVitalsOverlay(profile, point.path_inches, point.windage_in, image);
-  renderAnimalInfo(profile, hit, point);
+  const assessment = renderVitalsOverlay(profile, point, image);
+  renderAnimalInfo(profile, assessment, point);
 }
 
-function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
+function renderVitalsOverlay(profile, point, image) {
   const ctx = vitalsCanvas.getContext("2d");
   const width = vitalsCanvas.width;
   const height = vitalsCanvas.height;
@@ -635,28 +759,33 @@ function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
   const vitals = effectiveVitals(profile);
   const anchor = effectiveAnchor(profile);
   const inPerPx = inchesPerPixel(profile);
+  const { aim, impact } = shotGeometry(point);
+  const groupRadiusIn = groupDiameterInches(point.yards) / 2;
 
-  // Everything is laid out in artwork-pixel space first, then fitted into
-  // the canvas as a single transform at the end.
   const artW = profile.image_width_px ?? 400;
   const artH = profile.image_height_px ?? 300;
-  const aimX = anchor.x * artW;
-  const aimY = anchor.y * artH;
+  const centreX = anchor.x * artW;
+  const centreY = anchor.y * artH;
 
-  // Impact offset, converted from real inches into artwork pixels.
-  // path_inches is positive above the line of sight and canvas y grows
-  // downward, hence the negation; windage_in is positive to the shooter's
-  // right, matching x growing toward the animal's head (drawn facing right).
-  const impactX = aimX + horizontalMissIn / inPerPx;
-  const impactY = aimY - verticalMissIn / inPerPx;
+  // Artwork pixels per inch, so real dimensions can be laid out against
+  // the drawing. Canvas y grows downward while a positive bullet path is
+  // above the line of sight, hence the negation on every y offset.
+  const toArtX = (inches) => centreX + inches / inPerPx;
+  const toArtY = (inches) => centreY - inches / inPerPx;
 
-  // Fit the artwork *and* the impact marker, so a long-range shot that
-  // lands well off the animal stays visible instead of being clipped.
+  const aimX = toArtX(aim.x);
+  const aimY = toArtY(aim.y);
+  const impactX = toArtX(impact.x);
+  const impactY = toArtY(impact.y);
+  const groupRadiusArt = groupRadiusIn / inPerPx;
+
+  // Fit the artwork, the impact and the whole group circle, so nothing
+  // that matters gets clipped at long range.
   const pad = 26;
-  const minX = Math.min(0, impactX);
-  const maxX = Math.max(artW, impactX);
-  const minY = Math.min(0, impactY);
-  const maxY = Math.max(artH, impactY);
+  const minX = Math.min(0, impactX - groupRadiusArt, aimX);
+  const maxX = Math.max(artW, impactX + groupRadiusArt, aimX);
+  const minY = Math.min(0, impactY - groupRadiusArt, aimY);
+  const maxY = Math.max(artH, impactY + groupRadiusArt, aimY);
   const fit = Math.min(
     (width - pad * 2) / (maxX - minX),
     (height - pad * 2) / (maxY - minY)
@@ -664,7 +793,21 @@ function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
   const offsetX = pad + (width - pad * 2 - (maxX - minX) * fit) / 2 - minX * fit;
   const offsetY = pad + (height - pad * 2 - (maxY - minY) * fit) / 2 - minY * fit;
   const toPx = (x, y) => [offsetX + x * fit, offsetY + y * fit];
-  lastTransform = { offsetX, offsetY, fit, artW, artH, halfW: null, halfH: null };
+
+  lastTransform = {
+    offsetX,
+    offsetY,
+    fit,
+    artW,
+    artH,
+    inPerPx,
+    centreX,
+    centreY,
+    halfW: (vitals.width_in / 2 / inPerPx) * fit,
+    halfH: (vitals.height_in / 2 / inPerPx) * fit,
+    aimPx: toPx(centreX, centreY),
+    crosshairPx: toPx(aimX, aimY),
+  };
 
   const style = getComputedStyle(document.documentElement);
   const inkColor = style.getPropertyValue("--silhouette").trim() || "#9aa0aa";
@@ -674,41 +817,57 @@ function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
     drawTinted(ctx, image, toPx(0, 0), artW * fit, artH * fit, inkColor);
   }
 
-  // Vital zone, sized from real inches through the same scale.
-  const [aimPxX, aimPxY] = toPx(aimX, aimY);
-  const halfW = (vitals.width_in / 2 / inPerPx) * fit;
-  const halfH = (vitals.height_in / 2 / inPerPx) * fit;
-  lastTransform.halfW = halfW;
-  lastTransform.halfH = halfH;
-  lastTransform.aimPx = toPx(aimX, aimY);
-
+  // Vital zone.
+  const [vitalsPxX, vitalsPxY] = toPx(centreX, centreY);
   ctx.beginPath();
-  ctx.ellipse(aimPxX, aimPxY, halfW, halfH, 0, 0, Math.PI * 2);
+  ctx.ellipse(
+    vitalsPxX,
+    vitalsPxY,
+    (vitals.width_in / 2 / inPerPx) * fit,
+    (vitals.height_in / 2 / inPerPx) * fit,
+    0,
+    0,
+    Math.PI * 2
+  );
   ctx.fillStyle = "#16a34a33";
   ctx.fill();
   ctx.strokeStyle = "#16a34a";
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Point of aim.
-  ctx.beginPath();
-  ctx.moveTo(aimPxX - 7, aimPxY);
-  ctx.lineTo(aimPxX + 7, aimPxY);
-  ctx.moveTo(aimPxX, aimPxY - 7);
-  ctx.lineTo(aimPxX, aimPxY + 7);
+  const assessment = assessShot(vitals, impact, groupRadiusIn);
+  const [impactPxX, impactPxY] = toPx(impactX, impactY);
+  const [crossPxX, crossPxY] = toPx(aimX, aimY);
+
+  // Group dispersion: where the shot could land, not where it will.
+  if (groupRadiusArt > 0) {
+    ctx.beginPath();
+    ctx.arc(impactPxX, impactPxY, groupRadiusArt * fit, 0, Math.PI * 2);
+    ctx.fillStyle = "#f59e0b26";
+    ctx.fill();
+    ctx.strokeStyle = "#f59e0b";
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Crosshair, at the hold point rather than the vitals centre.
   ctx.strokeStyle = textColor;
-  ctx.lineWidth = 1;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(crossPxX - 9, crossPxY);
+  ctx.lineTo(crossPxX + 9, crossPxY);
+  ctx.moveTo(crossPxX, crossPxY - 9);
+  ctx.lineTo(crossPxX, crossPxY + 9);
   ctx.stroke();
 
-  const assessment = assessHit(vitals, verticalMissIn, horizontalMissIn);
-  const [impactPxX, impactPxY] = toPx(impactX, impactY);
-
-  // Connect aim to impact when they are far enough apart to read.
-  if (Math.hypot(impactPxX - aimPxX, impactPxY - aimPxY) > 14) {
+  // Line from hold to impact, when they are far enough apart to read.
+  if (Math.hypot(impactPxX - crossPxX, impactPxY - crossPxY) > 14) {
     ctx.beginPath();
-    ctx.moveTo(aimPxX, aimPxY);
+    ctx.moveTo(crossPxX, crossPxY);
     ctx.lineTo(impactPxX, impactPxY);
-    ctx.strokeStyle = assessment.isVitalsHit ? "#16a34a88" : "#dc262688";
+    ctx.strokeStyle = assessment.verdict === "hit" ? "#16a34a88" : "#dc262688";
     ctx.setLineDash([3, 3]);
     ctx.lineWidth = 1.5;
     ctx.stroke();
@@ -716,27 +875,60 @@ function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
   }
 
   ctx.beginPath();
-  ctx.arc(impactPxX, impactPxY, 6, 0, Math.PI * 2);
-  ctx.fillStyle = assessment.isVitalsHit ? "#16a34a" : "#dc2626";
+  ctx.arc(impactPxX, impactPxY, 5, 0, Math.PI * 2);
+  ctx.fillStyle = VERDICT_COLOURS[assessment.verdict];
   ctx.fill();
   ctx.strokeStyle = "#ffffffaa";
   ctx.lineWidth = 1.5;
   ctx.stroke();
 
-  // Scale bar: one foot, so the drawn size is checkable at a glance.
   drawScaleBar(ctx, width, height, fit / inPerPx, textColor);
 
   return assessment;
 }
 
-/// Mirrors ballistics_core::VitalZone::assess on the client so the overlay
-/// and the badge cannot disagree.
-function assessHit(vitals, verticalMissIn, horizontalMissIn) {
-  const distance = Math.hypot(
-    horizontalMissIn / (vitals.width_in / 2),
-    verticalMissIn / (vitals.height_in / 2)
-  );
-  return { isVitalsHit: distance <= 1, distance };
+const VERDICT_COLOURS = {
+  hit: "#16a34a",
+  marginal: "#f59e0b",
+  miss: "#dc2626",
+};
+
+/// Assesses the shot as a group rather than a point.
+///
+/// A perfect rifle either hits the vitals or does not. A real one throws a
+/// group, so what matters is whether the *whole* group stays inside: a
+/// centre hit with half the group hanging outside is a wounding risk, not
+/// a clean shot. The group is sampled around its rim because the vitals
+/// are an ellipse, where "how far to the edge" depends on direction.
+function assessShot(vitals, impact, groupRadiusIn) {
+  const halfWidth = vitals.width_in / 2;
+  const halfHeight = vitals.height_in / 2;
+  const inside = (x, y) => (x / halfWidth) ** 2 + (y / halfHeight) ** 2 <= 1;
+
+  const centreInside = inside(impact.x, impact.y);
+  if (groupRadiusIn <= 0) {
+    return {
+      verdict: centreInside ? "hit" : "miss",
+      centreInside,
+      groupFullyInside: centreInside,
+    };
+  }
+
+  let allInside = true;
+  let anyInside = false;
+  const samples = 24;
+  for (let i = 0; i < samples; i++) {
+    const angle = (i / samples) * Math.PI * 2;
+    const ok = inside(
+      impact.x + Math.cos(angle) * groupRadiusIn,
+      impact.y + Math.sin(angle) * groupRadiusIn
+    );
+    allInside = allInside && ok;
+    anyInside = anyInside || ok;
+  }
+
+  const verdict = allInside ? "hit" : centreInside || anyInside ? "marginal" : "miss";
+  return { verdict, centreInside, groupFullyInside: allInside };
 }
 
 /// Draws the silhouette recoloured to `color`. The prepared artwork is a
@@ -775,6 +967,31 @@ function drawScaleBar(ctx, width, height, pxPerInch, textColor) {
   ctx.fillText("1 ft", x + barPx + 6, y + 4);
 }
 
+/// Where the crosshair is held and where the bullet lands, both as offsets
+/// in inches from the vitals centre.
+///
+/// Dead-on hold shows the raw drop, which is what makes the compensation
+/// obvious. Dialled elevation removes the drop entirely - wind is left
+/// alone, because dialling elevation and holding for wind is what most
+/// people actually do. Hold-over puts the crosshair wherever the user has
+/// dragged it and lets the bullet fall from there.
+function shotGeometry(point) {
+  const drift = point.windage_in;
+  const drop = point.path_inches;
+
+  switch (aimMode()) {
+    case "dialled":
+      return { aim: { x: 0, y: 0 }, impact: { x: drift, y: 0 } };
+    case "holdover":
+      return {
+        aim: { ...holdOffsetIn },
+        impact: { x: holdOffsetIn.x + drift, y: holdOffsetIn.y + drop },
+      };
+    default:
+      return { aim: { x: 0, y: 0 }, impact: { x: drift, y: drop } };
+  }
+}
+
 /// Judges whether the round still performs at this range, separately from
 /// whether it lands in the vitals. Both have to hold for an ethical shot,
 /// and terminal performance is usually the binding constraint first -
@@ -790,34 +1007,101 @@ function assessTerminal(profile, point) {
   return { minEnergy, expansionFloor, energyOk, expansionOk };
 }
 
-/// Furthest range at which the round still meets both thresholds.
+/// Whether the whole group would stay inside the vitals if it were centred
+/// on them. This is precision alone, with aim error taken out of it - the
+/// range beyond which even a perfectly-placed shot can no longer be relied
+/// on to land where it was aimed.
+function groupFitsVitals(vitals, yards) {
+  const radius = groupDiameterInches(yards) / 2;
+  return radius <= Math.min(vitals.width_in, vitals.height_in) / 2;
+}
+
+/// Furthest range at which the round still meets every threshold: enough
+/// retained energy, enough velocity to expand, and a group still small
+/// enough to fit the vitals.
 ///
 /// Deliberately ignores drop and drift: those are dialled or held off for,
-/// so they do not cap the range the way terminal performance does. Returns
-/// null when the shot fails the thresholds even at the muzzle.
+/// so they do not cap the range the way terminal performance and precision
+/// do. Returns null when the shot fails even at the muzzle.
 function maxEthicalRange(profile, points) {
   const { minEnergy, expansionFloor } = assessTerminal(profile, points[0]);
+  const vitals = effectiveVitals(profile);
   let furthest = null;
   for (const point of points) {
     const energyOk = minEnergy == null || point.energy_ft_lb >= minEnergy;
     const expansionOk = !(expansionFloor > 0) || point.velocity_fps >= expansionFloor;
-    if (!energyOk || !expansionOk) break;
+    if (!energyOk || !expansionOk || !groupFitsVitals(vitals, point.yards)) break;
     furthest = point.yards;
   }
   return furthest;
 }
 
-function renderAnimalInfo(profile, hit, point) {
+/// Describes an aim offset the way a hunter would say it out loud, in both
+/// inches on the animal and the MOA they would actually dial or hold.
+function describeHold(offset, yards) {
+  const perMoa = 1.047 * (yards / 100);
+  const inMoa = (inches) => (perMoa > 0 ? ` (${formatInches(Math.abs(inches) / perMoa)} MOA)` : "");
+
+  const parts = [];
+  if (Math.abs(offset.y) >= 0.1) {
+    parts.push(
+      `${formatInches(Math.abs(offset.y))} in ${offset.y > 0 ? "high" : "low"}${inMoa(offset.y)}`
+    );
+  }
+  if (Math.abs(offset.x) >= 0.1) {
+    parts.push(
+      `${formatInches(Math.abs(offset.x))} in ${offset.x > 0 ? "right" : "left"}${inMoa(offset.x)}`
+    );
+  }
+  return parts.length ? parts.join(", ") : "dead on";
+}
+
+function renderAnimalInfo(profile, assessment, point) {
   const terminal = assessTerminal(profile, point);
   const furthest = maxEthicalRange(profile, lastPoints ?? [point]);
+  const vitals = effectiveVitals(profile);
+  const terminalOk = terminal.energyOk && terminal.expansionOk;
 
-  const ethical = hit.isVitalsHit && terminal.energyOk && terminal.expansionOk;
-  const badgeClass = ethical ? "hit" : "miss";
-  const badgeText = ethical
-    ? "Vitals hit, round still performing"
-    : !hit.isVitalsHit
-      ? "Impact outside the vitals - reconsider this shot"
-      : "In the vitals, but the round is past its limits";
+  // Placement is judged first: a round that still performs is no help if
+  // the shot is not in the vitals to begin with.
+  let badgeClass = "hit";
+  let badgeText = "Vitals hit, round still performing";
+  if (assessment.verdict === "miss") {
+    badgeClass = "miss";
+    badgeText = "Impact outside the vitals - reconsider this shot";
+  } else if (!terminalOk) {
+    badgeClass = "miss";
+    badgeText = "In the vitals, but the round is past its limits";
+  } else if (assessment.verdict === "marginal") {
+    badgeClass = "marginal";
+    badgeText = "Group overlaps the edge of the vitals";
+  }
+
+  const groupRow =
+    groupMoa() > 0
+      ? `
+      <dt>Group here</dt>
+      <dd class="${assessment.groupFullyInside ? "ok" : "bad"}">
+        ${formatInches(groupDiameterInches(point.yards))} in across
+        (${formatInches(groupMoa())} MOA) vs a
+        ${formatInches(vitals.width_in)}&times;${formatInches(vitals.height_in)} in vital zone
+      </dd>`
+      : "";
+
+  // Dialled elevation answers the hold question by definition, so the row
+  // would only be noise there.
+  const holdRows =
+    aimMode() === "dialled"
+      ? ""
+      : `
+      <dt>Hold needed</dt>
+      <dd>${describeHold({ x: -point.windage_in, y: -point.path_inches }, point.yards)}</dd>${
+        aimMode() === "holdover"
+          ? `
+      <dt>Hold set</dt>
+      <dd>${describeHold(holdOffsetIn, point.yards)}</dd>`
+          : ""
+      }`;
 
   const terminalRows = `
       <dt>Energy here</dt>
@@ -840,7 +1124,7 @@ function renderAnimalInfo(profile, hit, point) {
       <dd>${
         furthest == null
           ? "under this range even at the muzzle"
-          : `about ${furthest} yd for this load and species`
+          : `about ${furthest} yd for this load, rifle and species`
       }</dd>`;
 
   animalInfo.innerHTML = `
@@ -853,6 +1137,8 @@ function renderAnimalInfo(profile, hit, point) {
       <dd>${formatRange(profile.female.shoulder_height_in)} in shoulder height, ${formatRange(profile.female.weight_lb)} lb</dd>
       <dt>Vitals</dt>
       <dd>~${profile.vitals.width_in}in x ${profile.vitals.height_in}in behind the shoulder</dd>
+      ${holdRows}
+      ${groupRow}
       ${terminalRows}
       <dt>Habitat</dt>
       <dd>${profile.habitat}</dd>

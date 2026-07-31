@@ -241,9 +241,38 @@ canvas#vitals-canvas {
   color: #16a34a;
 }
 
+.hit-badge.marginal {
+  background: #f59e0b22;
+  color: #b45309;
+}
+
 .hit-badge.miss {
   background: var(--error-bg);
   color: var(--error-text);
+}
+
+.inline-warning {
+  margin: -0.3rem 0 0;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: #f59e0b22;
+  color: #b45309;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.inline-warning .link-button {
+  display: block;
+  margin-top: 0.3rem;
+  color: inherit;
+  font-weight: 600;
+}
+
+@media (prefers-color-scheme: dark) {
+  .hit-badge.marginal,
+  .inline-warning {
+    color: #fbbf24;
+  }
 }
 
 .animal-info dl {

@@ -156,10 +156,32 @@ Phase 2:
 - [x] **Configurable table columns**, persisted, so the table can be cut
       down to what fits a phone screen. Drop, path, wind drift, MOA,
       velocity, energy and time of flight are all optional.
-- [ ] Fold precision into the recommendation: group size at range is the
-      third constraint alongside energy and expansion, and is what would
-      make the number a genuine confidence interval rather than a
-      terminal-performance limit.
+- [x] **How elevation is dealt with is a choice, not an assumption.**
+      Dead-on hold shows the raw drop, which is what makes the size of the
+      problem obvious. Dialled elevation puts the impact back on the aim
+      point regardless of range, matching an exposed-turret scope. Hold-over
+      puts a crosshair on the drawing that the user drags, so the question
+      "how much do I hold at 250 with no time to dial?" is answered by
+      looking rather than by arithmetic - and the hold is kept across range
+      changes, since holding one aim point over a band of ranges is the
+      whole point. The panel also states the hold actually needed, in
+      inches on the animal and in MOA.
+
+      Wind is deliberately never dialled away: dialling elevation and
+      holding for wind is what most people actually do in the field.
+- [x] **Precision folded into the recommendation.** Group size is entered
+      in MOA (default 0, i.e. treat the rifle as perfect) and drawn as a
+      dispersion circle around the impact, so the shot is judged as a group
+      rather than a point: a centre hit with half the group hanging outside
+      the vitals is a wounding risk, not a clean shot, and now reads as
+      "marginal" rather than "hit". Max ethical range is capped by the
+      range at which the group still fits the vitals, alongside energy and
+      expansion velocity.
+
+      Anything over 2 MOA is held back until the user confirms it. At that
+      width the circle swallows the animal, and the likeliest explanation
+      is a typo or MOA/inch confusion rather than a rifle that really does
+      shoot that badly.
 - [ ] Quartering-angle silhouettes (not just broadside) — several fun
       facts already flag that shot placement differs a lot by angle
       (e.g. wild hog's shoulder "shield" mostly matters broadside).
