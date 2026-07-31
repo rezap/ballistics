@@ -56,3 +56,20 @@ Then open <http://localhost:3000> in a browser. Endpoints:
 Configuration is via environment variables: `BALLISTICS_API_ADDR` (default
 `0.0.0.0:3000`) and `BALLISTICS_STATIC_DIR` (default `static`, relative to
 the working directory the binary is run from).
+
+### Windows
+
+[`scripts/run.ps1`](./scripts/run.ps1) runs `cargo test --workspace` and,
+only if every test passes, starts `ballistics-api` on
+<http://localhost:3000>:
+
+```powershell
+.\scripts\run.ps1
+```
+
+If PowerShell blocks it with a "running scripts is disabled" error, run it
+once via:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\run.ps1
+```
