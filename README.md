@@ -44,8 +44,18 @@ cargo run -p ballistics-cli
 ## Running the web app
 
 ```sh
-cargo run -p ballistics-api
+cd crates/ballistics-api
+cargo run
 ```
+
+`ballistics-api` looks for its frontend in a `static` folder *relative to
+whatever directory you launch it from* — running `cargo run -p ballistics-api`
+from the repo root instead (rather than from inside `crates/ballistics-api`)
+won't find it, and the browser UI will 404 while the API endpoints keep
+working fine. If that happens, the server prints a warning to the terminal
+explaining exactly this and how to fix it (`scripts/run.ps1` on Windows
+already sets this up correctly, or set `BALLISTICS_STATIC_DIR` to the
+absolute path of `crates/ballistics-api/static`).
 
 Then, **in your browser's address bar, go to <http://localhost:3000>.**
 Don't open `crates/ballistics-api/static/index.html` directly (e.g. by
