@@ -92,6 +92,20 @@
         </label>
       </fieldset>
 
+      <fieldset>
+        <legend>Target animal</legend>
+        <label>
+          Species
+          <select name="species" id="species-select">
+            <option value="">Loading species...</option>
+          </select>
+        </label>
+        <label>
+          Shot range (yd)
+          <input type="number" name="shot_range" id="shot-range" step="1" min="1" max="1000" value="100" required />
+        </label>
+      </fieldset>
+
       <button type="submit">Calculate trajectory</button>
     </form>
 
@@ -111,6 +125,12 @@
           </thead>
           <tbody></tbody>
         </table>
+      </div>
+
+      <h2>Shot vs. vitals</h2>
+      <div class="animal-panel">
+        <canvas id="vitals-canvas" width="360" height="360" aria-label="Point of impact vs. vital zone" role="img"></canvas>
+        <div id="animal-info" class="animal-info"></div>
       </div>
     </section>
 

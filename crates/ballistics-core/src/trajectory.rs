@@ -25,6 +25,13 @@ pub struct TrajectoryPoint {
     pub path_inches: f64,
     /// Time of flight to this range, in seconds.
     pub seconds: f64,
+    /// Horizontal wind drift, in inches (positive is toward the shooter's
+    /// right when `wind_angle` is between 0 and 180 degrees). Computed from
+    /// `windage.py`'s deflection formula, which upstream pyBallistics
+    /// defines but never actually calls from `solve()` — only the
+    /// along-track headwind/tailwind component (which affects drag) was
+    /// wired in, not the crosswind deflection itself.
+    pub windage_in: f64,
 }
 
 /// Looks up the trajectory point computed for an exact range in yards.
@@ -74,6 +81,7 @@ pub fn solve(
     wind_angle: f64,
 ) -> Vec<TrajectoryPoint> {
     let hwind = windage::headwind(wind_speed, wind_angle);
+    let xwind = windage::crosswind(wind_speed, wind_angle);
 
     let gy = GRAVITY * deg_to_rad(shooting_angle + zero_angle).cos();
     let gx = GRAVITY * deg_to_rad(shooting_angle + zero_angle).sin();
@@ -111,12 +119,14 @@ pub fn solve(
                 let path_inches = y * 12.0;
                 let impact_in = moa_to_inch(moa_correction, x);
                 let seconds = t + dt;
+                let windage_in = windage::windage(xwind, vi, x, seconds);
                 points.push(TrajectoryPoint {
                     yards: range_yards,
                     moa_correction,
                     impact_in,
                     path_inches,
                     seconds,
+                    windage_in,
                 });
             }
             n += 1;
@@ -176,5 +186,43 @@ mod tests {
                 previous_seconds = point.seconds;
             }
         }
+    }
+
+    #[test]
+    fn windage_is_zero_for_a_pure_headwind() {
+        let bc = 0.4;
+        let vi = 2800.0;
+        let zero_angle = crate::angles::zero_angle(DragFunction::G1, bc, vi, 1.5, 100.0, 0.0);
+        // wind_angle 0 = pure headwind, no crosswind component.
+        let points = solve(DragFunction::G1, bc, vi, 1.5, 0.0, zero_angle, 10.0, 0.0);
+        for point in &points {
+            assert!(
+                point.windage_in.abs() < 1e-9,
+                "expected ~0 windage with a pure headwind, got {} at {} yards",
+                point.windage_in,
+                point.yards
+            );
+        }
+    }
+
+    #[test]
+    fn windage_grows_with_range_for_a_crosswind() {
+        let bc = 0.4;
+        let vi = 2800.0;
+        let zero_angle = crate::angles::zero_angle(DragFunction::G1, bc, vi, 1.5, 100.0, 0.0);
+        // wind_angle 90 = full crosswind, from the shooter's right.
+        let points = solve(DragFunction::G1, bc, vi, 1.5, 0.0, zero_angle, 10.0, 90.0);
+
+        let at_100 = point_at_range(&points, 100).unwrap();
+        let at_400 = point_at_range(&points, 400).unwrap();
+
+        assert!(at_100.windage_in.is_finite());
+        assert!(at_400.windage_in.is_finite());
+        assert!(
+            at_400.windage_in.abs() > at_100.windage_in.abs(),
+            "windage should grow with range: {} at 100yd vs {} at 400yd",
+            at_100.windage_in,
+            at_400.windage_in
+        );
     }
 }

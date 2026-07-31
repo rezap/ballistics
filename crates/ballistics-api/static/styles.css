@@ -187,3 +187,94 @@ tbody tr:last-child td {
   color: var(--error-text);
   border-radius: 8px;
 }
+
+.animal-panel {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+canvas#vitals-canvas {
+  width: 320px;
+  height: 320px;
+  flex: 0 0 auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+
+.animal-info {
+  flex: 1 1 260px;
+  min-width: 260px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.animal-info h3 {
+  margin: 0 0 0.15rem;
+  font-size: 1.1rem;
+}
+
+.animal-info .scientific-name {
+  font-style: italic;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.hit-badge {
+  display: inline-block;
+  margin: 0.6rem 0;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.hit-badge.hit {
+  background: #16a34a22;
+  color: #16a34a;
+}
+
+.hit-badge.miss {
+  background: var(--error-bg);
+  color: var(--error-text);
+}
+
+.animal-info dl {
+  margin: 0.5rem 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+}
+
+.animal-info dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.animal-info dd {
+  margin: 0;
+}
+
+.animal-info h4 {
+  margin: 0.9rem 0 0.3rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+.animal-info ul {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+}
+
+.animal-info li {
+  margin-bottom: 0.3rem;
+}

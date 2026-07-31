@@ -73,20 +73,66 @@ Phase 2:
       Leptos/WASM or server-rendered+htmx alternative (revisit if the UI
       outgrows vanilla JS).
 - [ ] Persist common rifle/load presets (SQLite via `sqlx` or similar).
-- [ ] Deployment: containerize `ballistics-api` + static frontend assets.
+- [x] Deployment: containerize `ballistics-api` + static frontend assets.
+      A multi-stage `Dockerfile` builds the release binary and packages it
+      with its `static/` assets; `render.yaml` and `railway.json` let
+      Render or Railway build and deploy it directly from the GitHub repo
+      with no manual configuration. The server also honors a bare `PORT`
+      env var (falling back to it when `BALLISTICS_API_ADDR` isn't set),
+      matching the convention most PaaS providers use. Live at
+      `ballistics-production-2c51.up.railway.app`.
 
 ## Phase 3 — Ethical hunting shot assistant
 
-- [ ] Game animal database: species, vital (kill) zone dimensions and
-      typical broadside/quartering silhouette, by species (e.g. whitetail
-      deer, elk, hogs, etc.).
-- [ ] Given a rifle/load and a range + wind, compute point of impact
-      relative to point of aim and overlay it on the animal's vital zone to
-      flag hits likely to be non-lethal or wounding.
+- [x] **Game animal database** (`ballistics-core::animals`): per-species
+      vital (heart/lung) zone dimensions (modeled as a width x height
+      ellipse, broadside), male/female shoulder height and weight ranges,
+      habitat, diet, and fun facts, compiled from hunting and wildlife-
+      biology sources (cited in `animals.rs` doc comments). Exposed via
+      `GET /api/animals`. Two species fully implemented so far, to prove
+      the data model and pipeline scale before filling in the rest:
+      - [x] Whitetail deer (*Odocoileus virginianus*)
+      - [x] Wild hog (*Sus scrofa*)
+      - [ ] Roe deer
+      - [ ] Red deer (stag)
+      - [ ] Fallow deer
+      - [ ] Elk (wapiti)
+      - [ ] American moose
+      - [ ] European moose (elk)
+      - [ ] Fox
+      - [ ] Hare
+
+      To add one: add a `Species` enum variant, a `match` arm in
+      `animals::profile()` following the existing two as a template
+      (web-search shoulder height/weight/vitals/habitat/diet/fun-facts
+      and cite sources in a doc comment above the arm, the same way), and
+      add it to `Species::ALL`. No frontend changes needed — the species
+      dropdown, vitals overlay, and info panel are all data-driven.
+- [x] **Fixed a real engine gap needed for this**: `windage.py`'s
+      crosswind deflection formula was ported to Rust in Phase 1
+      (`windage::windage()`) but never actually wired into `solve()` —
+      only the along-track headwind/tailwind component (which affects
+      drag) was used. `TrajectoryPoint` now also carries `windage_in`
+      (horizontal drift, inches), computed per point, which is what makes
+      a horizontal miss distance available for the vitals assessment
+      below.
+- [x] Given a rifle/load and a shot range, compute point of impact
+      relative to point of aim (vertical: `path_inches`; horizontal:
+      `windage_in`) and assess it against the selected species' vital
+      zone, modeled as an ellipse centered on point of aim
+      (`VitalZone::assess`, tested for center/edge/outside cases). The
+      frontend renders this as a canvas overlay (vitals ellipse + a
+      green/red impact marker) plus an info panel (sizes, habitat, diet,
+      fun facts), and both update live from the already-fetched
+      trajectory when the species or shot range changes — no extra
+      network round-trip.
 - [ ] Ethical range recommendation: combine group size (precision), drop,
       wind drift, and retained energy/velocity to suggest a maximum ethical
       range per species/cartridge combination, with clear caveats that this
       is decision support, not a guarantee.
+- [ ] Quartering-angle silhouettes (not just broadside) — several fun
+      facts already flag that shot placement differs a lot by angle
+      (e.g. wild hog's shoulder "shield" mostly matters broadside).
 - [ ] Polish UI/UX for use in the field (mobile-friendly, offline-capable).
 
 ## Non-goals (for now)
