@@ -7,3 +7,4 @@ repository.workspace = true
 description = "Point-mass exterior ballistics solver (bullet drop, wind drift, zero angle) ported from pyBallistics/GNU Ballistics"
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }

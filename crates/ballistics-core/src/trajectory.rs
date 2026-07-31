@@ -11,7 +11,7 @@ use crate::utils::moa_to_inch;
 use crate::windage;
 
 /// One sampled range along a computed trajectory (one row per yard).
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TrajectoryPoint {
     /// Downrange distance, in yards.
     pub yards: i64,

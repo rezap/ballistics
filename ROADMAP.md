@@ -55,13 +55,23 @@ Phase 2:
 
 ## Phase 2 — Web application
 
-- [ ] `ballistics-api`: Axum-based HTTP API wrapping `ballistics-core` —
-      endpoints for trajectory tables, wind drift at range, and energy /
-      velocity retention.
-- [ ] `ballistics-web`: browser front end (server-rendered + a small amount
-      of client JS/charting, or a Rust/WASM UI — to be decided) consuming
-      the API. Inputs: rifle/load/zero/atmosphere/wind; outputs: a
-      drop/drift table and a range chart.
+- [x] `ballistics-api`: Axum-based HTTP API wrapping `ballistics-core`.
+      `POST /api/trajectory` takes a JSON `TrajectoryRequest` (load/rifle/
+      atmosphere/shot — atmosphere and shot are optional, defaulting to
+      standard atmosphere and a flat, windless shot) and returns the full
+      per-yard trajectory; `GET /api/drag-functions` lists the supported
+      drag models; `GET /health` is a liveness check. Untrusted input is
+      validated (positive/finite BC, velocity, pressure, humidity in
+      [0,1], bounded zero range/angle/wind) and the solve itself runs in
+      `spawn_blocking` with a 5s timeout, so a request can't hang a worker
+      thread indefinitely.
+- [x] Frontend: a static HTML/CSS/vanilla-JS page (`crates/ballistics-api/static`)
+      served directly by Axum via `tower-http`'s `ServeDir` — a form for
+      rifle/load/atmosphere/shot inputs, a decimated results table, and a
+      hand-drawn `<canvas>` chart of bullet path vs. range. No Node/WASM
+      build step; chosen for fastest path to a working Phase 2 over a
+      Leptos/WASM or server-rendered+htmx alternative (revisit if the UI
+      outgrows vanilla JS).
 - [ ] Persist common rifle/load presets (SQLite via `sqlx` or similar).
 - [ ] Deployment: containerize `ballistics-api` + static frontend assets.
 

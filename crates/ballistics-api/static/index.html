@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ballistics Trajectory Calculator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Ballistics Trajectory Calculator</h1>
+    <p class="subtitle">Bullet drop and wind drift for a given rifle, load, atmosphere and shot.</p>
+  </header>
+
+  <main>
+    <form id="trajectory-form">
+      <fieldset>
+        <legend>Load</legend>
+        <label>
+          Drag function
+          <select name="drag_function">
+            <option value="G1">G1 (flat base)</option>
+            <option value="G7" selected>G7 (boat-tail / VLD)</option>
+            <option value="G2">G2</option>
+            <option value="G3">G3</option>
+            <option value="G5">G5</option>
+            <option value="G6">G6</option>
+            <option value="G8">G8</option>
+          </select>
+        </label>
+        <label>
+          Ballistic coefficient
+          <input type="number" name="ballistic_coefficient" step="0.001" min="0.001" value="0.243" required />
+        </label>
+        <label>
+          Muzzle velocity (ft/s)
+          <input type="number" name="muzzle_velocity" step="1" min="1" max="9999" value="2700" required />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Rifle</legend>
+        <label>
+          Sight height (in)
+          <input type="number" name="sight_height" step="0.1" value="1.7" required />
+        </label>
+        <label>
+          Zero range (yd)
+          <input type="number" name="zero_range" step="1" min="1" max="1000" value="100" required />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Shot</legend>
+        <label>
+          Shooting angle (deg, uphill +/downhill -)
+          <input type="number" name="shooting_angle" step="1" min="-88" max="88" value="0" required />
+        </label>
+        <label>
+          Wind speed (mph)
+          <input type="number" name="wind_speed" step="1" min="0" max="199" value="10" required />
+        </label>
+        <label>
+          Wind angle (deg, 0=head, 90=right-to-left, 180=tail)
+          <input type="number" name="wind_angle" step="1" value="90" required />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Atmosphere</legend>
+        <label>
+          Altitude (ft)
+          <input type="number" name="altitude" step="1" value="0" required />
+        </label>
+        <label>
+          Pressure (in-Hg)
+          <input type="number" name="pressure" step="0.01" min="0.01" value="29.53" required />
+        </label>
+        <label>
+          Temperature (F)
+          <input type="number" name="temperature" step="1" value="59" required />
+        </label>
+        <label>
+          Relative humidity (0-1)
+          <input type="number" name="relative_humidity" step="0.01" min="0" max="1" value="0.78" required />
+        </label>
+      </fieldset>
+
+      <button type="submit">Calculate trajectory</button>
+    </form>
+
+    <section id="results" hidden>
+      <h2>Trajectory</h2>
+      <canvas id="chart" width="900" height="360" aria-label="Bullet path chart" role="img"></canvas>
+      <div class="table-wrap">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th>Yards</th>
+              <th>Path (in)</th>
+              <th>MOA correction</th>
+              <th>Adjustment (in)</th>
+              <th>Time (s)</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <p id="error" class="error" hidden></p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
