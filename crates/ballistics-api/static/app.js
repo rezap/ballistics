@@ -21,6 +21,7 @@ const minEnergyInput = document.getElementById("min-energy");
 const aimModeSelect = document.getElementById("aim-mode");
 const groupMoaInput = document.getElementById("group-moa");
 const groupWarning = document.getElementById("group-warning");
+const solveHoldButton = document.getElementById("solve-hold");
 
 let animalsList = [];
 let lastPoints = null;
@@ -427,7 +428,19 @@ aimModeSelect.addEventListener("change", () => {
   // is somewhere predictable and switching modes is also how you undo a
   // hold you have dragged into a corner.
   holdOffsetIn = { x: 0, y: 0 };
+  solveHoldButton.hidden = aimMode() !== "holdover";
   if (lastPoints) renderAnimalPanel(lastPoints);
+});
+
+// Finding the hold by dragging is fine for exploring, but the exact answer
+// is something the trajectory already knows. Placing the crosshair on it
+// also demonstrates the relationship the drag makes confusing: the hold
+// goes up and left, and the impact lands on the vitals.
+solveHoldButton.addEventListener("click", () => {
+  if (!lastPoints) return;
+  const point = nearestPoint(lastPoints, Number(shotRangeInput.value));
+  holdOffsetIn = { x: -point.windage_in, y: -point.path_inches };
+  renderAnimalPanel(lastPoints);
 });
 
 /// A group wider than a couple of MOA is worth querying rather than
@@ -852,20 +865,44 @@ function renderVitalsOverlay(profile, point, image) {
     ctx.setLineDash([]);
   }
 
-  // Crosshair, at the hold point rather than the vitals centre.
-  ctx.strokeStyle = textColor;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(crossPxX - 9, crossPxY);
-  ctx.lineTo(crossPxX + 9, crossPxY);
-  ctx.moveTo(crossPxX, crossPxY - 9);
-  ctx.lineTo(crossPxX, crossPxY + 9);
-  ctx.stroke();
-
-  // Line from hold to impact, when they are far enough apart to read.
-  if (Math.hypot(impactPxX - crossPxX, impactPxY - crossPxY) > 14) {
+  // Crosshair, at the hold point rather than the vitals centre. Stroked
+  // twice: the silhouette is a mid-grey, so a single grey cross over the
+  // animal's back is close to invisible - exactly where a hold-over mark
+  // usually sits.
+  const crosshair = () => {
     ctx.beginPath();
-    ctx.moveTo(crossPxX, crossPxY);
+    ctx.moveTo(crossPxX - 9, crossPxY);
+    ctx.lineTo(crossPxX + 9, crossPxY);
+    ctx.moveTo(crossPxX, crossPxY - 9);
+    ctx.lineTo(crossPxX, crossPxY + 9);
+    ctx.stroke();
+  };
+  ctx.strokeStyle = style.getPropertyValue("--surface").trim() || "#ffffff";
+  ctx.lineWidth = 4;
+  crosshair();
+  ctx.strokeStyle = style.getPropertyValue("--text").trim() || "#1a1a1a";
+  ctx.lineWidth = 1.5;
+  crosshair();
+
+  // A ring marking what is grabbable, only where the crosshair can be moved.
+  if (aimMode() === "holdover") {
+    ctx.beginPath();
+    ctx.arc(crossPxX, crossPxY, 14, 0, Math.PI * 2);
+    ctx.strokeStyle = `${style.getPropertyValue("--accent").trim() || "#b3441e"}66`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  // The error being nulled: from where the shot should go to where it
+  // actually goes. Drawn from the *vitals centre* rather than from the
+  // crosshair, because that is the gap the user is trying to close - a
+  // line from the crosshair would be the drop, which never changes at a
+  // fixed range no matter where you hold, so nothing on the drawing would
+  // shrink as the hold converged. In dead-on and dialled modes the
+  // crosshair sits on the vitals centre, so this is the same line as before.
+  if (Math.hypot(impactPxX - vitalsPxX, impactPxY - vitalsPxY) > 14) {
+    ctx.beginPath();
+    ctx.moveTo(vitalsPxX, vitalsPxY);
     ctx.lineTo(impactPxX, impactPxY);
     ctx.strokeStyle = assessment.verdict === "hit" ? "#16a34a88" : "#dc262688";
     ctx.setLineDash([3, 3]);
@@ -881,6 +918,17 @@ function renderVitalsOverlay(profile, point, image) {
   ctx.strokeStyle = "#ffffffaa";
   ctx.lineWidth = 1.5;
   ctx.stroke();
+
+  // Both markers move together when the hold is dragged - the bullet falls
+  // from wherever the rifle is pointed - so without labels the pair reads
+  // as one stuck object rather than as an aim point and its consequence.
+  if (aimMode() === "holdover") {
+    ctx.font = "11px sans-serif";
+    ctx.fillStyle = textColor;
+    ctx.fillText("hold", crossPxX + 18, crossPxY + 4);
+    ctx.fillStyle = VERDICT_COLOURS[assessment.verdict];
+    ctx.fillText("impact", impactPxX + 9, impactPxY + 16);
+  }
 
   drawScaleBar(ctx, width, height, fit / inPerPx, textColor);
 

@@ -165,7 +165,15 @@ Phase 2:
       looking rather than by arithmetic - and the hold is kept across range
       changes, since holding one aim point over a band of ranges is the
       whole point. The panel also states the hold actually needed, in
-      inches on the animal and in MOA.
+      inches on the animal and in MOA, and a button places the crosshair
+      on it directly.
+
+      The crosshair and the impact marker necessarily move together - the
+      bullet falls from wherever the rifle is pointed - which read as one
+      stuck object until the drawing said which was which. Both are now
+      labelled, and the dashed line runs from the *vitals centre* to the
+      impact rather than from the crosshair, so the gap being closed is
+      the one that actually shrinks as the hold converges.
 
       Wind is deliberately never dialled away: dialling elevation and
       holding for wind is what most people actually do in the field.
