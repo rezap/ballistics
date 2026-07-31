@@ -11,12 +11,18 @@ const scaleBasisSelect = document.getElementById("scale-basis");
 const scaleValueInput = document.getElementById("scale-value");
 const scaleUnitSelect = document.getElementById("scale-unit");
 const scaleResetButton = document.getElementById("scale-reset");
+const vitalsWidthInput = document.getElementById("vitals-width");
+const vitalsHeightInput = document.getElementById("vitals-height");
 
 let animalsList = [];
 let lastPoints = null;
 
 const UNIT_TO_INCHES = { in: 1, cm: 1 / 2.54, m: 39.3701 };
 const imageCache = new Map();
+
+// Set by the last render so pointer events can map canvas coordinates back
+// into the artwork's own pixel space.
+let lastTransform = null;
 
 // Opening index.html directly as a file (e.g. double-clicking it) gives the
 // page a "file:" origin, and browsers block fetch() entirely from there —
@@ -91,6 +97,28 @@ function saveOverride(profile, override) {
   }
 }
 
+/// The vitals anchor in use: the calibrated position if the user has
+/// dragged it, otherwise the value shipped in species.json.
+function effectiveAnchor(profile) {
+  return loadOverride(profile)?.anchor ?? profile.vitals_anchor;
+}
+
+/// The vital zone in use, in inches.
+function effectiveVitals(profile) {
+  return loadOverride(profile)?.vitals ?? profile.vitals;
+}
+
+/// Merges a partial change into the stored override, keeping whatever the
+/// user has already calibrated for this species.
+function updateOverride(profile, patch) {
+  const current = loadOverride(profile) ?? {
+    basis: scaleBasisSelect.value,
+    value: Number(scaleValueInput.value),
+    unit: scaleUnitSelect.value,
+  };
+  saveOverride(profile, { ...current, ...patch });
+}
+
 /// Populates the scale inputs from the stored override, or from the
 /// species' reference dimensions when there is no override.
 function syncScaleControls() {
@@ -108,6 +136,10 @@ function syncScaleControls() {
     scaleUnitSelect.value = "in";
     scaleValueInput.value = round1(referenceInches(profile, basis));
   }
+
+  const vitals = effectiveVitals(profile);
+  vitalsWidthInput.value = round1(vitals.width_in);
+  vitalsHeightInput.value = round1(vitals.height_in);
 }
 
 /// Inches per pixel of the artwork, honouring any user override.
@@ -193,7 +225,7 @@ function onScaleChanged() {
   const profile = currentProfile();
   if (!profile) return;
 
-  saveOverride(profile, {
+  updateOverride(profile, {
     basis: scaleBasisSelect.value,
     value: Number(scaleValueInput.value),
     unit: scaleUnitSelect.value,
@@ -233,6 +265,88 @@ scaleResetButton.addEventListener("click", () => {
   syncScaleControls();
   if (lastPoints) renderAnimalPanel(lastPoints);
 });
+
+function onVitalsSizeChanged() {
+  const profile = currentProfile();
+  if (!profile) return;
+
+  const width = Number(vitalsWidthInput.value);
+  const height = Number(vitalsHeightInput.value);
+  if (!(width > 0) || !(height > 0)) return;
+
+  updateOverride(profile, { vitals: { width_in: width, height_in: height } });
+  if (lastPoints) renderAnimalPanel(lastPoints);
+}
+
+vitalsWidthInput.addEventListener("input", onVitalsSizeChanged);
+vitalsHeightInput.addEventListener("input", onVitalsSizeChanged);
+
+// Dragging the vital zone is calibration against the drawing, not a
+// preference: the anchor is positioned by eye per species, and only the
+// person looking at the illustration can say where it actually belongs.
+function canvasPoint(event) {
+  const rect = vitalsCanvas.getBoundingClientRect();
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * vitalsCanvas.width,
+    y: ((event.clientY - rect.top) / rect.height) * vitalsCanvas.height,
+  };
+}
+
+function withinVitals(point) {
+  if (!lastTransform?.aimPx) return false;
+  const [ax, ay] = lastTransform.aimPx;
+  const grab = 12;
+  return (
+    Math.abs(point.x - ax) <= lastTransform.halfW + grab &&
+    Math.abs(point.y - ay) <= lastTransform.halfH + grab
+  );
+}
+
+let dragging = false;
+
+function moveAnchorTo(point) {
+  const profile = currentProfile();
+  if (!profile || !lastTransform) return;
+
+  const { offsetX, offsetY, fit, artW, artH } = lastTransform;
+  const clamp = (v) => Math.max(0, Math.min(1, v));
+  updateOverride(profile, {
+    anchor: {
+      x: clamp((point.x - offsetX) / fit / artW),
+      y: clamp((point.y - offsetY) / fit / artH),
+    },
+  });
+  if (lastPoints) renderAnimalPanel(lastPoints);
+}
+
+vitalsCanvas.addEventListener("pointerdown", (event) => {
+  const point = canvasPoint(event);
+  if (!withinVitals(point)) return;
+  dragging = true;
+  vitalsCanvas.setPointerCapture(event.pointerId);
+  event.preventDefault();
+});
+
+vitalsCanvas.addEventListener("pointermove", (event) => {
+  if (!dragging) {
+    vitalsCanvas.style.cursor = withinVitals(canvasPoint(event)) ? "grab" : "default";
+    return;
+  }
+  vitalsCanvas.style.cursor = "grabbing";
+  moveAnchorTo(canvasPoint(event));
+});
+
+function endDrag(event) {
+  if (!dragging) return;
+  dragging = false;
+  vitalsCanvas.style.cursor = "grab";
+  if (vitalsCanvas.hasPointerCapture?.(event.pointerId)) {
+    vitalsCanvas.releasePointerCapture(event.pointerId);
+  }
+}
+
+vitalsCanvas.addEventListener("pointerup", endDrag);
+vitalsCanvas.addEventListener("pointercancel", endDrag);
 
 function buildRequestPayload(formData) {
   const num = (name) => Number(formData.get(name));
@@ -415,15 +529,16 @@ function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
   const height = vitalsCanvas.height;
   ctx.clearRect(0, 0, width, height);
 
-  const vitals = profile.vitals;
+  const vitals = effectiveVitals(profile);
+  const anchor = effectiveAnchor(profile);
   const inPerPx = inchesPerPixel(profile);
 
   // Everything is laid out in artwork-pixel space first, then fitted into
   // the canvas as a single transform at the end.
   const artW = profile.image_width_px ?? 400;
   const artH = profile.image_height_px ?? 300;
-  const aimX = profile.vitals_anchor.x * artW;
-  const aimY = profile.vitals_anchor.y * artH;
+  const aimX = anchor.x * artW;
+  const aimY = anchor.y * artH;
 
   // Impact offset, converted from real inches into artwork pixels.
   // path_inches is positive above the line of sight and canvas y grows
@@ -446,6 +561,7 @@ function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
   const offsetX = pad + (width - pad * 2 - (maxX - minX) * fit) / 2 - minX * fit;
   const offsetY = pad + (height - pad * 2 - (maxY - minY) * fit) / 2 - minY * fit;
   const toPx = (x, y) => [offsetX + x * fit, offsetY + y * fit];
+  lastTransform = { offsetX, offsetY, fit, artW, artH, halfW: null, halfH: null };
 
   const style = getComputedStyle(document.documentElement);
   const inkColor = style.getPropertyValue("--silhouette").trim() || "#9aa0aa";
@@ -459,6 +575,9 @@ function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
   const [aimPxX, aimPxY] = toPx(aimX, aimY);
   const halfW = (vitals.width_in / 2 / inPerPx) * fit;
   const halfH = (vitals.height_in / 2 / inPerPx) * fit;
+  lastTransform.halfW = halfW;
+  lastTransform.halfH = halfH;
+  lastTransform.aimPx = toPx(aimX, aimY);
 
   ctx.beginPath();
   ctx.ellipse(aimPxX, aimPxY, halfW, halfH, 0, 0, Math.PI * 2);

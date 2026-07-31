@@ -313,3 +313,20 @@ canvas#vitals-canvas {
   height: auto;
   flex: 1 1 320px;
 }
+
+.unit-suffix {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.hint {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  max-width: 62ch;
+}
+
+canvas#vitals-canvas {
+  touch-action: none;
+}

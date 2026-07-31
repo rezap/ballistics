@@ -122,7 +122,15 @@
             </select>
           </span>
         </label>
-        <button type="button" id="scale-reset" class="link-button">Reset to reference size</button>
+        <label>
+          Vital zone (w &times; h)
+          <span class="size-row">
+            <input type="number" id="vitals-width" step="0.5" min="0.5" title="Vital zone width, inches" />
+            <input type="number" id="vitals-height" step="0.5" min="0.5" title="Vital zone height, inches" />
+            <span class="unit-suffix">in</span>
+          </span>
+        </label>
+        <button type="button" id="scale-reset" class="link-button">Reset calibration</button>
       </fieldset>
 
       <button type="submit">Calculate trajectory</button>
@@ -147,6 +155,11 @@
       </div>
 
       <h2>Shot vs. vitals</h2>
+      <p class="hint">
+        The vital zone is positioned by eye against each drawing, and its size is a
+        typical figure rather than a measurement. Drag it on the illustration to
+        reposition it, or edit its dimensions above.
+      </p>
       <div class="animal-panel">
         <canvas id="vitals-canvas" width="460" height="380" aria-label="Point of impact vs. vital zone" role="img"></canvas>
         <div id="animal-info" class="animal-info"></div>

@@ -48,7 +48,7 @@
       "height_in": 7
     },
     "vitals_anchor": {
-      "x": 0.62,
+      "x": 0.58,
       "y": 0.55
     },
     "habitat": "Woodland edges, farmland and scrub across Europe; browses in the open at dawn and dusk.",
@@ -90,8 +90,8 @@
       "height_in": 9
     },
     "vitals_anchor": {
-      "x": 0.61,
-      "y": 0.57
+      "x": 0.55,
+      "y": 0.58
     },
     "habitat": "Mature broadleaf woodland with open grazing nearby; widely introduced well beyond its native range.",
     "diet": "Herbivore: grasses, herbs, browse, acorns and other mast.",
@@ -133,7 +133,7 @@
     },
     "vitals_anchor": {
       "x": 0.58,
-      "y": 0.6
+      "y": 0.52
     },
     "habitat": "Mountain meadows, foothills and open forest; moves to lower elevations in winter.",
     "diet": "Herbivore: grasses in summer, shifting to woody browse and bark in winter.",
@@ -174,8 +174,8 @@
       "height_in": 18
     },
     "vitals_anchor": {
-      "x": 0.56,
-      "y": 0.62
+      "x": 0.58,
+      "y": 0.5
     },
     "habitat": "Boreal forest, willow flats, lakeshores and marshy ground across northern latitudes.",
     "diet": "Herbivore: willow, birch and aquatic plants; wades and dives to feed.",
@@ -216,8 +216,8 @@
       "height_in": 8
     },
     "vitals_anchor": {
-      "x": 0.62,
-      "y": 0.6
+      "x": 0.6,
+      "y": 0.52
     },
     "habitat": "Highly adaptable: bottomland hardwood forest, marsh, swamp and farmland, usually near water and dense cover.",
     "diet": "Omnivore and opportunistic feeder: grasses and forbs in spring, fruit in summer and autumn, roots, tubers and invertebrates year-round.",
@@ -260,7 +260,7 @@
     },
     "vitals_anchor": {
       "x": 0.6,
-      "y": 0.63
+      "y": 0.47
     },
     "habitat": "Almost anywhere: farmland, woodland, moorland and dense urban areas.",
     "diet": "Omnivore: rodents, rabbits, birds, insects, fruit and scavenged food.",
@@ -301,7 +301,7 @@
       "height_in": 2
     },
     "vitals_anchor": {
-      "x": 0.52,
+      "x": 0.5,
       "y": 0.55
     },
     "habitat": "Farmland, woodland and towns; feeds in flocks on open fields.",
@@ -343,8 +343,8 @@
       "height_in": 4
     },
     "vitals_anchor": {
-      "x": 0.52,
-      "y": 0.52
+      "x": 0.55,
+      "y": 0.55
     },
     "habitat": "Open hardwood and mixed forest with clearings; roosts in trees overnight.",
     "diet": "Omnivore: acorns, seeds, greens and insects.",
