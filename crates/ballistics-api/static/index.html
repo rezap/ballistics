@@ -112,6 +112,19 @@
           Shot range (yd)
           <input type="number" name="shot_range" id="shot-range" step="1" min="1" max="1000" value="100" required />
         </label>
+        <label title="How elevation is dealt with. Dead-on shows the raw drop; dialled removes it; hold-over lets you place the crosshair yourself.">
+          Aiming
+          <select id="aim-mode">
+            <option value="dead-on">Dead-on hold (see the drop)</option>
+            <option value="dialled">Dialled elevation (turrets)</option>
+            <option value="holdover">Hold-over (drag the crosshair)</option>
+          </select>
+        </label>
+        <label title="Your rifle-and-load group size in minutes of angle. 0 treats the rifle as perfect and shows the aim point alone.">
+          Group size (MOA)
+          <input type="number" id="group-moa" step="0.25" min="0" max="20" value="0" />
+        </label>
+        <p id="group-warning" class="inline-warning" hidden></p>
         <label>
           Scale drawing by
           <select id="scale-basis">
@@ -176,7 +189,9 @@
       <p class="hint">
         The vital zone is positioned by eye against each drawing, and its size is a
         typical figure rather than a measurement. Drag it on the illustration to
-        reposition it, or edit its dimensions above.
+        reposition it, or edit its dimensions above. In hold-over mode the
+        crosshair is draggable too: put it where you would actually hold and
+        see where the bullet lands.
       </p>
       <div class="animal-panel">
         <canvas id="vitals-canvas" width="460" height="380" aria-label="Point of impact vs. vital zone" role="img"></canvas>

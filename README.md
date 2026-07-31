@@ -25,8 +25,12 @@ HTTP with a browser UI, and is deployed and live at
 turkey) ship with silhouette artwork, vital-zone geometry, sizes,
 habitat, diet and fun facts. The web app scales the artwork to real-world
 dimensions and overlays the computed point of impact against the vital
-zone. Species data is data-driven: adding an animal is a PNG plus a
-`species.json` entry, with no code change.
+zone. The shot can be aimed dead-on, with elevation dialled, or by
+dragging a hold-over crosshair onto the drawing, and the rifle's group
+size in MOA is drawn as a dispersion circle so the impact is judged as a
+group rather than a single perfect point. Species data is data-driven:
+adding an animal is a PNG plus a `species.json` entry, with no code
+change.
 
 ## Workspace layout
 
