@@ -121,11 +121,24 @@ Phase 2:
       `windage_in`) and assess it against the selected species' vital
       zone, modeled as an ellipse centered on point of aim
       (`VitalZone::assess`, tested for center/edge/outside cases). The
-      frontend renders this as a canvas overlay (vitals ellipse + a
-      green/red impact marker) plus an info panel (sizes, habitat, diet,
-      fun facts), and both update live from the already-fetched
-      trajectory when the species or shot range changes — no extra
-      network round-trip.
+      frontend renders this as a canvas overlay plus an info panel (sizes,
+      habitat, diet, fun facts), and both update live from the
+      already-fetched trajectory when the species or shot range changes —
+      no extra network round-trip.
+- [x] **Original silhouette illustrations** (`crates/ballistics-api/static/silhouettes.js`):
+      a simple, hand-drawn (not traced or copied from any photo or
+      third-party artwork) broadside silhouette per species — real photos
+      would carry copyright/licensing risk for a publicly deployed app,
+      and a schematic body outline is the traditional way shot-placement
+      guides show this anyway. Each silhouette is authored in a fixed
+      "profile unit" coordinate system with a per-species `spanUnits`
+      (nose-tip to tail-tip) and `vitalsCenter`; the frontend converts
+      `AnimalProfile.body_length_in` and the vitals/impact inches into
+      that same coordinate space so the overlay is drawn to scale against
+      the actual body. Adding a new species' art means adding an entry to
+      `SILHOUETTES` following the existing two as a template (legs, a
+      torso ellipse or fill polygon, head/snout, ears, and small
+      species-specific details like antlers or back bristles).
 - [ ] Ethical range recommendation: combine group size (precision), drop,
       wind drift, and retained energy/velocity to suggest a maximum ethical
       range per species/cartridge combination, with clear caveats that this
