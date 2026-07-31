@@ -73,9 +73,38 @@ Endpoints:
 - `GET /api/drag-functions` — list the supported drag functions.
 - `GET /health` — liveness check.
 
-Configuration is via environment variables: `BALLISTICS_API_ADDR` (default
-`0.0.0.0:3000`) and `BALLISTICS_STATIC_DIR` (default `static`, relative to
-the working directory the binary is run from).
+Configuration is via environment variables: `BALLISTICS_API_ADDR` (a full
+`host:port`, takes precedence if set), `PORT` (just the port number — used
+if `BALLISTICS_API_ADDR` isn't set; this is what most hosting platforms
+inject), and `BALLISTICS_STATIC_DIR` (default `static`, relative to the
+working directory the binary is run from). With neither `BALLISTICS_API_ADDR`
+nor `PORT` set, it defaults to `0.0.0.0:3000`.
+
+## Deploying
+
+The repo includes a `Dockerfile` that builds `ballistics-api` (multi-stage:
+compiles the release binary, then copies it plus its `static/` assets into
+a slim runtime image) and a `render.yaml` blueprint for
+[Render](https://render.com):
+
+1. Push this repo to GitHub (already done here).
+2. On Render: **New +** → **Blueprint**, connect the repo. Render detects
+   `render.yaml` and configures the service automatically (Docker build,
+   free plan, `/health` health check) — no manual setup needed.
+3. Click **Apply**. Render builds the `Dockerfile` and gives you a public
+   `https://<service-name>.onrender.com` URL once it's live.
+
+No CLI or local Docker install required for this path. The image also runs
+anywhere else that can run a container (Fly.io, Railway, plain
+`docker run`, etc.) — it respects `PORT` if the platform sets one, and
+`BALLISTICS_API_ADDR` otherwise, so no changes should be needed.
+
+To build and run it locally with Docker instead:
+
+```sh
+docker build -t ballistics-api .
+docker run --rm -p 3000:3000 ballistics-api
+```
 
 ### Windows
 
