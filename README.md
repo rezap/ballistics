@@ -47,7 +47,17 @@ cargo run -p ballistics-cli
 cargo run -p ballistics-api
 ```
 
-Then open <http://localhost:3000> in a browser. Endpoints:
+Then, **in your browser's address bar, go to <http://localhost:3000>.**
+Don't open `crates/ballistics-api/static/index.html` directly (e.g. by
+double-clicking it in a file browser) — that loads the page from a `file://`
+URL with no server behind it, so the "Calculate trajectory" button can't
+reach the API and the browser blocks the request with a CORS error. The
+page it serves at `http://localhost:3000` *is* `index.html`; it just needs
+to be loaded through the running server, not opened as a bare file. If you
+do open it directly, the page now shows a banner explaining this instead of
+silently failing.
+
+Endpoints:
 
 - `POST /api/trajectory` — solve a trajectory from a JSON `{ load, rifle, atmosphere?, shot? }` body (see `crates/ballistics-api/static/app.js` for a working example); returns an array of per-yard trajectory points.
 - `GET /api/drag-functions` — list the supported drag functions.

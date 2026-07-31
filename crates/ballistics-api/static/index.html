@@ -13,6 +13,12 @@
   </header>
 
   <main>
+    <p id="protocol-warning" class="error" hidden>
+      This page was opened as a local file, which browsers block from calling the API.
+      Start the server (<code>cargo run -p ballistics-api</code>) and open
+      <a href="http://localhost:3000">http://localhost:3000</a> instead.
+    </p>
+
     <form id="trajectory-form">
       <fieldset>
         <legend>Load</legend>
