@@ -7,6 +7,7 @@
 use crate::angles::{deg_to_rad, rad_to_moa};
 use crate::constants::{BALLISTICS_COMPUTATION_MAX_YARDS, GRAVITY};
 use crate::drag::{retard, DragFunction};
+use crate::energy;
 use crate::utils::moa_to_inch;
 use crate::windage;
 
@@ -25,6 +26,11 @@ pub struct TrajectoryPoint {
     pub path_inches: f64,
     /// Time of flight to this range, in seconds.
     pub seconds: f64,
+    /// Remaining velocity at this range, ft/s. Hunters read this for
+    /// whether an expanding bullet will still open up on impact.
+    pub velocity_fps: f64,
+    /// Remaining kinetic energy at this range, foot-pounds.
+    pub energy_ft_lb: f64,
     /// Horizontal wind drift, in inches (positive is toward the shooter's
     /// right when `wind_angle` is between 0 and 180 degrees). Computed from
     /// `windage.py`'s deflection formula, which upstream pyBallistics
@@ -65,6 +71,10 @@ fn python_round(value: f64) -> i64 {
 /// * `wind_speed` - wind velocity, mi/hr.
 /// * `wind_angle` - wind angle in degrees (0 = headwind, 90 = right-to-left,
 ///   180 = tailwind, 270/-90 = left-to-right).
+/// * `bullet_weight_gr` - projectile mass in grains. This does *not* affect
+///   the flight path in a point-mass model - the ballistic coefficient
+///   already encapsulates how mass, diameter and form trade off against
+///   drag - it is carried through solely to report retained energy.
 ///
 /// Returns one [`TrajectoryPoint`] per yard of travel, until the shot drops
 /// out of a sane flight envelope or [`BALLISTICS_COMPUTATION_MAX_YARDS`] is
@@ -79,6 +89,7 @@ pub fn solve(
     zero_angle: f64,
     wind_speed: f64,
     wind_angle: f64,
+    bullet_weight_gr: f64,
 ) -> Vec<TrajectoryPoint> {
     let hwind = windage::headwind(wind_speed, wind_angle);
     let xwind = windage::crosswind(wind_speed, wind_angle);
@@ -127,6 +138,8 @@ pub fn solve(
                     path_inches,
                     seconds,
                     windage_in,
+                    velocity_fps: v,
+                    energy_ft_lb: energy::ft_lb(bullet_weight_gr, v),
                 });
             }
             n += 1;
@@ -164,7 +177,7 @@ mod tests {
             let bc = 0.4;
             let vi = 2800.0;
             let zero_angle = crate::angles::zero_angle(func, bc, vi, 1.5, 100.0, 0.0);
-            let points = solve(func, bc, vi, 1.5, 0.0, zero_angle, 10.0, 90.0);
+            let points = solve(func, bc, vi, 1.5, 0.0, zero_angle, 10.0, 90.0, 150.0);
 
             assert!(!points.is_empty(), "{func} produced no trajectory points");
             assert!(
@@ -194,7 +207,17 @@ mod tests {
         let vi = 2800.0;
         let zero_angle = crate::angles::zero_angle(DragFunction::G1, bc, vi, 1.5, 100.0, 0.0);
         // wind_angle 0 = pure headwind, no crosswind component.
-        let points = solve(DragFunction::G1, bc, vi, 1.5, 0.0, zero_angle, 10.0, 0.0);
+        let points = solve(
+            DragFunction::G1,
+            bc,
+            vi,
+            1.5,
+            0.0,
+            zero_angle,
+            10.0,
+            0.0,
+            150.0,
+        );
         for point in &points {
             assert!(
                 point.windage_in.abs() < 1e-9,
@@ -211,7 +234,17 @@ mod tests {
         let vi = 2800.0;
         let zero_angle = crate::angles::zero_angle(DragFunction::G1, bc, vi, 1.5, 100.0, 0.0);
         // wind_angle 90 = full crosswind, from the shooter's right.
-        let points = solve(DragFunction::G1, bc, vi, 1.5, 0.0, zero_angle, 10.0, 90.0);
+        let points = solve(
+            DragFunction::G1,
+            bc,
+            vi,
+            1.5,
+            0.0,
+            zero_angle,
+            10.0,
+            90.0,
+            150.0,
+        );
 
         let at_100 = point_at_range(&points, 100).unwrap();
         let at_400 = point_at_range(&points, 400).unwrap();

@@ -39,6 +39,7 @@ fn trajectory_request_solves_a_custom_g7_load_with_wind() {
             drag_function: DragFunction::G7,
             ballistic_coefficient: 0.243,
             muzzle_velocity: 2700.0,
+            bullet_weight_gr: 168.0,
         },
         rifle: Rifle {
             sight_height: 1.7,

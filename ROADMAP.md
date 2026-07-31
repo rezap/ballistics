@@ -126,10 +126,26 @@ Phase 2:
       marker and a one-foot scale bar, and it all updates live from the
       already-fetched trajectory when species, range or scale changes -
       no extra network round-trip.
+- [x] **Retained velocity and energy.** The integrator computed velocity
+      each step but never reported it, so energy could not be derived at
+      all. `TrajectoryPoint` now carries `velocity_fps` and
+      `energy_ft_lb`, and `Load` carries `bullet_weight_gr`. Weight is
+      deliberately *not* an input to the flight path - in a point-mass
+      model the ballistic coefficient already accounts for how mass trades
+      off against drag - it only converts retained velocity into energy.
+      Both matter for whether a bullet will expand and penetrate, which
+      falls off much faster than drop does.
+- [x] **Reader-configurable trajectory table.** Row spacing and maximum
+      range are adjustable, because one fixed step cannot serve both a
+      moose at 400 yards and a pigeon inside 60. Time of flight was
+      dropped in favour of wind drift, velocity and energy, which is what
+      a hunter actually reads.
 - [ ] Ethical range recommendation: combine group size (precision), drop,
       wind drift, and retained energy/velocity to suggest a maximum ethical
       range per species/cartridge combination, with clear caveats that this
-      is decision support, not a guarantee.
+      is decision support, not a guarantee. The inputs are now all present;
+      what is missing is per-species minimum energy and per-bullet
+      expansion-velocity thresholds to judge them against.
 - [ ] Quartering-angle silhouettes (not just broadside) — several fun
       facts already flag that shot placement differs a lot by angle
       (e.g. wild hog's shoulder "shield" mostly matters broadside).

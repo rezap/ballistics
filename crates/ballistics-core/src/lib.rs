@@ -21,6 +21,7 @@ pub mod atmosphere;
 pub mod bdc;
 pub mod constants;
 pub mod drag;
+pub mod energy;
 pub mod profile;
 pub mod trajectory;
 pub mod utils;

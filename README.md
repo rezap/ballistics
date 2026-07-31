@@ -78,7 +78,7 @@ silently failing.
 
 Endpoints:
 
-- `POST /api/trajectory` — solve a trajectory from a JSON `{ load, rifle, atmosphere?, shot? }` body (see `crates/ballistics-api/static/app.js` for a working example); returns an array of per-yard trajectory points (drop, windage, time of flight, etc.).
+- `POST /api/trajectory` — solve a trajectory from a JSON `{ load, rifle, atmosphere?, shot? }` body (see `crates/ballistics-api/static/app.js` for a working example); returns an array of per-yard trajectory points (drop, wind drift, retained velocity and energy, time of flight).
 - `GET /api/drag-functions` — list the supported drag functions.
 - `GET /api/animals` — list supported game species with vital-zone geometry, artwork dimensions, sizes, habitat, diet, and fun facts. Loaded from `crates/ballistics-api/static/animals/species.json`; see that directory's README for how to add a species.
 - `GET /health` — liveness check.
