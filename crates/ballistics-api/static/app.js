@@ -4,6 +4,19 @@ const errorBox = document.getElementById("error");
 const tableBody = document.querySelector("#results-table tbody");
 const canvas = document.getElementById("chart");
 
+// Opening index.html directly as a file (e.g. double-clicking it) gives the
+// page a "file:" origin, and browsers block fetch() entirely from there —
+// the resulting console error ("origin 'null' has been blocked by CORS
+// policy") gives no hint that the fix is simply to load the page from the
+// running server instead. Detect that case up front and say so plainly,
+// rather than letting the user hit a cryptic fetch failure on submit.
+if (window.location.protocol === "file:") {
+  document.getElementById("protocol-warning").hidden = false;
+  form.querySelectorAll("input, select, button").forEach((el) => {
+    el.disabled = true;
+  });
+}
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   hideError();

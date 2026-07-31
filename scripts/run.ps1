@@ -40,6 +40,10 @@ Write-Host "==> All tests passed." -ForegroundColor Green
 # at the real static directory explicitly so it works from anywhere.
 $env:BALLISTICS_STATIC_DIR = Join-Path $repoRoot "crates\ballistics-api\static"
 
-Write-Host "==> Starting ballistics-api on http://localhost:3000 (Ctrl+C to stop)" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "==> Starting the server. Once it says 'listening', open this in your browser:" -ForegroundColor Cyan
+Write-Host "        http://localhost:3000" -ForegroundColor Yellow
+Write-Host "    (Do not open static\index.html directly - it must be loaded through the server. Ctrl+C here to stop.)" -ForegroundColor Cyan
+Write-Host ""
 cargo run -p ballistics-api
 exit $LASTEXITCODE
