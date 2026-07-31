@@ -84,20 +84,38 @@ nor `PORT` set, it defaults to `0.0.0.0:3000`.
 
 The repo includes a `Dockerfile` that builds `ballistics-api` (multi-stage:
 compiles the release binary, then copies it plus its `static/` assets into
-a slim runtime image) and a `render.yaml` blueprint for
-[Render](https://render.com):
+a slim runtime image), plus config for two PaaS providers that both build
+that Dockerfile directly from the GitHub repo — pick whichever you already
+have an account on.
 
-1. Push this repo to GitHub (already done here).
-2. On Render: **New +** → **Blueprint**, connect the repo. Render detects
+### Railway
+
+`railway.json` tells Railway to use the Dockerfile (rather than
+auto-detecting a builder) and where to health-check:
+
+1. In the Railway dashboard: **New Project** → **Deploy from GitHub repo**
+   → select `rezap/ballistics`.
+2. Railway detects `railway.json`, builds `Dockerfile`, and deploys — no
+   other configuration needed. It injects its own `PORT`, which
+   `ballistics-api` already reads (see below).
+3. Once the deploy finishes, go to the service's **Settings** → **Networking**
+   and click **Generate Domain** to get a public
+   `https://<service-name>.up.railway.app` URL (Railway doesn't expose one
+   automatically by default).
+
+### Render
+
+`render.yaml` is a [Render](https://render.com) blueprint:
+
+1. On Render: **New +** → **Blueprint**, connect the repo. Render detects
    `render.yaml` and configures the service automatically (Docker build,
    free plan, `/health` health check) — no manual setup needed.
-3. Click **Apply**. Render builds the `Dockerfile` and gives you a public
+2. Click **Apply**. Render builds the `Dockerfile` and gives you a public
    `https://<service-name>.onrender.com` URL once it's live.
 
-No CLI or local Docker install required for this path. The image also runs
-anywhere else that can run a container (Fly.io, Railway, plain
-`docker run`, etc.) — it respects `PORT` if the platform sets one, and
-`BALLISTICS_API_ADDR` otherwise, so no changes should be needed.
+Neither path needs a CLI or local Docker install. The image also runs
+anywhere else that can run a container — it respects `PORT` if the
+platform sets one, and `BALLISTICS_API_ADDR` otherwise.
 
 To build and run it locally with Docker instead:
 
