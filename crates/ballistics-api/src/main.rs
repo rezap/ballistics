@@ -162,7 +162,7 @@ fn validate_request(request: &TrajectoryRequest) -> Result<(), ApiError> {
     let atmosphere = &request.atmosphere;
     let shot = &request.shot;
 
-    let checks: [(bool, &str); 11] = [
+    let checks: [(bool, &str); 12] = [
         (
             load.ballistic_coefficient.is_finite() && load.ballistic_coefficient > 0.0,
             "load.ballistic_coefficient must be a positive, finite number",
@@ -172,6 +172,12 @@ fn validate_request(request: &TrajectoryRequest) -> Result<(), ApiError> {
                 && load.muzzle_velocity > 0.0
                 && load.muzzle_velocity < 10_000.0,
             "load.muzzle_velocity must be between 0 and 10000 ft/s",
+        ),
+        (
+            load.bullet_weight_gr.is_finite()
+                && load.bullet_weight_gr > 0.0
+                && load.bullet_weight_gr < 20_000.0,
+            "load.bullet_weight_gr must be between 0 and 20000 grains",
         ),
         (
             rifle.sight_height.is_finite() && rifle.sight_height.abs() < 100.0,
@@ -268,6 +274,7 @@ mod tests {
                 drag_function: DragFunction::G7,
                 ballistic_coefficient: 0.243,
                 muzzle_velocity: 2700.0,
+                bullet_weight_gr: 168.0,
             },
             rifle: Rifle {
                 sight_height: 1.7,
@@ -291,6 +298,19 @@ mod tests {
         assert!(validate_request(&request).is_err());
 
         request.load.muzzle_velocity = -100.0;
+        assert!(validate_request(&request).is_err());
+    }
+
+    #[test]
+    fn rejects_implausible_bullet_weight() {
+        let mut request = valid_request();
+        request.load.bullet_weight_gr = 0.0;
+        assert!(validate_request(&request).is_err());
+
+        request.load.bullet_weight_gr = -20.0;
+        assert!(validate_request(&request).is_err());
+
+        request.load.bullet_weight_gr = 1e9;
         assert!(validate_request(&request).is_err());
     }
 

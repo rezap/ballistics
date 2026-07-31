@@ -13,6 +13,8 @@ const scaleUnitSelect = document.getElementById("scale-unit");
 const scaleResetButton = document.getElementById("scale-reset");
 const vitalsWidthInput = document.getElementById("vitals-width");
 const vitalsHeightInput = document.getElementById("vitals-height");
+const tableStepInput = document.getElementById("table-step");
+const tableMaxInput = document.getElementById("table-max");
 
 let animalsList = [];
 let lastPoints = null;
@@ -356,6 +358,7 @@ function buildRequestPayload(formData) {
       drag_function: formData.get("drag_function"),
       ballistic_coefficient: num("ballistic_coefficient"),
       muzzle_velocity: num("muzzle_velocity"),
+      bullet_weight_gr: num("bullet_weight_gr"),
     },
     rifle: {
       sight_height: num("sight_height"),
@@ -383,23 +386,35 @@ function renderResults(points) {
   renderAnimalPanel(points);
 }
 
+// Row spacing matters more than it looks: a 25 yard step is fine for elk
+// at 400 yards, but useless for a pigeon inside 60, where the whole
+// usable range fits between two rows.
 function renderTable(points) {
   tableBody.innerHTML = "";
 
-  const step = 25;
-  const rows = points.filter((p) => p.yards % step === 0);
+  const step = Math.max(1, Math.round(Number(tableStepInput.value) || 25));
+  const maxRange = Math.max(step, Number(tableMaxInput.value) || 500);
+  const rows = points.filter((p) => p.yards % step === 0 && p.yards <= maxRange);
 
   for (const point of rows) {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${point.yards}</td>
       <td>${point.path_inches.toFixed(2)}</td>
+      <td>${point.windage_in.toFixed(2)}</td>
       <td>${point.moa_correction.toFixed(2)}</td>
-      <td>${point.impact_in.toFixed(2)}</td>
-      <td>${point.seconds.toFixed(3)}</td>
+      <td>${Math.round(point.velocity_fps)}</td>
+      <td>${Math.round(point.energy_ft_lb)}</td>
     `;
     tableBody.appendChild(tr);
   }
+}
+
+// Re-rendering the table is a local filter over data we already have.
+for (const input of [tableStepInput, tableMaxInput]) {
+  input.addEventListener("input", () => {
+    if (lastPoints) renderTable(lastPoints);
+  });
 }
 
 function renderChart(points) {

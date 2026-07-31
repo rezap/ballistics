@@ -19,6 +19,16 @@ pub struct Load {
     pub ballistic_coefficient: f64,
     /// Muzzle velocity, ft/s.
     pub muzzle_velocity: f64,
+    /// Projectile mass in grains. Does not affect the flight path here -
+    /// the ballistic coefficient already accounts for mass - but it is
+    /// what turns retained velocity into retained energy.
+    #[serde(default = "default_bullet_weight_gr")]
+    pub bullet_weight_gr: f64,
+}
+
+/// A common medium-game bullet weight, used when a request omits one.
+fn default_bullet_weight_gr() -> f64 {
+    150.0
 }
 
 /// Sight and zeroing geometry.
@@ -120,6 +130,7 @@ impl TrajectoryRequest {
             zero_angle,
             self.shot.wind_speed,
             self.shot.wind_angle,
+            self.load.bullet_weight_gr,
         )
     }
 }
@@ -136,6 +147,7 @@ mod tests {
                 drag_function: DragFunction::G7,
                 ballistic_coefficient: 0.22,
                 muzzle_velocity: 2700.0,
+                bullet_weight_gr: 168.0,
             },
             rifle: Rifle {
                 sight_height: 1.7,
@@ -176,6 +188,7 @@ mod tests {
             zero_angle,
             request.shot.wind_speed,
             request.shot.wind_angle,
+            request.load.bullet_weight_gr,
         );
 
         assert_eq!(via_request, via_manual_calls);

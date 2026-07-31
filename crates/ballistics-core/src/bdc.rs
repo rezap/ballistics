@@ -16,6 +16,7 @@ pub fn reference_request() -> TrajectoryRequest {
             drag_function: DragFunction::G1,
             ballistic_coefficient: 0.269,
             muzzle_velocity: 3165.0,
+            bullet_weight_gr: 55.0,
         },
         rifle: Rifle {
             sight_height: 1.5,

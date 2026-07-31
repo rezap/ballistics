@@ -330,3 +330,21 @@ canvas#vitals-canvas {
 canvas#vitals-canvas {
   touch-action: none;
 }
+
+.table-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.table-controls label {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.table-controls input {
+  width: 6rem;
+}

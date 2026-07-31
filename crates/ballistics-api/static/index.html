@@ -42,6 +42,10 @@
           Muzzle velocity (ft/s)
           <input type="number" name="muzzle_velocity" step="1" min="1" max="9999" value="2700" required />
         </label>
+        <label>
+          Bullet weight (gr)
+          <input type="number" name="bullet_weight_gr" step="1" min="1" max="19999" value="168" required />
+        </label>
       </fieldset>
 
       <fieldset>
@@ -138,6 +142,16 @@
 
     <section id="results" hidden>
       <h2>Trajectory</h2>
+      <div class="table-controls">
+        <label>
+          Row step (yd)
+          <input type="number" id="table-step" step="1" min="1" max="200" value="25" />
+        </label>
+        <label>
+          Show out to (yd)
+          <input type="number" id="table-max" step="10" min="10" max="1000" value="500" />
+        </label>
+      </div>
       <canvas id="chart" width="900" height="360" aria-label="Bullet path chart" role="img"></canvas>
       <div class="table-wrap">
         <table id="results-table">
@@ -145,9 +159,10 @@
             <tr>
               <th>Yards</th>
               <th>Path (in)</th>
+              <th>Wind drift (in)</th>
               <th>MOA correction</th>
-              <th>Adjustment (in)</th>
-              <th>Time (s)</th>
+              <th>Velocity (ft/s)</th>
+              <th>Energy (ft&middot;lb)</th>
             </tr>
           </thead>
           <tbody></tbody>
