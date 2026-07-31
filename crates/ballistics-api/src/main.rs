@@ -32,10 +32,7 @@ async fn main() {
         .route("/api/trajectory", post(solve_trajectory))
         .fallback_service(ServeDir::new(static_dir));
 
-    let addr: SocketAddr = std::env::var("BALLISTICS_API_ADDR")
-        .unwrap_or_else(|_| "0.0.0.0:3000".to_string())
-        .parse()
-        .expect("BALLISTICS_API_ADDR must be a valid socket address, e.g. 0.0.0.0:3000");
+    let addr = resolve_addr();
 
     let listener = tokio::net::TcpListener::bind(addr)
         .await
@@ -69,6 +66,35 @@ fn warn_if_static_dir_missing(static_dir: &str) {
          from crates/ballistics-api, using scripts/run.ps1, or setting BALLISTICS_STATIC_DIR to the \
          absolute path of crates/ballistics-api/static."
     );
+}
+
+/// Resolves the address to listen on. `BALLISTICS_API_ADDR` (a full
+/// `host:port`) takes precedence if set; otherwise, if `PORT` is set (as
+/// most PaaS providers — Render, Railway, Heroku-likes — inject to tell an
+/// app which port to bind), bind `0.0.0.0` to it; otherwise default to
+/// `0.0.0.0:3000`.
+fn resolve_addr() -> SocketAddr {
+    resolve_addr_from(
+        std::env::var("BALLISTICS_API_ADDR").ok(),
+        std::env::var("PORT").ok(),
+    )
+}
+
+fn resolve_addr_from(explicit_addr: Option<String>, port: Option<String>) -> SocketAddr {
+    if let Some(addr) = explicit_addr {
+        return addr
+            .parse()
+            .unwrap_or_else(|err| panic!("BALLISTICS_API_ADDR {addr:?} is invalid: {err}"));
+    }
+
+    if let Some(port) = port {
+        let addr = format!("0.0.0.0:{port}");
+        return addr
+            .parse()
+            .unwrap_or_else(|err| panic!("PORT {port:?} is not a valid port: {err}"));
+    }
+
+    "0.0.0.0:3000".parse().expect("hardcoded default is valid")
 }
 
 async fn health() -> &'static str {
@@ -278,5 +304,23 @@ mod tests {
         warn_if_static_dir_missing(env!("CARGO_MANIFEST_DIR"));
         // A path that can't exist.
         warn_if_static_dir_missing("/definitely/not/a/real/path/xyz123");
+    }
+
+    #[test]
+    fn resolve_addr_prefers_explicit_addr_over_port() {
+        let addr = resolve_addr_from(Some("127.0.0.1:9999".to_string()), Some("8080".to_string()));
+        assert_eq!(addr, "127.0.0.1:9999".parse().unwrap());
+    }
+
+    #[test]
+    fn resolve_addr_falls_back_to_port() {
+        let addr = resolve_addr_from(None, Some("8080".to_string()));
+        assert_eq!(addr, "0.0.0.0:8080".parse().unwrap());
+    }
+
+    #[test]
+    fn resolve_addr_defaults_when_nothing_set() {
+        let addr = resolve_addr_from(None, None);
+        assert_eq!(addr, "0.0.0.0:3000".parse().unwrap());
     }
 }

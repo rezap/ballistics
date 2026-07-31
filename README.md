@@ -73,9 +73,56 @@ Endpoints:
 - `GET /api/drag-functions` — list the supported drag functions.
 - `GET /health` — liveness check.
 
-Configuration is via environment variables: `BALLISTICS_API_ADDR` (default
-`0.0.0.0:3000`) and `BALLISTICS_STATIC_DIR` (default `static`, relative to
-the working directory the binary is run from).
+Configuration is via environment variables: `BALLISTICS_API_ADDR` (a full
+`host:port`, takes precedence if set), `PORT` (just the port number — used
+if `BALLISTICS_API_ADDR` isn't set; this is what most hosting platforms
+inject), and `BALLISTICS_STATIC_DIR` (default `static`, relative to the
+working directory the binary is run from). With neither `BALLISTICS_API_ADDR`
+nor `PORT` set, it defaults to `0.0.0.0:3000`.
+
+## Deploying
+
+The repo includes a `Dockerfile` that builds `ballistics-api` (multi-stage:
+compiles the release binary, then copies it plus its `static/` assets into
+a slim runtime image), plus config for two PaaS providers that both build
+that Dockerfile directly from the GitHub repo — pick whichever you already
+have an account on.
+
+### Railway
+
+`railway.json` tells Railway to use the Dockerfile (rather than
+auto-detecting a builder) and where to health-check:
+
+1. In the Railway dashboard: **New Project** → **Deploy from GitHub repo**
+   → select `rezap/ballistics`.
+2. Railway detects `railway.json`, builds `Dockerfile`, and deploys — no
+   other configuration needed. It injects its own `PORT`, which
+   `ballistics-api` already reads (see below).
+3. Once the deploy finishes, go to the service's **Settings** → **Networking**
+   and click **Generate Domain** to get a public
+   `https://<service-name>.up.railway.app` URL (Railway doesn't expose one
+   automatically by default).
+
+### Render
+
+`render.yaml` is a [Render](https://render.com) blueprint:
+
+1. On Render: **New +** → **Blueprint**, connect the repo. Render detects
+   `render.yaml` and configures the service automatically (Docker build,
+   free plan, `/health` health check) — no manual setup needed.
+2. Click **Apply**. Render builds the `Dockerfile` and gives you a public
+   `https://<service-name>.onrender.com` URL once it's live.
+
+Neither path needs a CLI or local Docker install. The image also runs
+anywhere else that can run a container — it respects `PORT` if the
+platform sets one, and `BALLISTICS_API_ADDR` otherwise.
+
+To build and run it locally with Docker instead:
+
+```sh
+docker build -t ballistics-api .
+docker run --rm -p 3000:3000 ballistics-api
+```
 
 ### Windows
 
