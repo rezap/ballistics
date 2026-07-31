@@ -24,6 +24,7 @@ const SOLVE_TIMEOUT: Duration = Duration::from_secs(5);
 async fn main() {
     let static_dir =
         std::env::var("BALLISTICS_STATIC_DIR").unwrap_or_else(|_| "static".to_string());
+    warn_if_static_dir_missing(&static_dir);
 
     let app = Router::new()
         .route("/health", get(health))
@@ -43,6 +44,31 @@ async fn main() {
     axum::serve(listener, app)
         .await
         .expect("server error while serving requests");
+}
+
+/// `ServeDir` fails requests one at a time instead of erroring at startup,
+/// so a missing static directory otherwise shows up as every page and
+/// asset silently 404ing — the browser just looks blank, with nothing in
+/// the server's own logs pointing at why. Surface it loudly instead: this
+/// is almost always caused by running the binary from a directory other
+/// than `crates/ballistics-api` (e.g. the repo root) without setting
+/// `BALLISTICS_STATIC_DIR`, since the default `static` path is resolved
+/// relative to the current working directory, not the crate.
+fn warn_if_static_dir_missing(static_dir: &str) {
+    if std::path::Path::new(static_dir).is_dir() {
+        return;
+    }
+
+    let cwd = std::env::current_dir()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| "<unknown>".to_string());
+    eprintln!(
+        "warning: static assets directory {static_dir:?} does not exist (looked for it relative to \
+         the current directory, {cwd}). The API endpoints will still work, but every request for \
+         the browser UI will 404 and the page will appear blank. Fix this by running the binary \
+         from crates/ballistics-api, using scripts/run.ps1, or setting BALLISTICS_STATIC_DIR to the \
+         absolute path of crates/ballistics-api/static."
+    );
 }
 
 async fn health() -> &'static str {
@@ -244,5 +270,13 @@ mod tests {
         let mut request = valid_request();
         request.shot.shooting_angle = 90.0;
         assert!(validate_request(&request).is_err());
+    }
+
+    #[test]
+    fn warn_if_static_dir_missing_does_not_panic_either_way() {
+        // A real directory (this crate's own manifest dir always exists).
+        warn_if_static_dir_missing(env!("CARGO_MANIFEST_DIR"));
+        // A path that can't exist.
+        warn_if_static_dir_missing("/definitely/not/a/real/path/xyz123");
     }
 }
