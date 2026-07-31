@@ -89,7 +89,7 @@ function renderChart(points) {
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
   const height = canvas.height;
-  const padding = { top: 20, right: 20, bottom: 36, left: 56 };
+  const padding = { top: 20, right: 20, bottom: 36, left: 64 };
 
   const style = getComputedStyle(document.documentElement);
   const gridColor = style.getPropertyValue("--grid").trim();
@@ -141,7 +141,7 @@ function renderChart(points) {
     ctx.moveTo(padding.left, y);
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
-    ctx.fillText(inches.toFixed(0), 4, y + 4);
+    ctx.fillText(inches.toFixed(0), 26, y + 4);
   }
 
   // Zero line (line of sight).
