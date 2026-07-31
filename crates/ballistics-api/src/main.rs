@@ -9,7 +9,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
-use ballistics_core::{DragFunction, TrajectoryPoint, TrajectoryRequest};
+use ballistics_core::{AnimalProfile, DragFunction, Species, TrajectoryPoint, TrajectoryRequest};
 use serde::Serialize;
 use tower_http::services::ServeDir;
 
@@ -29,6 +29,7 @@ async fn main() {
     let app = Router::new()
         .route("/health", get(health))
         .route("/api/drag-functions", get(drag_functions))
+        .route("/api/animals", get(animals))
         .route("/api/trajectory", post(solve_trajectory))
         .fallback_service(ServeDir::new(static_dir));
 
@@ -103,6 +104,15 @@ async fn health() -> &'static str {
 
 async fn drag_functions() -> Json<Vec<String>> {
     Json(DragFunction::ALL.iter().map(|f| f.to_string()).collect())
+}
+
+async fn animals() -> Json<Vec<AnimalProfile>> {
+    Json(
+        Species::ALL
+            .iter()
+            .map(|&species| ballistics_core::animals::profile(species))
+            .collect(),
+    )
 }
 
 async fn solve_trajectory(

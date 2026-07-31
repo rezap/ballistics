@@ -16,6 +16,7 @@
 //! Phase 2 web app, then Phase 3's hunting shot assistant).
 
 pub mod angles;
+pub mod animals;
 pub mod atmosphere;
 pub mod bdc;
 pub mod constants;
@@ -25,6 +26,7 @@ pub mod trajectory;
 pub mod utils;
 pub mod windage;
 
+pub use animals::{AnimalProfile, HitAssessment, ParseSpeciesError, Species, VitalZone};
 pub use bdc::calc_bdc;
 pub use drag::{retard, DragFunction, ParseDragFunctionError};
 pub use profile::{Atmosphere, Load, Rifle, Shot, TrajectoryRequest};

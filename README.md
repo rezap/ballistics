@@ -16,9 +16,15 @@ G3, G5, G6, G7, G8) are wired up, the rifle/load/atmosphere/shot profile is
 fully configurable via `TrajectoryRequest`, and a latent upstream angle-unit
 bug in cant/incline compensation has been fixed.
 
-**Phase 2 in progress:** a web app (`ballistics-api`) now serves the engine
-over HTTP with a browser UI. Next up is Phase 3 (the hunting shot
-assistant).
+**Phase 2 complete:** a web app (`ballistics-api`) serves the engine over
+HTTP with a browser UI, and is deployed and live at
+<https://ballistics-production-2c51.up.railway.app>.
+
+**Phase 3 in progress:** the ethical-shot assistant. A game animal
+database (`ballistics-core::animals`) with vital-zone geometry, sizes,
+habitat, diet and fun facts is in place for two species (whitetail deer,
+wild hog), with eight more scoped in `ROADMAP.md`. The web app overlays
+point of impact against a species' vital zone and shows its info panel.
 
 ## Workspace layout
 
@@ -31,7 +37,8 @@ assistant).
   `example.py`).
 - [`crates/ballistics-api`](./crates/ballistics-api) — an Axum web server
   exposing the engine over a JSON API, plus a static HTML/JS frontend
-  (form inputs, a results table, and a canvas trajectory chart).
+  (form inputs, a results table, a canvas trajectory chart, and a
+  species-vs-vitals overlay with an animal info panel).
 
 ## Building and testing
 
@@ -69,8 +76,9 @@ silently failing.
 
 Endpoints:
 
-- `POST /api/trajectory` — solve a trajectory from a JSON `{ load, rifle, atmosphere?, shot? }` body (see `crates/ballistics-api/static/app.js` for a working example); returns an array of per-yard trajectory points.
+- `POST /api/trajectory` — solve a trajectory from a JSON `{ load, rifle, atmosphere?, shot? }` body (see `crates/ballistics-api/static/app.js` for a working example); returns an array of per-yard trajectory points (drop, windage, time of flight, etc.).
 - `GET /api/drag-functions` — list the supported drag functions.
+- `GET /api/animals` — list supported game species with vital-zone geometry, sizes, habitat, diet, and fun facts.
 - `GET /health` — liveness check.
 
 Configuration is via environment variables: `BALLISTICS_API_ADDR` (a full
