@@ -5,7 +5,7 @@
 use std::f64::consts::PI;
 
 use crate::constants::GRAVITY;
-use crate::drag::{self, DragFunction};
+use crate::drag::{retard, DragFunction};
 
 /// Converts degrees to minutes of angle.
 pub fn deg_to_moa(deg: f64) -> f64 {
@@ -58,7 +58,7 @@ pub fn zero_angle(
     sight_height: f64,
     zero_range: f64,
     y_intercept: f64,
-) -> Result<f64, drag::DragError> {
+) -> f64 {
     let mut angle = 0.0_f64;
     // Start with a coarse angular step and halve it every time we cross the
     // target elevation, converging on the correct zero angle.
@@ -80,7 +80,7 @@ pub fn zero_angle(
             let v = (vx.powi(2) + vy.powi(2)).sqrt();
             let dt = 1.0 / v;
 
-            let dv = drag::retard(drag_function, drag_coefficient, v)?;
+            let dv = retard(drag_function, drag_coefficient, v);
             let dvy = -dv * vy / v * dt;
             let dvx = -dv * vx / v * dt;
 
@@ -118,7 +118,7 @@ pub fn zero_angle(
         }
     }
 
-    Ok(rad_to_deg(angle))
+    rad_to_deg(angle)
 }
 
 #[cfg(test)]
@@ -141,7 +141,21 @@ mod tests {
 
     #[test]
     fn zero_angle_matches_python_golden_value() {
-        let angle = zero_angle(DragFunction::G1, 0.269, 3165.0, 1.5, 50.0, 0.0).unwrap();
+        let angle = zero_angle(DragFunction::G1, 0.269, 3165.0, 1.5, 50.0, 0.0);
         approx(angle, 0.061843872070312486);
+    }
+
+    #[test]
+    fn zero_angle_converges_for_every_drag_function() {
+        for func in DragFunction::ALL {
+            let angle = zero_angle(func, 0.4, 2800.0, 1.5, 100.0, 0.0);
+            assert!(angle.is_finite(), "{func} produced non-finite zero angle");
+            // A sane 100-yard zero for a modern centerfire load is a small,
+            // positive bore angle (well under the 45 degree search bound).
+            assert!(
+                angle > 0.0 && angle < 5.0,
+                "{func} produced implausible zero angle {angle}"
+            );
+        }
     }
 }
