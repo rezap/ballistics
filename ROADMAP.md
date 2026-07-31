@@ -140,12 +140,26 @@ Phase 2:
       moose at 400 yards and a pigeon inside 60. Time of flight was
       dropped in favour of wind drift, velocity and energy, which is what
       a hunter actually reads.
-- [ ] Ethical range recommendation: combine group size (precision), drop,
-      wind drift, and retained energy/velocity to suggest a maximum ethical
-      range per species/cartridge combination, with clear caveats that this
-      is decision support, not a guarantee. The inputs are now all present;
-      what is missing is per-species minimum energy and per-bullet
-      expansion-velocity thresholds to judge them against.
+- [x] **Ethical range recommendation.** Judges terminal performance against
+      two thresholds: a per-species minimum impact energy (US convention -
+      roughly 1000 ft-lb deer-sized, 1500 elk, 2000 moose, and deliberately
+      unset below roe, where placement and bullet construction matter more
+      than energy) and a per-bullet expansion velocity floor. Both are
+      editable, since the first is guidance rather than law and the second
+      is a property of the projectile. The panel reports energy and
+      velocity at the shot range against their thresholds, and the furthest
+      range where both still hold.
+
+      Max ethical range deliberately ignores drop and drift: those are
+      dialled or held off for, so they do not cap range the way terminal
+      performance does.
+- [x] **Configurable table columns**, persisted, so the table can be cut
+      down to what fits a phone screen. Drop, path, wind drift, MOA,
+      velocity, energy and time of flight are all optional.
+- [ ] Fold precision into the recommendation: group size at range is the
+      third constraint alongside energy and expansion, and is what would
+      make the number a genuine confidence interval rather than a
+      terminal-performance limit.
 - [ ] Quartering-angle silhouettes (not just broadside) — several fun
       facts already flag that shot placement differs a lot by angle
       (e.g. wild hog's shoulder "shield" mostly matters broadside).

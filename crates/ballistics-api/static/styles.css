@@ -348,3 +348,44 @@ canvas#vitals-canvas {
 .table-controls input {
   width: 6rem;
 }
+
+.column-picker {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0.35rem 0.75rem 0.5rem;
+  margin: 0;
+}
+
+.column-picker legend {
+  font-size: 0.7rem;
+}
+
+#column-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.9rem;
+}
+
+.column-toggle {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.column-toggle input {
+  width: auto;
+  margin: 0;
+}
+
+.animal-info dd.ok {
+  color: #16a34a;
+}
+
+.animal-info dd.bad {
+  color: var(--error-text);
+  font-weight: 600;
+}

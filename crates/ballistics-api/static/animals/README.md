@@ -37,6 +37,15 @@ sees in a set of images without modifying anything, and pass
 previews. Shadow detection is a heuristic tuned to this artwork style, so
 look at a preview before trusting a new crop.
 
+## Minimum energy
+
+`min_energy_ft_lb` is the retained energy at impact commonly cited for
+cleanly taking a species. Leave it out (or `null`) for anything smaller
+than roe: below that size the limiting factor is shot placement and
+bullet construction rather than energy, and a made-up threshold would
+only look authoritative. The loader treats absent as meaningful and
+rejects a present-but-nonsensical value.
+
 ## Scaling
 
 `species.json` carries each animal's real-world `body_length_in` and the

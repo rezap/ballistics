@@ -46,6 +46,10 @@
           Bullet weight (gr)
           <input type="number" name="bullet_weight_gr" step="1" min="1" max="19999" value="168" required />
         </label>
+        <label title="Impact velocity below which this bullet may not expand reliably. Roughly 1800 ft/s for cup-and-core, 1600 for bonded; monolithics often need more.">
+          Expansion floor (ft/s)
+          <input type="number" id="expansion-velocity" step="10" min="0" max="5000" value="1800" />
+        </label>
       </fieldset>
 
       <fieldset>
@@ -134,6 +138,10 @@
             <span class="unit-suffix">in</span>
           </span>
         </label>
+        <label title="Minimum retained energy considered enough for a clean kill. Left blank for small game, where placement matters more than energy.">
+          Min. energy (ft&middot;lb)
+          <input type="number" id="min-energy" step="50" min="0" placeholder="not applicable" />
+        </label>
         <button type="button" id="scale-reset" class="link-button">Reset calibration</button>
       </fieldset>
 
@@ -151,20 +159,15 @@
           Show out to (yd)
           <input type="number" id="table-max" step="10" min="10" max="1000" value="500" />
         </label>
+        <fieldset class="column-picker">
+          <legend>Columns</legend>
+          <div id="column-toggles"></div>
+        </fieldset>
       </div>
       <canvas id="chart" width="900" height="360" aria-label="Bullet path chart" role="img"></canvas>
       <div class="table-wrap">
         <table id="results-table">
-          <thead>
-            <tr>
-              <th>Yards</th>
-              <th>Path (in)</th>
-              <th>Wind drift (in)</th>
-              <th>MOA correction</th>
-              <th>Velocity (ft/s)</th>
-              <th>Energy (ft&middot;lb)</th>
-            </tr>
-          </thead>
+          <thead><tr></tr></thead>
           <tbody></tbody>
         </table>
       </div>
