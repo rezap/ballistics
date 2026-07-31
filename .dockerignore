@@ -4,3 +4,8 @@ target
 scripts
 ROADMAP.md
 README.md
+
+# Source artwork is only needed to regenerate the web assets, which are
+# committed alongside it. Shipping it would add ~24MB to the image for
+# files the server never reads.
+**/*.raw.png

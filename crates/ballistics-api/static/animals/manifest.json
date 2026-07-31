@@ -1,0 +1,34 @@
+{
+  "elk": {
+    "height_px": 900,
+    "width_px": 886
+  },
+  "fox": {
+    "height_px": 582,
+    "width_px": 900
+  },
+  "hog": {
+    "height_px": 601,
+    "width_px": 900
+  },
+  "moose": {
+    "height_px": 900,
+    "width_px": 872
+  },
+  "phallow": {
+    "height_px": 900,
+    "width_px": 800
+  },
+  "pigeon": {
+    "height_px": 728,
+    "width_px": 900
+  },
+  "roe": {
+    "height_px": 900,
+    "width_px": 828
+  },
+  "turkey": {
+    "height_px": 727,
+    "width_px": 900
+  }
+}

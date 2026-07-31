@@ -1,0 +1,356 @@
+{
+  "_comment": [
+    "Species reference data. This is the file you edit to add an animal.",
+    "",
+    "To add one: drop <key>.raw.png into this directory, run",
+    "scripts/prep_silhouettes.py, and add an entry here whose key matches",
+    "the filename. No Rust or JavaScript changes are needed.",
+    "",
+    "Dimensions are typical adult figures gathered from hunting and",
+    "wildlife references. They are approximations - real animals vary a",
+    "lot by region, subspecies, age and condition - so the app lets the",
+    "user override body_length_in and shoulder_height_in at runtime.",
+    "Treat these as starting points, not authoritative measurements.",
+    "",
+    "vitals_anchor is where the heart/lung centre sits within the trimmed",
+    "artwork, as a fraction of its width and height (0,0 = top-left).",
+    "It is eyeballed against each silhouette."
+  ],
+  "roe": {
+    "common_name": "Roe Deer",
+    "scientific_name": "Capreolus capreolus",
+    "male_label": "Buck",
+    "female_label": "Doe",
+    "male": {
+      "shoulder_height_in": [
+        25,
+        30
+      ],
+      "weight_lb": [
+        44,
+        77
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        24,
+        29
+      ],
+      "weight_lb": [
+        33,
+        66
+      ]
+    },
+    "body_length_in": 45,
+    "shoulder_height_in": 27,
+    "vitals": {
+      "width_in": 6,
+      "height_in": 7
+    },
+    "vitals_anchor": {
+      "x": 0.62,
+      "y": 0.55
+    },
+    "habitat": "Woodland edges, farmland and scrub across Europe; browses in the open at dawn and dusk.",
+    "diet": "Herbivore: buds, shoots, leaves, herbs, brambles and farm crops.",
+    "fun_facts": [
+      "Small and light for a deer - a mature buck often weighs under 70 lb, so the vital zone is correspondingly tight.",
+      "Bucks shed and regrow antlers over winter, opposite to most deer, which regrow them in spring and summer."
+    ]
+  },
+  "phallow": {
+    "common_name": "Fallow Deer",
+    "scientific_name": "Dama dama",
+    "male_label": "Buck",
+    "female_label": "Doe",
+    "male": {
+      "shoulder_height_in": [
+        33,
+        37
+      ],
+      "weight_lb": [
+        130,
+        220
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        30,
+        34
+      ],
+      "weight_lb": [
+        66,
+        110
+      ]
+    },
+    "body_length_in": 57,
+    "shoulder_height_in": 35,
+    "vitals": {
+      "width_in": 8,
+      "height_in": 9
+    },
+    "vitals_anchor": {
+      "x": 0.61,
+      "y": 0.57
+    },
+    "habitat": "Mature broadleaf woodland with open grazing nearby; widely introduced well beyond its native range.",
+    "diet": "Herbivore: grasses, herbs, browse, acorns and other mast.",
+    "fun_facts": [
+      "The only deer with broad, flattened palmate antlers apart from moose.",
+      "Coats vary enormously between individuals, from near-white to almost black, in the same population."
+    ]
+  },
+  "elk": {
+    "common_name": "Elk (Wapiti)",
+    "scientific_name": "Cervus canadensis",
+    "male_label": "Bull",
+    "female_label": "Cow",
+    "male": {
+      "shoulder_height_in": [
+        54,
+        60
+      ],
+      "weight_lb": [
+        500,
+        730
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        48,
+        54
+      ],
+      "weight_lb": [
+        375,
+        550
+      ]
+    },
+    "body_length_in": 92,
+    "shoulder_height_in": 56,
+    "vitals": {
+      "width_in": 14,
+      "height_in": 16
+    },
+    "vitals_anchor": {
+      "x": 0.58,
+      "y": 0.6
+    },
+    "habitat": "Mountain meadows, foothills and open forest; moves to lower elevations in winter.",
+    "diet": "Herbivore: grasses in summer, shifting to woody browse and bark in winter.",
+    "fun_facts": [
+      "Much larger than they photograph - a bull can exceed 700 lb, and the vital zone is roughly the size of a basketball.",
+      "Bulls bugle during the rut, a call that carries for miles and is audible well beyond visual range."
+    ]
+  },
+  "moose": {
+    "common_name": "Moose",
+    "scientific_name": "Alces alces",
+    "male_label": "Bull",
+    "female_label": "Cow",
+    "male": {
+      "shoulder_height_in": [
+        66,
+        78
+      ],
+      "weight_lb": [
+        840,
+        1500
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        60,
+        70
+      ],
+      "weight_lb": [
+        440,
+        790
+      ]
+    },
+    "body_length_in": 106,
+    "shoulder_height_in": 70,
+    "vitals": {
+      "width_in": 16,
+      "height_in": 18
+    },
+    "vitals_anchor": {
+      "x": 0.56,
+      "y": 0.62
+    },
+    "habitat": "Boreal forest, willow flats, lakeshores and marshy ground across northern latitudes.",
+    "diet": "Herbivore: willow, birch and aquatic plants; wades and dives to feed.",
+    "fun_facts": [
+      "The largest deer alive - a big bull stands taller at the shoulder than most people.",
+      "Despite the bulk they swim strongly and can stay submerged for well over a minute while feeding."
+    ]
+  },
+  "hog": {
+    "common_name": "Wild Hog",
+    "scientific_name": "Sus scrofa",
+    "male_label": "Boar",
+    "female_label": "Sow",
+    "male": {
+      "shoulder_height_in": [
+        24,
+        38
+      ],
+      "weight_lb": [
+        150,
+        300
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        22,
+        34
+      ],
+      "weight_lb": [
+        110,
+        180
+      ]
+    },
+    "body_length_in": 66,
+    "shoulder_height_in": 32,
+    "vitals": {
+      "width_in": 8,
+      "height_in": 8
+    },
+    "vitals_anchor": {
+      "x": 0.62,
+      "y": 0.6
+    },
+    "habitat": "Highly adaptable: bottomland hardwood forest, marsh, swamp and farmland, usually near water and dense cover.",
+    "diet": "Omnivore and opportunistic feeder: grasses and forbs in spring, fruit in summer and autumn, roots, tubers and invertebrates year-round.",
+    "fun_facts": [
+      "Can run up to 30 mph despite their bulky build, and are strong swimmers.",
+      "Highly intelligent - by some measures on par with or smarter than dogs.",
+      "Vitals sit lower and further forward than a deer's, and mature boars grow a thick cartilage shield over the shoulder that can blunt a broadside shot, so quartering-away shots are more reliable."
+    ]
+  },
+  "fox": {
+    "common_name": "Red Fox",
+    "scientific_name": "Vulpes vulpes",
+    "male_label": "Dog",
+    "female_label": "Vixen",
+    "male": {
+      "shoulder_height_in": [
+        14,
+        16
+      ],
+      "weight_lb": [
+        10,
+        15
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        13,
+        15
+      ],
+      "weight_lb": [
+        8,
+        12
+      ]
+    },
+    "body_length_in": 26,
+    "shoulder_height_in": 15,
+    "vitals": {
+      "width_in": 4,
+      "height_in": 4
+    },
+    "vitals_anchor": {
+      "x": 0.6,
+      "y": 0.63
+    },
+    "habitat": "Almost anywhere: farmland, woodland, moorland and dense urban areas.",
+    "diet": "Omnivore: rodents, rabbits, birds, insects, fruit and scavenged food.",
+    "fun_facts": [
+      "The vital zone is only a few inches across, so the margin for error is far smaller than on any deer.",
+      "That famously bushy tail is roughly a third of the animal's total length, which makes silhouettes look bigger than the body really is."
+    ]
+  },
+  "pigeon": {
+    "common_name": "Pigeon",
+    "scientific_name": "Columba palumbus",
+    "male_label": "Cock",
+    "female_label": "Hen",
+    "male": {
+      "shoulder_height_in": [
+        6,
+        8
+      ],
+      "weight_lb": [
+        0.9,
+        1.3
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        6,
+        8
+      ],
+      "weight_lb": [
+        0.8,
+        1.2
+      ]
+    },
+    "body_length_in": 16,
+    "shoulder_height_in": 8,
+    "vitals": {
+      "width_in": 2,
+      "height_in": 2
+    },
+    "vitals_anchor": {
+      "x": 0.52,
+      "y": 0.55
+    },
+    "habitat": "Farmland, woodland and towns; feeds in flocks on open fields.",
+    "diet": "Herbivore: seeds, grain, buds, shoots and berries.",
+    "fun_facts": [
+      "A tiny vital zone measured in single-digit inches - this is a shotgun quarry, and the overlay makes that obvious at any real range.",
+      "Strong, fast fliers that can sustain well over 50 mph."
+    ]
+  },
+  "turkey": {
+    "common_name": "Wild Turkey",
+    "scientific_name": "Meleagris gallopavo",
+    "male_label": "Tom",
+    "female_label": "Hen",
+    "male": {
+      "shoulder_height_in": [
+        30,
+        40
+      ],
+      "weight_lb": [
+        16,
+        24
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        24,
+        32
+      ],
+      "weight_lb": [
+        8,
+        12
+      ]
+    },
+    "body_length_in": 40,
+    "shoulder_height_in": 36,
+    "vitals": {
+      "width_in": 3,
+      "height_in": 4
+    },
+    "vitals_anchor": {
+      "x": 0.52,
+      "y": 0.52
+    },
+    "habitat": "Open hardwood and mixed forest with clearings; roosts in trees overnight.",
+    "diet": "Omnivore: acorns, seeds, greens and insects.",
+    "fun_facts": [
+      "Body mass is mostly feather - the actual vital area is small, which is why head and neck shots are the usual advice.",
+      "Can run around 25 mph and fly in short bursts far faster than their bulk suggests."
+    ]
+  }
+}

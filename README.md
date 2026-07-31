@@ -20,11 +20,13 @@ bug in cant/incline compensation has been fixed.
 HTTP with a browser UI, and is deployed and live at
 <https://ballistics-production-2c51.up.railway.app>.
 
-**Phase 3 in progress:** the ethical-shot assistant. A game animal
-database (`ballistics-core::animals`) with vital-zone geometry, sizes,
-habitat, diet and fun facts is in place for two species (whitetail deer,
-wild hog), with eight more scoped in `ROADMAP.md`. The web app overlays
-point of impact against a species' vital zone and shows its info panel.
+**Phase 3 in progress:** the ethical-shot assistant. Eight game species
+(roe deer, fallow deer, elk, moose, wild hog, red fox, pigeon, wild
+turkey) ship with silhouette artwork, vital-zone geometry, sizes,
+habitat, diet and fun facts. The web app scales the artwork to real-world
+dimensions and overlays the computed point of impact against the vital
+zone. Species data is data-driven: adding an animal is a PNG plus a
+`species.json` entry, with no code change.
 
 ## Workspace layout
 
@@ -78,7 +80,7 @@ Endpoints:
 
 - `POST /api/trajectory` — solve a trajectory from a JSON `{ load, rifle, atmosphere?, shot? }` body (see `crates/ballistics-api/static/app.js` for a working example); returns an array of per-yard trajectory points (drop, windage, time of flight, etc.).
 - `GET /api/drag-functions` — list the supported drag functions.
-- `GET /api/animals` — list supported game species with vital-zone geometry, sizes, habitat, diet, and fun facts.
+- `GET /api/animals` — list supported game species with vital-zone geometry, artwork dimensions, sizes, habitat, diet, and fun facts. Loaded from `crates/ballistics-api/static/animals/species.json`; see that directory's README for how to add a species.
 - `GET /health` — liveness check.
 
 Configuration is via environment variables: `BALLISTICS_API_ADDR` (a full

@@ -7,9 +7,16 @@ const speciesSelect = document.getElementById("species-select");
 const shotRangeInput = document.getElementById("shot-range");
 const vitalsCanvas = document.getElementById("vitals-canvas");
 const animalInfo = document.getElementById("animal-info");
+const scaleBasisSelect = document.getElementById("scale-basis");
+const scaleValueInput = document.getElementById("scale-value");
+const scaleUnitSelect = document.getElementById("scale-unit");
+const scaleResetButton = document.getElementById("scale-reset");
 
 let animalsList = [];
 let lastPoints = null;
+
+const UNIT_TO_INCHES = { in: 1, cm: 1 / 2.54, m: 39.3701 };
+const imageCache = new Map();
 
 // Opening index.html directly as a file (e.g. double-clicking it) gives the
 // page a "file:" origin, and browsers block fetch() entirely from there —
@@ -35,8 +42,103 @@ async function loadAnimals() {
   }
 
   speciesSelect.innerHTML = animalsList
-    .map((a) => `<option value="${a.species}">${a.common_name}</option>`)
+    .map((a) => `<option value="${a.key}">${a.common_name}</option>`)
     .join("");
+
+  syncScaleControls();
+}
+
+function currentProfile() {
+  return animalsList.find((a) => a.key === speciesSelect.value) ?? null;
+}
+
+/// The reference measurement, in inches, that the current scale basis
+/// corresponds to. Body length maps to the artwork's width; overall height
+/// maps to its height (which for antlered species includes the antlers,
+/// hence "as drawn" rather than shoulder height).
+function referenceInches(profile, basis) {
+  if (basis === "height") {
+    // Derive from the artwork's aspect ratio rather than shoulder height:
+    // the image spans antler tip to hoof, which shoulder height does not.
+    const aspect = profile.image_height_px / profile.image_width_px;
+    return profile.body_length_in * aspect;
+  }
+  return profile.body_length_in;
+}
+
+function storageKey(profile) {
+  return `ballistics.scale.${profile.key}`;
+}
+
+function loadOverride(profile) {
+  try {
+    const raw = window.localStorage.getItem(storageKey(profile));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveOverride(profile, override) {
+  try {
+    if (override) {
+      window.localStorage.setItem(storageKey(profile), JSON.stringify(override));
+    } else {
+      window.localStorage.removeItem(storageKey(profile));
+    }
+  } catch {
+    // A blocked or full localStorage should not break the overlay.
+  }
+}
+
+/// Populates the scale inputs from the stored override, or from the
+/// species' reference dimensions when there is no override.
+function syncScaleControls() {
+  const profile = currentProfile();
+  if (!profile) return;
+
+  const override = loadOverride(profile);
+  const basis = override?.basis ?? "length";
+  scaleBasisSelect.value = basis;
+
+  if (override) {
+    scaleUnitSelect.value = override.unit;
+    scaleValueInput.value = override.value;
+  } else {
+    scaleUnitSelect.value = "in";
+    scaleValueInput.value = round1(referenceInches(profile, basis));
+  }
+}
+
+/// Inches per pixel of the artwork, honouring any user override.
+function inchesPerPixel(profile) {
+  const basis = scaleBasisSelect.value;
+  const pixels = basis === "height" ? profile.image_height_px : profile.image_width_px;
+
+  const typed = Number(scaleValueInput.value);
+  const unit = scaleUnitSelect.value;
+  const inches =
+    Number.isFinite(typed) && typed > 0
+      ? typed * (UNIT_TO_INCHES[unit] ?? 1)
+      : referenceInches(profile, basis);
+
+  return inches / pixels;
+}
+
+function round1(value) {
+  return Math.round(value * 10) / 10;
+}
+
+function loadImage(src) {
+  if (imageCache.has(src)) return imageCache.get(src);
+  const promise = new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+  imageCache.set(src, promise);
+  return promise;
 }
 
 form.addEventListener("submit", async (event) => {
@@ -78,9 +180,58 @@ shotRangeInput.addEventListener("input", () => {
   }
 });
 speciesSelect.addEventListener("change", () => {
+  syncScaleControls();
   if (lastPoints) {
     renderAnimalPanel(lastPoints);
   }
+});
+
+// Scale overrides exist because the reference dimensions are gathered from
+// general wildlife sources and the artwork is stylised, so neither is
+// authoritative for a particular animal. Changes persist per species.
+function onScaleChanged() {
+  const profile = currentProfile();
+  if (!profile) return;
+
+  saveOverride(profile, {
+    basis: scaleBasisSelect.value,
+    value: Number(scaleValueInput.value),
+    unit: scaleUnitSelect.value,
+  });
+
+  if (lastPoints) renderAnimalPanel(lastPoints);
+}
+
+scaleValueInput.addEventListener("input", onScaleChanged);
+scaleUnitSelect.addEventListener("change", () => {
+  // Convert the displayed number into the newly selected unit rather than
+  // reinterpreting it, so switching units does not silently resize.
+  const profile = currentProfile();
+  if (profile) {
+    const previous = loadOverride(profile)?.unit ?? "in";
+    const inches = Number(scaleValueInput.value) * (UNIT_TO_INCHES[previous] ?? 1);
+    const converted = inches / (UNIT_TO_INCHES[scaleUnitSelect.value] ?? 1);
+    scaleValueInput.value = converted >= 10 ? round1(converted) : Math.round(converted * 100) / 100;
+  }
+  onScaleChanged();
+});
+
+scaleBasisSelect.addEventListener("change", () => {
+  const profile = currentProfile();
+  if (profile) {
+    // Show the reference figure for the newly chosen basis.
+    scaleUnitSelect.value = "in";
+    scaleValueInput.value = round1(referenceInches(profile, scaleBasisSelect.value));
+  }
+  onScaleChanged();
+});
+
+scaleResetButton.addEventListener("click", () => {
+  const profile = currentProfile();
+  if (!profile) return;
+  saveOverride(profile, null);
+  syncScaleControls();
+  if (lastPoints) renderAnimalPanel(lastPoints);
 });
 
 function buildRequestPayload(formData) {
@@ -239,8 +390,8 @@ function nearestPoint(points, target) {
   );
 }
 
-function renderAnimalPanel(points) {
-  const profile = animalsList.find((a) => a.species === speciesSelect.value);
+async function renderAnimalPanel(points) {
+  const profile = currentProfile();
   if (!profile) {
     animalInfo.innerHTML = "";
     vitalsCanvas.getContext("2d").clearRect(0, 0, vitalsCanvas.width, vitalsCanvas.height);
@@ -250,121 +401,156 @@ function renderAnimalPanel(points) {
   const requestedRange = Number(shotRangeInput.value);
   const point = nearestPoint(points, requestedRange);
 
-  const hit = renderVitalsOverlay(profile, point.path_inches, point.windage_in);
+  // A species with no prepared artwork still gets the overlay and the
+  // info panel, just without a silhouette behind them.
+  const image = profile.image ? await loadImage(profile.image) : null;
+
+  const hit = renderVitalsOverlay(profile, point.path_inches, point.windage_in, image);
   renderAnimalInfo(profile, hit, point);
 }
 
-function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn) {
+function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn, image) {
   const ctx = vitalsCanvas.getContext("2d");
-  const size = vitalsCanvas.width;
-  ctx.clearRect(0, 0, size, size);
+  const width = vitalsCanvas.width;
+  const height = vitalsCanvas.height;
+  ctx.clearRect(0, 0, width, height);
 
-  const silhouette = SILHOUETTES[profile.species];
   const vitals = profile.vitals;
+  const inPerPx = inchesPerPixel(profile);
 
-  // Profile-unit space is fixed per silhouette; scale it to fill the
-  // canvas, anchoring the ground line near the bottom with a margin.
-  const margin = 36;
-  const scale = (size - margin * 2) / 100;
-  const groundY = size - margin;
-  const originX = margin * 0.6;
-  const toPx = (x, y) => [originX + x * scale, groundY - y * scale];
+  // Everything is laid out in artwork-pixel space first, then fitted into
+  // the canvas as a single transform at the end.
+  const artW = profile.image_width_px ?? 400;
+  const artH = profile.image_height_px ?? 300;
+  const aimX = profile.vitals_anchor.x * artW;
+  const aimY = profile.vitals_anchor.y * artH;
 
-  // Converts a real-inch distance into the same profile-unit space the
-  // silhouette was authored in, so the vitals ellipse and impact marker
-  // are drawn to scale against this specific body's length.
-  const unitsPerInch = silhouette.spanUnits / profile.body_length_in;
+  // Impact offset, converted from real inches into artwork pixels.
+  // path_inches is positive above the line of sight and canvas y grows
+  // downward, hence the negation; windage_in is positive to the shooter's
+  // right, matching x growing toward the animal's head (drawn facing right).
+  const impactX = aimX + horizontalMissIn / inPerPx;
+  const impactY = aimY - verticalMissIn / inPerPx;
+
+  // Fit the artwork *and* the impact marker, so a long-range shot that
+  // lands well off the animal stays visible instead of being clipped.
+  const pad = 26;
+  const minX = Math.min(0, impactX);
+  const maxX = Math.max(artW, impactX);
+  const minY = Math.min(0, impactY);
+  const maxY = Math.max(artH, impactY);
+  const fit = Math.min(
+    (width - pad * 2) / (maxX - minX),
+    (height - pad * 2) / (maxY - minY)
+  );
+  const offsetX = pad + (width - pad * 2 - (maxX - minX) * fit) / 2 - minX * fit;
+  const offsetY = pad + (height - pad * 2 - (maxY - minY) * fit) / 2 - minY * fit;
+  const toPx = (x, y) => [offsetX + x * fit, offsetY + y * fit];
 
   const style = getComputedStyle(document.documentElement);
+  const inkColor = style.getPropertyValue("--silhouette").trim() || "#9aa0aa";
   const textColor = style.getPropertyValue("--muted").trim();
 
-  // Body silhouette.
-  ctx.fillStyle = "#9aa0aa77";
-  ctx.strokeStyle = "#9aa0aa77";
-  ctx.lineWidth = 2;
-  ctx.lineJoin = "round";
-
-  for (const leg of silhouette.legs) {
-    fillPolyPx(ctx, toPx, leg);
-  }
-  if (silhouette.torso) {
-    const { cx, cy, rx, ry } = silhouette.torso;
-    const [px, py] = toPx(cx, cy);
-    ctx.beginPath();
-    ctx.ellipse(px, py, rx * scale, ry * scale, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  for (const shape of silhouette.fills) {
-    fillPolyPx(ctx, toPx, shape);
-  }
-  ctx.lineWidth = 1.6;
-  for (const line of silhouette.strokes) {
-    strokePolyPx(ctx, toPx, line);
+  if (image) {
+    drawTinted(ctx, image, toPx(0, 0), artW * fit, artH * fit, inkColor);
   }
 
-  // Point of aim (assumed held on the vitals' center) and vitals ellipse,
-  // in the same profile-unit space as the body.
-  const [vitalsCenterX, vitalsCenterY] = silhouette.vitalsCenter;
-  const [aimPx, aimPy] = toPx(vitalsCenterX, vitalsCenterY);
-  const halfWidthUnits = (vitals.width_in / 2) * unitsPerInch;
-  const halfHeightUnits = (vitals.height_in / 2) * unitsPerInch;
+  // Vital zone, sized from real inches through the same scale.
+  const [aimPxX, aimPxY] = toPx(aimX, aimY);
+  const halfW = (vitals.width_in / 2 / inPerPx) * fit;
+  const halfH = (vitals.height_in / 2 / inPerPx) * fit;
 
   ctx.beginPath();
-  ctx.ellipse(aimPx, aimPy, halfWidthUnits * scale, halfHeightUnits * scale, 0, 0, Math.PI * 2);
+  ctx.ellipse(aimPxX, aimPxY, halfW, halfH, 0, 0, Math.PI * 2);
+  ctx.fillStyle = "#16a34a33";
+  ctx.fill();
   ctx.strokeStyle = "#16a34a";
   ctx.lineWidth = 2;
   ctx.stroke();
-  ctx.fillStyle = "#16a34a33";
-  ctx.fill();
 
+  // Point of aim.
   ctx.beginPath();
-  ctx.arc(aimPx, aimPy, 2, 0, Math.PI * 2);
-  ctx.fillStyle = textColor;
-  ctx.fill();
-
-  // Impact point: verticalMissIn is positive above the line of sight,
-  // matching this profile space's y-up convention, so it adds directly;
-  // horizontalMissIn is positive toward the shooter's right, matching x
-  // growing toward the animal's front (as drawn, facing right).
-  const impactX = vitalsCenterX + horizontalMissIn * unitsPerInch;
-  const impactY = vitalsCenterY + verticalMissIn * unitsPerInch;
-  const [impactPx, impactPy] = toPx(impactX, impactY);
-
-  const distance = Math.sqrt(
-    (horizontalMissIn / (vitals.width_in / 2)) ** 2 + (verticalMissIn / (vitals.height_in / 2)) ** 2
-  );
-  const isVitalsHit = distance <= 1;
-
-  ctx.beginPath();
-  ctx.arc(impactPx, impactPy, 6, 0, Math.PI * 2);
-  ctx.fillStyle = isVitalsHit ? "#16a34a" : "#dc2626";
-  ctx.fill();
-  ctx.strokeStyle = "#00000055";
+  ctx.moveTo(aimPxX - 7, aimPxY);
+  ctx.lineTo(aimPxX + 7, aimPxY);
+  ctx.moveTo(aimPxX, aimPxY - 7);
+  ctx.lineTo(aimPxX, aimPxY + 7);
+  ctx.strokeStyle = textColor;
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  return { isVitalsHit, distance };
-}
+  const assessment = assessHit(vitals, verticalMissIn, horizontalMissIn);
+  const [impactPxX, impactPxY] = toPx(impactX, impactY);
 
-function fillPolyPx(ctx, toPx, points) {
+  // Connect aim to impact when they are far enough apart to read.
+  if (Math.hypot(impactPxX - aimPxX, impactPxY - aimPxY) > 14) {
+    ctx.beginPath();
+    ctx.moveTo(aimPxX, aimPxY);
+    ctx.lineTo(impactPxX, impactPxY);
+    ctx.strokeStyle = assessment.isVitalsHit ? "#16a34a88" : "#dc262688";
+    ctx.setLineDash([3, 3]);
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   ctx.beginPath();
-  points.forEach(([x, y], i) => {
-    const [px, py] = toPx(x, y);
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  });
-  ctx.closePath();
+  ctx.arc(impactPxX, impactPxY, 6, 0, Math.PI * 2);
+  ctx.fillStyle = assessment.isVitalsHit ? "#16a34a" : "#dc2626";
   ctx.fill();
+  ctx.strokeStyle = "#ffffffaa";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  // Scale bar: one foot, so the drawn size is checkable at a glance.
+  drawScaleBar(ctx, width, height, fit / inPerPx, textColor);
+
+  return assessment;
 }
 
-function strokePolyPx(ctx, toPx, points) {
+/// Mirrors ballistics_core::VitalZone::assess on the client so the overlay
+/// and the badge cannot disagree.
+function assessHit(vitals, verticalMissIn, horizontalMissIn) {
+  const distance = Math.hypot(
+    horizontalMissIn / (vitals.width_in / 2),
+    verticalMissIn / (vitals.height_in / 2)
+  );
+  return { isVitalsHit: distance <= 1, distance };
+}
+
+/// Draws the silhouette recoloured to `color`. The prepared artwork is a
+/// pure alpha mask, so it has to be tinted rather than drawn directly -
+/// the source is black, which would be invisible in dark mode.
+function drawTinted(ctx, image, [x, y], w, h, color) {
+  const buffer = document.createElement("canvas");
+  buffer.width = Math.max(1, Math.round(w));
+  buffer.height = Math.max(1, Math.round(h));
+  const bctx = buffer.getContext("2d");
+  bctx.drawImage(image, 0, 0, buffer.width, buffer.height);
+  bctx.globalCompositeOperation = "source-in";
+  bctx.fillStyle = color;
+  bctx.fillRect(0, 0, buffer.width, buffer.height);
+  ctx.drawImage(buffer, x, y);
+}
+
+function drawScaleBar(ctx, width, height, pxPerInch, textColor) {
+  const barPx = pxPerInch * 12;
+  if (!Number.isFinite(barPx) || barPx < 8 || barPx > width - 40) return;
+
+  const x = 16;
+  const y = height - 16;
+  ctx.strokeStyle = textColor;
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  points.forEach(([x, y], i) => {
-    const [px, py] = toPx(x, y);
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.lineTo(px, py);
-  });
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + barPx, y);
+  ctx.moveTo(x, y - 4);
+  ctx.lineTo(x, y + 4);
+  ctx.moveTo(x + barPx, y - 4);
+  ctx.lineTo(x + barPx, y + 4);
   ctx.stroke();
+  ctx.fillStyle = textColor;
+  ctx.font = "11px sans-serif";
+  ctx.fillText("1 ft", x + barPx + 6, y + 4);
 }
 
 function renderAnimalInfo(profile, hit, point) {

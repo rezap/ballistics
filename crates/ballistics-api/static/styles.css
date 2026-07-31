@@ -12,6 +12,7 @@
   --grid: #e5e7eb;
   --path-line: #b3441e;
   --zero-line: #6b7280;
+  --silhouette: #7c828d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -28,6 +29,7 @@
     --grid: #2a2d33;
     --path-line: #e07a4e;
     --zero-line: #8a8f98;
+    --silhouette: #aeb4bf;
   }
 }
 
@@ -277,4 +279,37 @@ canvas#vitals-canvas {
 
 .animal-info li {
   margin-bottom: 0.3rem;
+}
+
+.size-row {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.size-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.size-row select {
+  flex: 0 0 auto;
+}
+
+.link-button {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+canvas#vitals-canvas {
+  width: 100%;
+  max-width: 460px;
+  height: auto;
+  flex: 1 1 320px;
 }

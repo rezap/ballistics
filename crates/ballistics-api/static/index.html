@@ -104,6 +104,25 @@
           Shot range (yd)
           <input type="number" name="shot_range" id="shot-range" step="1" min="1" max="1000" value="100" required />
         </label>
+        <label>
+          Scale drawing by
+          <select id="scale-basis">
+            <option value="length">Body length (nose to tail)</option>
+            <option value="height">Overall height (as drawn)</option>
+          </select>
+        </label>
+        <label>
+          Measured size
+          <span class="size-row">
+            <input type="number" id="scale-value" step="0.1" min="0.1" />
+            <select id="scale-unit">
+              <option value="in">in</option>
+              <option value="cm">cm</option>
+              <option value="m">m</option>
+            </select>
+          </span>
+        </label>
+        <button type="button" id="scale-reset" class="link-button">Reset to reference size</button>
       </fieldset>
 
       <button type="submit">Calculate trajectory</button>
@@ -129,7 +148,7 @@
 
       <h2>Shot vs. vitals</h2>
       <div class="animal-panel">
-        <canvas id="vitals-canvas" width="360" height="360" aria-label="Point of impact vs. vital zone" role="img"></canvas>
+        <canvas id="vitals-canvas" width="460" height="380" aria-label="Point of impact vs. vital zone" role="img"></canvas>
         <div id="animal-info" class="animal-info"></div>
       </div>
     </section>
@@ -137,7 +156,6 @@
     <p id="error" class="error" hidden></p>
   </main>
 
-  <script src="silhouettes.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
