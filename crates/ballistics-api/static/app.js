@@ -21,6 +21,7 @@ const minEnergyInput = document.getElementById("min-energy");
 const aimModeSelect = document.getElementById("aim-mode");
 const groupMoaInput = document.getElementById("group-moa");
 const groupWarning = document.getElementById("group-warning");
+const solveHoldButton = document.getElementById("solve-hold");
 
 let animalsList = [];
 let lastPoints = null;
@@ -37,6 +38,34 @@ let lastTransform = null;
 // where one fixed hold lands across a band of ranges is what the mode is
 // for. It resets on a change of species or aim mode.
 let holdOffsetIn = { x: 0, y: 0 };
+
+// The aim point the impact is actually solved from. It lags the crosshair
+// while the crosshair is being dragged, and catches up when the shot is
+// recalculated - on releasing the drag, or on pressing Calculate.
+//
+// Dragging both together would be arithmetically identical (the drop is
+// fixed at a given range, so the pair just slides), but it hides the one
+// thing hold-over is about: you point somewhere other than the vitals,
+// and the shot is then worked out from where you pointed. Freezing the
+// impact during the drag makes the aim move against a fixed reference,
+// and releasing shows the result.
+let appliedHoldIn = { x: 0, y: 0 };
+
+function resetHold() {
+  holdOffsetIn = { x: 0, y: 0 };
+  appliedHoldIn = { x: 0, y: 0 };
+}
+
+/// Re-solves the impact from wherever the crosshair has been left.
+function applyHold() {
+  appliedHoldIn = { ...holdOffsetIn };
+}
+
+/// True while the crosshair has been moved but the shot has not been
+/// re-solved from its new position.
+function holdIsPending() {
+  return holdOffsetIn.x !== appliedHoldIn.x || holdOffsetIn.y !== appliedHoldIn.y;
+}
 
 // A group this wide is poor for a modern hunting rifle, so typing one is
 // more likely a slip than a real measurement - hence the confirmation.
@@ -322,6 +351,9 @@ form.addEventListener("submit", async (event) => {
   }
 
   lastPoints = body;
+  // Recalculating the shot also solves it from wherever the crosshair has
+  // been left, so the button does what it says even mid-drag.
+  applyHold();
   renderResults(body);
 });
 
@@ -340,7 +372,7 @@ speciesSelect.addEventListener("change", () => {
   // another's, so it does not carry over. Range changes deliberately *do*
   // keep it: holding one aim point across a band of ranges and watching
   // where it lands is the whole point of the mode.
-  holdOffsetIn = { x: 0, y: 0 };
+  resetHold();
   if (lastPoints) {
     renderAnimalPanel(lastPoints);
   }
@@ -426,8 +458,21 @@ aimModeSelect.addEventListener("change", () => {
   // Start each hold-over session from the vitals centre, so the crosshair
   // is somewhere predictable and switching modes is also how you undo a
   // hold you have dragged into a corner.
-  holdOffsetIn = { x: 0, y: 0 };
+  resetHold();
+  solveHoldButton.hidden = aimMode() !== "holdover";
   if (lastPoints) renderAnimalPanel(lastPoints);
+});
+
+// Finding the hold by dragging is fine for exploring, but the exact answer
+// is something the trajectory already knows. Placing the crosshair on it
+// also demonstrates the relationship the drag makes confusing: the hold
+// goes up and left, and the impact lands on the vitals.
+solveHoldButton.addEventListener("click", () => {
+  if (!lastPoints) return;
+  const point = nearestPoint(lastPoints, Number(shotRangeInput.value));
+  holdOffsetIn = { x: -point.windage_in, y: -point.path_inches };
+  applyHold();
+  renderAnimalPanel(lastPoints);
 });
 
 /// A group wider than a couple of MOA is worth querying rather than
@@ -552,10 +597,17 @@ vitalsCanvas.addEventListener("pointermove", (event) => {
 
 function endDrag(event) {
   if (!dragging) return;
+  const wasHold = dragging === "hold";
   dragging = null;
   vitalsCanvas.style.cursor = "grab";
   if (vitalsCanvas.hasPointerCapture?.(event.pointerId)) {
     vitalsCanvas.releasePointerCapture(event.pointerId);
+  }
+  // Letting go of the crosshair is what re-solves the shot from where it
+  // now points.
+  if (wasHold) {
+    applyHold();
+    if (lastPoints) renderAnimalPanel(lastPoints);
   }
 }
 
@@ -852,20 +904,50 @@ function renderVitalsOverlay(profile, point, image) {
     ctx.setLineDash([]);
   }
 
-  // Crosshair, at the hold point rather than the vitals centre.
-  ctx.strokeStyle = textColor;
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(crossPxX - 9, crossPxY);
-  ctx.lineTo(crossPxX + 9, crossPxY);
-  ctx.moveTo(crossPxX, crossPxY - 9);
-  ctx.lineTo(crossPxX, crossPxY + 9);
-  ctx.stroke();
-
-  // Line from hold to impact, when they are far enough apart to read.
-  if (Math.hypot(impactPxX - crossPxX, impactPxY - crossPxY) > 14) {
+  // Crosshair, at the hold point rather than the vitals centre. Stroked
+  // twice: the silhouette is a mid-grey, so a single grey cross over the
+  // animal's back is close to invisible - exactly where a hold-over mark
+  // usually sits.
+  const crosshair = () => {
     ctx.beginPath();
-    ctx.moveTo(crossPxX, crossPxY);
+    ctx.moveTo(crossPxX - 9, crossPxY);
+    ctx.lineTo(crossPxX + 9, crossPxY);
+    ctx.moveTo(crossPxX, crossPxY - 9);
+    ctx.lineTo(crossPxX, crossPxY + 9);
+    ctx.stroke();
+  };
+  ctx.strokeStyle = style.getPropertyValue("--surface").trim() || "#ffffff";
+  ctx.lineWidth = 4;
+  crosshair();
+  ctx.strokeStyle = style.getPropertyValue("--text").trim() || "#1a1a1a";
+  ctx.lineWidth = 1.5;
+  crosshair();
+
+  // A ring marking what is grabbable, only where the crosshair can be
+  // moved. It goes dashed while the crosshair has been moved but the shot
+  // has not been re-solved from it yet, so a frozen impact reads as
+  // "not applied" rather than as a stuck marker.
+  if (aimMode() === "holdover") {
+    const accent = style.getPropertyValue("--accent").trim() || "#b3441e";
+    ctx.beginPath();
+    ctx.arc(crossPxX, crossPxY, 14, 0, Math.PI * 2);
+    ctx.strokeStyle = holdIsPending() ? accent : `${accent}66`;
+    ctx.lineWidth = holdIsPending() ? 1.5 : 1;
+    if (holdIsPending()) ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // The error being nulled: from where the shot should go to where it
+  // actually goes. Drawn from the *vitals centre* rather than from the
+  // crosshair, because that is the gap the user is trying to close - a
+  // line from the crosshair would be the drop, which never changes at a
+  // fixed range no matter where you hold, so nothing on the drawing would
+  // shrink as the hold converged. In dead-on and dialled modes the
+  // crosshair sits on the vitals centre, so this is the same line as before.
+  if (Math.hypot(impactPxX - vitalsPxX, impactPxY - vitalsPxY) > 14) {
+    ctx.beginPath();
+    ctx.moveTo(vitalsPxX, vitalsPxY);
     ctx.lineTo(impactPxX, impactPxY);
     ctx.strokeStyle = assessment.verdict === "hit" ? "#16a34a88" : "#dc262688";
     ctx.setLineDash([3, 3]);
@@ -881,6 +963,19 @@ function renderVitalsOverlay(profile, point, image) {
   ctx.strokeStyle = "#ffffffaa";
   ctx.lineWidth = 1.5;
   ctx.stroke();
+
+  // Both markers move together when the hold is dragged - the bullet falls
+  // from wherever the rifle is pointed - so without labels the pair reads
+  // as one stuck object rather than as an aim point and its consequence.
+  if (aimMode() === "holdover") {
+    ctx.font = "11px sans-serif";
+    ctx.fillStyle = holdIsPending()
+      ? style.getPropertyValue("--accent").trim() || "#b3441e"
+      : textColor;
+    ctx.fillText(holdIsPending() ? "release to solve" : "hold", crossPxX + 18, crossPxY + 4);
+    ctx.fillStyle = VERDICT_COLOURS[assessment.verdict];
+    ctx.fillText("impact", impactPxX + 9, impactPxY + 16);
+  }
 
   drawScaleBar(ctx, width, height, fit / inPerPx, textColor);
 
@@ -983,9 +1078,12 @@ function shotGeometry(point) {
     case "dialled":
       return { aim: { x: 0, y: 0 }, impact: { x: drift, y: 0 } };
     case "holdover":
+      // The crosshair is where you are pointing now; the impact is solved
+      // from the aim point that was last applied, so it does not simply
+      // follow the drag.
       return {
         aim: { ...holdOffsetIn },
-        impact: { x: holdOffsetIn.x + drift, y: holdOffsetIn.y + drop },
+        impact: { x: appliedHoldIn.x + drift, y: appliedHoldIn.y + drop },
       };
     default:
       return { aim: { x: 0, y: 0 }, impact: { x: drift, y: drop } };
@@ -1099,7 +1197,7 @@ function renderAnimalInfo(profile, assessment, point) {
         aimMode() === "holdover"
           ? `
       <dt>Hold set</dt>
-      <dd>${describeHold(holdOffsetIn, point.yards)}</dd>`
+      <dd>${describeHold(appliedHoldIn, point.yards)}</dd>`
           : ""
       }`;
 

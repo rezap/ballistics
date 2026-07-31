@@ -120,6 +120,9 @@
             <option value="holdover">Hold-over (drag the crosshair)</option>
           </select>
         </label>
+        <button type="button" id="solve-hold" class="link-button" hidden>
+          Put the crosshair where the hold should be
+        </button>
         <label title="Your rifle-and-load group size in minutes of angle. 0 treats the rifle as perfect and shows the aim point alone.">
           Group size (MOA)
           <input type="number" id="group-moa" step="0.25" min="0" max="20" value="0" />
@@ -190,8 +193,10 @@
         The vital zone is positioned by eye against each drawing, and its size is a
         typical figure rather than a measurement. Drag it on the illustration to
         reposition it, or edit its dimensions above. In hold-over mode the
-        crosshair is draggable too: put it where you would actually hold and
-        see where the bullet lands.
+        crosshair is draggable too: it marks where the rifle is pointed, not
+        where the bullet lands. Drag it above the vitals and let go &mdash;
+        the shot is then solved from that aim point, and the impact moves to
+        where the bullet would actually go.
       </p>
       <div class="animal-panel">
         <canvas id="vitals-canvas" width="460" height="380" aria-label="Point of impact vs. vital zone" role="img"></canvas>

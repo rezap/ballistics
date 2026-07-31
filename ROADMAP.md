@@ -165,7 +165,23 @@ Phase 2:
       looking rather than by arithmetic - and the hold is kept across range
       changes, since holding one aim point over a band of ranges is the
       whole point. The panel also states the hold actually needed, in
-      inches on the animal and in MOA.
+      inches on the animal and in MOA, and a button places the crosshair
+      on it directly.
+
+      Dragging the crosshair moves the crosshair alone. The impact is
+      solved from the aim point that was last *applied* - on releasing the
+      drag, or on pressing Calculate - so the two do not slide around
+      together. Translating both would be arithmetically identical, since
+      the drop is fixed at a given range, but it hides the point of the
+      mode: you deliberately point somewhere other than the vitals, and
+      the shot is then worked out from where you pointed. A dashed ring
+      and a "release to solve" label mark a crosshair that has been moved
+      but not yet applied.
+
+      Both markers are labelled, and the dashed line runs from the *vitals
+      centre* to the impact rather than from the crosshair, so what is
+      drawn is the error being nulled rather than the drop, which never
+      changes at a fixed range.
 
       Wind is deliberately never dialled away: dialling elevation and
       holding for wind is what most people actually do in the field.
