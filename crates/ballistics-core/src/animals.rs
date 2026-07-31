@@ -87,6 +87,10 @@ pub struct AnimalProfile {
     pub female_label: &'static str,
     pub male: SizeRange,
     pub female: SizeRange,
+    /// Typical body length, nose to base of tail, inches. Used by the
+    /// frontend to scale its (hand-drawn, not traced from any photo)
+    /// silhouette illustration to the vitals zone and impact marker.
+    pub body_length_in: f64,
     pub vitals: VitalZone,
     pub habitat: &'static str,
     pub diet: &'static str,
@@ -124,7 +128,9 @@ impl VitalZone {
 pub fn profile(species: Species) -> AnimalProfile {
     match species {
         // Shoulder height and weight: Realtree/onX/ammunitiontogo hunting
-        // guides. Vital zone: commonly cited "8-10 inch" rule of thumb /
+        // guides. Body length (nose to tail base): commonly cited as
+        // 66-72 in (animaldiversity.org, esf.edu); using the midpoint.
+        // Vital zone: commonly cited "8-10 inch" rule of thumb /
         // "14x10x10 in" kill zone box for whitetail deer, simplified to a
         // width x height ellipse behind the shoulder. Fun facts:
         // mentalfloss.com / facts.net whitetail deer roundups.
@@ -142,6 +148,7 @@ pub fn profile(species: Species) -> AnimalProfile {
                 shoulder_height_in: (36.0, 40.0),
                 weight_lb: (90.0, 200.0),
             },
+            body_length_in: 70.0,
             vitals: VitalZone {
                 width_in: 9.0,
                 height_in: 12.0,
@@ -157,11 +164,13 @@ pub fn profile(species: Species) -> AnimalProfile {
 
         // Shoulder height and weight: animals.net / a-z-animals.com wild
         // boar profiles (species-wide range, split roughly by sex from
-        // reported average boar/sow weights). Vital zone: hunting shot-
-        // placement guides (ammunitiontogo.com, sightmark.com) cite an
-        // ~8 inch heart/lung area, positioned lower and more forward than
-        // a deer's and shielded by cartilage on mature boars. Fun facts:
-        // factanimal.com / facts.net wild boar roundups.
+        // reported average boar/sow weights). Body length (nose to tail
+        // base): commonly cited as 60-72 in (biologyinsights.com,
+        // openlearning.blog); using the midpoint. Vital zone: hunting
+        // shot-placement guides (ammunitiontogo.com, sightmark.com) cite
+        // an ~8 inch heart/lung area, positioned lower and more forward
+        // than a deer's and shielded by cartilage on mature boars. Fun
+        // facts: factanimal.com / facts.net wild boar roundups.
         Species::WildHog => AnimalProfile {
             species,
             common_name: "Wild Hog",
@@ -176,6 +185,7 @@ pub fn profile(species: Species) -> AnimalProfile {
                 shoulder_height_in: (22.0, 34.0),
                 weight_lb: (110.0, 180.0),
             },
+            body_length_in: 66.0,
             vitals: VitalZone {
                 width_in: 8.0,
                 height_in: 8.0,
@@ -208,6 +218,7 @@ mod tests {
             assert!(p.male.weight_lb.0 < p.male.weight_lb.1);
             assert!(p.female.shoulder_height_in.0 < p.female.shoulder_height_in.1);
             assert!(p.female.weight_lb.0 < p.female.weight_lb.1);
+            assert!(p.body_length_in > 0.0);
             assert!(p.vitals.width_in > 0.0);
             assert!(p.vitals.height_in > 0.0);
             assert!(!p.fun_facts.is_empty());

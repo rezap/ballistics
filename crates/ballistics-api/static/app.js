@@ -250,69 +250,121 @@ function renderAnimalPanel(points) {
   const requestedRange = Number(shotRangeInput.value);
   const point = nearestPoint(points, requestedRange);
 
-  const hit = renderVitalsOverlay(profile.vitals, point.path_inches, point.windage_in);
+  const hit = renderVitalsOverlay(profile, point.path_inches, point.windage_in);
   renderAnimalInfo(profile, hit, point);
 }
 
-function renderVitalsOverlay(vitals, verticalMissIn, horizontalMissIn) {
+function renderVitalsOverlay(profile, verticalMissIn, horizontalMissIn) {
   const ctx = vitalsCanvas.getContext("2d");
   const size = vitalsCanvas.width;
   ctx.clearRect(0, 0, size, size);
 
-  const halfWidth = vitals.width_in / 2;
-  const halfHeight = vitals.height_in / 2;
-  const maxExtentIn =
-    Math.max(halfWidth, halfHeight, Math.abs(horizontalMissIn), Math.abs(verticalMissIn)) * 1.3;
-  const scale = (size / 2 - 20) / maxExtentIn;
-  const cx = size / 2;
-  const cy = size / 2;
+  const silhouette = SILHOUETTES[profile.species];
+  const vitals = profile.vitals;
+
+  // Profile-unit space is fixed per silhouette; scale it to fill the
+  // canvas, anchoring the ground line near the bottom with a margin.
+  const margin = 36;
+  const scale = (size - margin * 2) / 100;
+  const groundY = size - margin;
+  const originX = margin * 0.6;
+  const toPx = (x, y) => [originX + x * scale, groundY - y * scale];
+
+  // Converts a real-inch distance into the same profile-unit space the
+  // silhouette was authored in, so the vitals ellipse and impact marker
+  // are drawn to scale against this specific body's length.
+  const unitsPerInch = silhouette.spanUnits / profile.body_length_in;
 
   const style = getComputedStyle(document.documentElement);
-  const gridColor = style.getPropertyValue("--grid").trim();
   const textColor = style.getPropertyValue("--muted").trim();
 
-  // Crosshair at point of aim (assumed held on the vitals' center).
-  ctx.strokeStyle = gridColor;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(10, cy);
-  ctx.lineTo(size - 10, cy);
-  ctx.moveTo(cx, 10);
-  ctx.lineTo(cx, size - 10);
-  ctx.stroke();
+  // Body silhouette.
+  ctx.fillStyle = "#9aa0aa77";
+  ctx.strokeStyle = "#9aa0aa77";
+  ctx.lineWidth = 2;
+  ctx.lineJoin = "round";
 
-  // Vital zone ellipse.
+  for (const leg of silhouette.legs) {
+    fillPolyPx(ctx, toPx, leg);
+  }
+  if (silhouette.torso) {
+    const { cx, cy, rx, ry } = silhouette.torso;
+    const [px, py] = toPx(cx, cy);
+    ctx.beginPath();
+    ctx.ellipse(px, py, rx * scale, ry * scale, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  for (const shape of silhouette.fills) {
+    fillPolyPx(ctx, toPx, shape);
+  }
+  ctx.lineWidth = 1.6;
+  for (const line of silhouette.strokes) {
+    strokePolyPx(ctx, toPx, line);
+  }
+
+  // Point of aim (assumed held on the vitals' center) and vitals ellipse,
+  // in the same profile-unit space as the body.
+  const [vitalsCenterX, vitalsCenterY] = silhouette.vitalsCenter;
+  const [aimPx, aimPy] = toPx(vitalsCenterX, vitalsCenterY);
+  const halfWidthUnits = (vitals.width_in / 2) * unitsPerInch;
+  const halfHeightUnits = (vitals.height_in / 2) * unitsPerInch;
+
   ctx.beginPath();
-  ctx.ellipse(cx, cy, halfWidth * scale, halfHeight * scale, 0, 0, Math.PI * 2);
+  ctx.ellipse(aimPx, aimPy, halfWidthUnits * scale, halfHeightUnits * scale, 0, 0, Math.PI * 2);
   ctx.strokeStyle = "#16a34a";
   ctx.lineWidth = 2;
   ctx.stroke();
-  ctx.fillStyle = "#16a34a22";
+  ctx.fillStyle = "#16a34a33";
   ctx.fill();
 
-  // Impact point. Canvas y grows downward; path_inches is positive above
-  // the line of sight, so it's inverted here. windage_in is positive
-  // toward the shooter's right, matching canvas x growing rightward.
-  const markerX = cx + horizontalMissIn * scale;
-  const markerY = cy - verticalMissIn * scale;
+  ctx.beginPath();
+  ctx.arc(aimPx, aimPy, 2, 0, Math.PI * 2);
+  ctx.fillStyle = textColor;
+  ctx.fill();
+
+  // Impact point: verticalMissIn is positive above the line of sight,
+  // matching this profile space's y-up convention, so it adds directly;
+  // horizontalMissIn is positive toward the shooter's right, matching x
+  // growing toward the animal's front (as drawn, facing right).
+  const impactX = vitalsCenterX + horizontalMissIn * unitsPerInch;
+  const impactY = vitalsCenterY + verticalMissIn * unitsPerInch;
+  const [impactPx, impactPy] = toPx(impactX, impactY);
+
   const distance = Math.sqrt(
-    (horizontalMissIn / halfWidth) ** 2 + (verticalMissIn / halfHeight) ** 2
+    (horizontalMissIn / (vitals.width_in / 2)) ** 2 + (verticalMissIn / (vitals.height_in / 2)) ** 2
   );
   const isVitalsHit = distance <= 1;
 
   ctx.beginPath();
-  ctx.arc(markerX, markerY, 6, 0, Math.PI * 2);
+  ctx.arc(impactPx, impactPy, 6, 0, Math.PI * 2);
   ctx.fillStyle = isVitalsHit ? "#16a34a" : "#dc2626";
   ctx.fill();
   ctx.strokeStyle = "#00000055";
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  ctx.fillStyle = textColor;
-  ctx.font = "11px sans-serif";
-  ctx.fillText("point of aim", cx + 8, cy - 8);
-
   return { isVitalsHit, distance };
+}
+
+function fillPolyPx(ctx, toPx, points) {
+  ctx.beginPath();
+  points.forEach(([x, y], i) => {
+    const [px, py] = toPx(x, y);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.closePath();
+  ctx.fill();
+}
+
+function strokePolyPx(ctx, toPx, points) {
+  ctx.beginPath();
+  points.forEach(([x, y], i) => {
+    const [px, py] = toPx(x, y);
+    if (i === 0) ctx.moveTo(px, py);
+    else ctx.lineTo(px, py);
+  });
+  ctx.stroke();
 }
 
 function renderAnimalInfo(profile, hit, point) {
