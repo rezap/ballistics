@@ -9,7 +9,7 @@ use std::fmt;
 use std::str::FromStr;
 
 /// Standard small-arms drag model.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum DragFunction {
     G1,
     G2,

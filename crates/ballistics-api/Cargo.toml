@@ -1,0 +1,15 @@
+[package]
+name = "ballistics-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Axum web API + static frontend for the ballistics-core trajectory engine"
+
+[dependencies]
+ballistics-core = { path = "../ballistics-core" }
+axum = "0.8"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+tower-http = { version = "0.7", features = ["fs", "trace"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

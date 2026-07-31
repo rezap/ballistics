@@ -12,7 +12,7 @@ use crate::drag::DragFunction;
 use crate::trajectory::{self, TrajectoryPoint};
 
 /// The projectile and its muzzle velocity.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Load {
     pub drag_function: DragFunction,
     /// Ballistic coefficient for `drag_function`, before atmospheric correction.
@@ -22,7 +22,7 @@ pub struct Load {
 }
 
 /// Sight and zeroing geometry.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Rifle {
     /// Height of the sighting system above the bore centerline, inches.
     pub sight_height: f64,
@@ -33,7 +33,7 @@ pub struct Rifle {
 }
 
 /// Atmospheric conditions used to correct the ballistic coefficient.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Atmosphere {
     /// Altitude above sea level, feet.
     pub altitude: f64,
@@ -64,7 +64,7 @@ impl Default for Atmosphere {
 }
 
 /// Shot geometry: uphill/downhill angle and wind.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, serde::Serialize, serde::Deserialize)]
 pub struct Shot {
     /// Uphill (positive) / downhill (negative) shot angle, degrees.
     pub shooting_angle: f64,
@@ -76,11 +76,16 @@ pub struct Shot {
 }
 
 /// A full set of inputs needed to solve a trajectory.
-#[derive(Debug, Clone, Copy, PartialEq)]
+///
+/// `atmosphere` and `shot` may be omitted when deserialized from JSON —
+/// they default to a standard atmosphere and a flat, windless shot.
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TrajectoryRequest {
     pub load: Load,
     pub rifle: Rifle,
+    #[serde(default)]
     pub atmosphere: Atmosphere,
+    #[serde(default)]
     pub shot: Shot,
 }
 
