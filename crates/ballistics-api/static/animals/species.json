@@ -1,20 +1,16 @@
 {
   "_comment": [
-    "Species reference data. This is the file you edit to add an animal.",
     "",
-    "To add one: drop <key>.raw.png into this directory, run",
-    "scripts/prep_silhouettes.py, and add an entry here whose key matches",
-    "the filename. No Rust or JavaScript changes are needed.",
+    "min_energy_ft_lb is the minimum retained energy at impact, in",
+    "foot-pounds, commonly cited for cleanly taking this species (US",
+    "convention: roughly 1000 for deer-sized, 1500 for elk, 2000 for",
+    "moose). It is guidance, not law, and jurisdictions that legislate",
+    "energy usually specify muzzle energy instead, which is a different",
+    "measurement - so the app lets the user edit it.",
     "",
-    "Dimensions are typical adult figures gathered from hunting and",
-    "wildlife references. They are approximations - real animals vary a",
-    "lot by region, subspecies, age and condition - so the app lets the",
-    "user override body_length_in and shoulder_height_in at runtime.",
-    "Treat these as starting points, not authoritative measurements.",
-    "",
-    "vitals_anchor is where the heart/lung centre sits within the trimmed",
-    "artwork, as a fraction of its width and height (0,0 = top-left).",
-    "It is eyeballed against each silhouette."
+    "Set it to null for animals smaller than roe. Below that size the",
+    "limiting factor is shot placement and bullet construction rather",
+    "than energy, and a made-up number would only look authoritative."
   ],
   "roe": {
     "common_name": "Roe Deer",
@@ -56,7 +52,8 @@
     "fun_facts": [
       "Small and light for a deer - a mature buck often weighs under 70 lb, so the vital zone is correspondingly tight.",
       "Bucks shed and regrow antlers over winter, opposite to most deer, which regrow them in spring and summer."
-    ]
+    ],
+    "min_energy_ft_lb": 1000
   },
   "phallow": {
     "common_name": "Fallow Deer",
@@ -98,7 +95,8 @@
     "fun_facts": [
       "The only deer with broad, flattened palmate antlers apart from moose.",
       "Coats vary enormously between individuals, from near-white to almost black, in the same population."
-    ]
+    ],
+    "min_energy_ft_lb": 1000
   },
   "elk": {
     "common_name": "Elk (Wapiti)",
@@ -140,7 +138,8 @@
     "fun_facts": [
       "Much larger than they photograph - a bull can exceed 700 lb, and the vital zone is roughly the size of a basketball.",
       "Bulls bugle during the rut, a call that carries for miles and is audible well beyond visual range."
-    ]
+    ],
+    "min_energy_ft_lb": 1500
   },
   "moose": {
     "common_name": "Moose",
@@ -182,7 +181,8 @@
     "fun_facts": [
       "The largest deer alive - a big bull stands taller at the shoulder than most people.",
       "Despite the bulk they swim strongly and can stay submerged for well over a minute while feeding."
-    ]
+    ],
+    "min_energy_ft_lb": 2000
   },
   "hog": {
     "common_name": "Wild Hog",
@@ -225,7 +225,8 @@
       "Can run up to 30 mph despite their bulky build, and are strong swimmers.",
       "Highly intelligent - by some measures on par with or smarter than dogs.",
       "Vitals sit lower and further forward than a deer's, and mature boars grow a thick cartilage shield over the shoulder that can blunt a broadside shot, so quartering-away shots are more reliable."
-    ]
+    ],
+    "min_energy_ft_lb": 1000
   },
   "fox": {
     "common_name": "Red Fox",
@@ -267,7 +268,8 @@
     "fun_facts": [
       "The vital zone is only a few inches across, so the margin for error is far smaller than on any deer.",
       "That famously bushy tail is roughly a third of the animal's total length, which makes silhouettes look bigger than the body really is."
-    ]
+    ],
+    "min_energy_ft_lb": null
   },
   "pigeon": {
     "common_name": "Pigeon",
@@ -309,7 +311,8 @@
     "fun_facts": [
       "A tiny vital zone measured in single-digit inches - this is a shotgun quarry, and the overlay makes that obvious at any real range.",
       "Strong, fast fliers that can sustain well over 50 mph."
-    ]
+    ],
+    "min_energy_ft_lb": null
   },
   "turkey": {
     "common_name": "Wild Turkey",
@@ -351,6 +354,7 @@
     "fun_facts": [
       "Body mass is mostly feather - the actual vital area is small, which is why head and neck shots are the usual advice.",
       "Can run around 25 mph and fly in short bursts far faster than their bulk suggests."
-    ]
+    ],
+    "min_energy_ft_lb": null
   }
 }

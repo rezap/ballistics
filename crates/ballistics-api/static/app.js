@@ -15,6 +15,9 @@ const vitalsWidthInput = document.getElementById("vitals-width");
 const vitalsHeightInput = document.getElementById("vitals-height");
 const tableStepInput = document.getElementById("table-step");
 const tableMaxInput = document.getElementById("table-max");
+const columnToggles = document.getElementById("column-toggles");
+const expansionVelocityInput = document.getElementById("expansion-velocity");
+const minEnergyInput = document.getElementById("min-energy");
 
 let animalsList = [];
 let lastPoints = null;
@@ -110,6 +113,15 @@ function effectiveVitals(profile) {
   return loadOverride(profile)?.vitals ?? profile.vitals;
 }
 
+/// Minimum retained energy for a clean kill, in foot-pounds, or null when
+/// energy is not the limiting factor (anything smaller than roe). An
+/// override of null is meaningful and distinct from "no override".
+function effectiveMinEnergy(profile) {
+  const override = loadOverride(profile);
+  if (override && "minEnergy" in override) return override.minEnergy;
+  return profile.min_energy_ft_lb ?? null;
+}
+
 /// Merges a partial change into the stored override, keeping whatever the
 /// user has already calibrated for this species.
 function updateOverride(profile, patch) {
@@ -142,6 +154,9 @@ function syncScaleControls() {
   const vitals = effectiveVitals(profile);
   vitalsWidthInput.value = round1(vitals.width_in);
   vitalsHeightInput.value = round1(vitals.height_in);
+
+  const minEnergy = effectiveMinEnergy(profile);
+  minEnergyInput.value = minEnergy == null ? "" : Math.round(minEnergy);
 }
 
 /// Inches per pixel of the artwork, honouring any user override.
@@ -174,6 +189,66 @@ function loadImage(src) {
   imageCache.set(src, promise);
   return promise;
 }
+
+// Every column the table can show. `visible` is only the default - the
+// picker persists whatever the reader chooses, which also keeps the table
+// narrow enough to be usable on a phone.
+const COLUMNS = [
+  { key: "yards", label: "Yards", visible: true, format: (p) => p.yards },
+  { key: "drop", label: "Drop (in)", visible: true, format: (p) => p.impact_in.toFixed(2) },
+  { key: "path", label: "Path (in)", visible: false, format: (p) => p.path_inches.toFixed(2) },
+  { key: "wind", label: "Wind drift (in)", visible: true, format: (p) => p.windage_in.toFixed(2) },
+  { key: "moa", label: "MOA", visible: true, format: (p) => p.moa_correction.toFixed(2) },
+  { key: "velocity", label: "Velocity (ft/s)", visible: true, format: (p) => Math.round(p.velocity_fps) },
+  { key: "energy", label: "Energy (ft\u00b7lb)", visible: true, format: (p) => Math.round(p.energy_ft_lb) },
+  { key: "time", label: "Time (s)", visible: false, format: (p) => p.seconds.toFixed(3) },
+];
+
+const COLUMN_STORAGE_KEY = "ballistics.columns";
+
+function visibleColumnKeys() {
+  try {
+    const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
+    if (raw) {
+      const chosen = JSON.parse(raw);
+      if (Array.isArray(chosen) && chosen.length) return chosen;
+    }
+  } catch {
+    // Fall through to the defaults.
+  }
+  return COLUMNS.filter((c) => c.visible).map((c) => c.key);
+}
+
+function saveVisibleColumnKeys(keys) {
+  try {
+    window.localStorage.setItem(COLUMN_STORAGE_KEY, JSON.stringify(keys));
+  } catch {
+    // A blocked localStorage should not break the table.
+  }
+}
+
+function buildColumnToggles() {
+  const chosen = new Set(visibleColumnKeys());
+  columnToggles.innerHTML = COLUMNS.map(
+    (c) => `<label class="column-toggle"><input type="checkbox" data-column="${c.key}"${
+      chosen.has(c.key) ? " checked" : ""
+    } />${c.label}</label>`
+  ).join("");
+
+  columnToggles.querySelectorAll("input[data-column]").forEach((box) => {
+    box.addEventListener("change", () => {
+      const keys = [...columnToggles.querySelectorAll("input[data-column]")]
+        .filter((b) => b.checked)
+        .map((b) => b.dataset.column);
+      // Never let the table become empty; the range column is the anchor.
+      saveVisibleColumnKeys(keys.length ? keys : ["yards"]);
+      if (!keys.length) buildColumnToggles();
+      if (lastPoints) renderTable(lastPoints);
+    });
+  });
+}
+
+buildColumnToggles();
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -282,6 +357,19 @@ function onVitalsSizeChanged() {
 
 vitalsWidthInput.addEventListener("input", onVitalsSizeChanged);
 vitalsHeightInput.addEventListener("input", onVitalsSizeChanged);
+
+minEnergyInput.addEventListener("input", () => {
+  const profile = currentProfile();
+  if (!profile) return;
+  const typed = minEnergyInput.value.trim();
+  // Blank is a real choice: it means energy is not the limiting factor.
+  updateOverride(profile, { minEnergy: typed === "" ? null : Number(typed) });
+  if (lastPoints) renderAnimalPanel(lastPoints);
+});
+
+expansionVelocityInput.addEventListener("input", () => {
+  if (lastPoints) renderAnimalPanel(lastPoints);
+});
 
 // Dragging the vital zone is calibration against the drawing, not a
 // preference: the anchor is positioned by eye per species, and only the
@@ -396,16 +484,16 @@ function renderTable(points) {
   const maxRange = Math.max(step, Number(tableMaxInput.value) || 500);
   const rows = points.filter((p) => p.yards % step === 0 && p.yards <= maxRange);
 
+  const chosen = new Set(visibleColumnKeys());
+  const columns = COLUMNS.filter((c) => chosen.has(c.key));
+
+  document.querySelector("#results-table thead tr").innerHTML = columns
+    .map((c) => `<th>${c.label}</th>`)
+    .join("");
+
   for (const point of rows) {
     const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${point.yards}</td>
-      <td>${point.path_inches.toFixed(2)}</td>
-      <td>${point.windage_in.toFixed(2)}</td>
-      <td>${point.moa_correction.toFixed(2)}</td>
-      <td>${Math.round(point.velocity_fps)}</td>
-      <td>${Math.round(point.energy_ft_lb)}</td>
-    `;
+    tr.innerHTML = columns.map((c) => `<td>${c.format(point)}</td>`).join("");
     tableBody.appendChild(tr);
   }
 }
@@ -687,9 +775,73 @@ function drawScaleBar(ctx, width, height, pxPerInch, textColor) {
   ctx.fillText("1 ft", x + barPx + 6, y + 4);
 }
 
+/// Judges whether the round still performs at this range, separately from
+/// whether it lands in the vitals. Both have to hold for an ethical shot,
+/// and terminal performance is usually the binding constraint first -
+/// energy and velocity fall off much faster than the group opens up.
+function assessTerminal(profile, point) {
+  const minEnergy = effectiveMinEnergy(profile);
+  const expansionFloor = Number(expansionVelocityInput.value);
+
+  const energyOk = minEnergy == null || point.energy_ft_lb >= minEnergy;
+  const expansionOk =
+    !(expansionFloor > 0) || point.velocity_fps >= expansionFloor;
+
+  return { minEnergy, expansionFloor, energyOk, expansionOk };
+}
+
+/// Furthest range at which the round still meets both thresholds.
+///
+/// Deliberately ignores drop and drift: those are dialled or held off for,
+/// so they do not cap the range the way terminal performance does. Returns
+/// null when the shot fails the thresholds even at the muzzle.
+function maxEthicalRange(profile, points) {
+  const { minEnergy, expansionFloor } = assessTerminal(profile, points[0]);
+  let furthest = null;
+  for (const point of points) {
+    const energyOk = minEnergy == null || point.energy_ft_lb >= minEnergy;
+    const expansionOk = !(expansionFloor > 0) || point.velocity_fps >= expansionFloor;
+    if (!energyOk || !expansionOk) break;
+    furthest = point.yards;
+  }
+  return furthest;
+}
+
 function renderAnimalInfo(profile, hit, point) {
-  const badgeClass = hit.isVitalsHit ? "hit" : "miss";
-  const badgeText = hit.isVitalsHit ? "Vitals hit" : "Likely non-lethal - reconsider this shot";
+  const terminal = assessTerminal(profile, point);
+  const furthest = maxEthicalRange(profile, lastPoints ?? [point]);
+
+  const ethical = hit.isVitalsHit && terminal.energyOk && terminal.expansionOk;
+  const badgeClass = ethical ? "hit" : "miss";
+  const badgeText = ethical
+    ? "Vitals hit, round still performing"
+    : !hit.isVitalsHit
+      ? "Impact outside the vitals - reconsider this shot"
+      : "In the vitals, but the round is past its limits";
+
+  const terminalRows = `
+      <dt>Energy here</dt>
+      <dd class="${terminal.energyOk ? "ok" : "bad"}">
+        ${Math.round(point.energy_ft_lb)} ft&middot;lb${
+          terminal.minEnergy == null
+            ? " (no minimum set for this species)"
+            : ` vs ${Math.round(terminal.minEnergy)} minimum`
+        }
+      </dd>
+      <dt>Velocity here</dt>
+      <dd class="${terminal.expansionOk ? "ok" : "bad"}">
+        ${Math.round(point.velocity_fps)} ft/s${
+          terminal.expansionFloor > 0
+            ? ` vs ${Math.round(terminal.expansionFloor)} expansion floor`
+            : " (no expansion floor set)"
+        }
+      </dd>
+      <dt>Max ethical range</dt>
+      <dd>${
+        furthest == null
+          ? "under this range even at the muzzle"
+          : `about ${furthest} yd for this load and species`
+      }</dd>`;
 
   animalInfo.innerHTML = `
     <h3>${profile.common_name} <span class="scientific-name">${profile.scientific_name}</span></h3>
@@ -701,6 +853,7 @@ function renderAnimalInfo(profile, hit, point) {
       <dd>${formatRange(profile.female.shoulder_height_in)} in shoulder height, ${formatRange(profile.female.weight_lb)} lb</dd>
       <dt>Vitals</dt>
       <dd>~${profile.vitals.width_in}in x ${profile.vitals.height_in}in behind the shoulder</dd>
+      ${terminalRows}
       <dt>Habitat</dt>
       <dd>${profile.habitat}</dd>
       <dt>Diet</dt>

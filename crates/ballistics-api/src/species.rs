@@ -43,6 +43,11 @@ struct SpeciesEntry {
     shoulder_height_in: f64,
     vitals: VitalZone,
     vitals_anchor: VitalsAnchor,
+    /// Minimum retained energy at impact, foot-pounds. `None` for animals
+    /// small enough that energy is not the limiting factor - see the
+    /// comment block in species.json.
+    #[serde(default)]
+    min_energy_ft_lb: Option<f64>,
     habitat: String,
     diet: String,
     fun_facts: Vec<String>,
@@ -70,6 +75,7 @@ pub struct AnimalProfile {
     pub shoulder_height_in: f64,
     pub vitals: VitalZone,
     pub vitals_anchor: VitalsAnchor,
+    pub min_energy_ft_lb: Option<f64>,
     pub habitat: String,
     pub diet: String,
     pub fun_facts: Vec<String>,
@@ -115,6 +121,16 @@ fn validate(key: &str, entry: &SpeciesEntry) -> Result<(), String> {
 
     if entry.fun_facts.is_empty() {
         problems.push("fun_facts must not be empty".to_string());
+    }
+
+    // Absent is meaningful (energy is not the limiting factor at this
+    // size); present but nonsensical is a data error.
+    if let Some(energy) = entry.min_energy_ft_lb {
+        if !(energy.is_finite() && energy > 0.0) {
+            problems.push(
+                "min_energy_ft_lb must be a positive, finite number when present".to_string(),
+            );
+        }
     }
 
     if problems.is_empty() {
@@ -184,6 +200,7 @@ pub fn load(static_dir: &Path) -> Result<Vec<AnimalProfile>, String> {
             shoulder_height_in: entry.shoulder_height_in,
             vitals: entry.vitals,
             vitals_anchor: entry.vitals_anchor,
+            min_energy_ft_lb: entry.min_energy_ft_lb,
             habitat: entry.habitat,
             diet: entry.diet,
             fun_facts: entry.fun_facts,
@@ -241,6 +258,53 @@ mod tests {
                 assert!(path.is_file(), "missing image file: {}", path.display());
             }
         }
+    }
+
+    #[test]
+    fn small_game_omits_a_minimum_energy() {
+        // Below roe, a made-up energy threshold would look authoritative
+        // without being meaningful, so those species carry none.
+        let profiles = load(&static_dir()).unwrap();
+        let by_key = |k: &str| profiles.iter().find(|p| p.key == k).unwrap();
+
+        assert!(by_key("fox").min_energy_ft_lb.is_none());
+        assert!(by_key("pigeon").min_energy_ft_lb.is_none());
+        assert!(by_key("roe").min_energy_ft_lb.is_some());
+        assert!(
+            by_key("moose").min_energy_ft_lb.unwrap() > by_key("roe").min_energy_ft_lb.unwrap()
+        );
+    }
+
+    #[test]
+    fn rejects_a_nonsensical_minimum_energy() {
+        let mut entry = valid_entry();
+        entry.min_energy_ft_lb = Some(-5.0);
+        assert!(validate("broken", &entry)
+            .unwrap_err()
+            .contains("min_energy_ft_lb"));
+
+        // Absent is fine - it means "not the limiting factor here".
+        entry.min_energy_ft_lb = None;
+        assert!(validate("fine", &entry).is_ok());
+    }
+
+    fn valid_entry() -> SpeciesEntry {
+        serde_json::from_value(serde_json::json!({
+            "common_name": "Test",
+            "scientific_name": "Testus",
+            "male_label": "M",
+            "female_label": "F",
+            "male": { "shoulder_height_in": [10, 20], "weight_lb": [10, 20] },
+            "female": { "shoulder_height_in": [10, 20], "weight_lb": [10, 20] },
+            "body_length_in": 40,
+            "shoulder_height_in": 20,
+            "vitals": { "width_in": 5, "height_in": 5 },
+            "vitals_anchor": { "x": 0.6, "y": 0.5 },
+            "habitat": "somewhere",
+            "diet": "something",
+            "fun_facts": ["a fact"]
+        }))
+        .unwrap()
     }
 
     #[test]
