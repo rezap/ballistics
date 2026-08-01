@@ -46,6 +46,15 @@ pub struct FactoryLoad {
     /// looks entirely reasonable.
     #[serde(default)]
     pub stated_muzzle_energy_ft_lb: Option<f64>,
+    /// The maker's own "maximum recommended distance", where they publish
+    /// one (Norma prints it on every product page).
+    ///
+    /// Stored but not acted on. It is the manufacturer's answer to the same
+    /// question this app answers from energy and expansion thresholds, so
+    /// it is worth having the two side by side - if they disagree badly on
+    /// a load, one of the two is wrong and it is worth knowing which.
+    #[serde(default)]
+    pub maker_max_range_yd: Option<f64>,
     pub source_url: String,
     pub retrieved: String,
 }
