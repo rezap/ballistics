@@ -324,6 +324,21 @@ canvas#vitals-canvas {
   flex: 0 0 auto;
 }
 
+.presets .size-row button {
+  flex: 0 0 auto;
+}
+
+.preset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  margin-top: 0.2rem;
+}
+
+#preset-status {
+  overflow-wrap: anywhere;
+}
+
 .link-button {
   align-self: flex-start;
   background: none;

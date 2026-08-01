@@ -22,9 +22,23 @@ const aimModeSelect = document.getElementById("aim-mode");
 const groupMoaInput = document.getElementById("group-moa");
 const groupWarning = document.getElementById("group-warning");
 const solveHoldButton = document.getElementById("solve-hold");
+const presetSelect = document.getElementById("preset-select");
+const presetNameInput = document.getElementById("preset-name");
+const presetSaveButton = document.getElementById("preset-save");
+const presetDeleteButton = document.getElementById("preset-delete");
+const presetShareButton = document.getElementById("preset-share");
+const presetExportButton = document.getElementById("preset-export");
+const presetImportButton = document.getElementById("preset-import");
+const presetFileInput = document.getElementById("preset-file");
+const presetStatus = document.getElementById("preset-status");
 
 let animalsList = [];
 let lastPoints = null;
+
+// Set when the page was opened from a share link, so the trajectory can be
+// solved once the species list has arrived and the panel has something to
+// draw against.
+let pendingSharedPreset = false;
 
 const UNIT_TO_INCHES = { in: 1, cm: 1 / 2.54, m: 39.3701 };
 const imageCache = new Map();
@@ -126,6 +140,11 @@ async function loadAnimals() {
     .join("");
 
   syncScaleControls();
+
+  if (pendingSharedPreset) {
+    pendingSharedPreset = false;
+    form.requestSubmit();
+  }
 }
 
 function currentProfile() {
@@ -302,6 +321,129 @@ function saveVisibleColumnKeys(keys) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Rifle and load presets.
+//
+// Held in localStorage rather than on the server. A preset is worth having
+// precisely when there is no signal - setting up at first light - and a
+// server-backed store is exactly the thing that cannot load then. Storing
+// them per-user on the server would also mean building accounts, which is a
+// lot of machinery to attach to a calculator.
+//
+// The cost is that they live in one browser, so there are two ways out that
+// need no account: a JSON file, and a link that carries the preset in its
+// fragment. Both round-trip through the same validation as anything else
+// from outside.
+// ---------------------------------------------------------------------------
+
+const PRESET_STORAGE_KEY = "ballistics.presets";
+const PRESET_SHARE_PREFIX = "#preset=";
+
+/// Fields a preset captures: what belongs to the rifle and the ammunition,
+/// and stays put between outings. Atmosphere, wind and shot angle are
+/// conditions of the day, so recalling last week's would be worse than
+/// useless.
+const PRESET_FIELDS = [
+  { key: "drag_function", input: () => form.elements.drag_function, kind: "choice" },
+  { key: "ballistic_coefficient", input: () => form.elements.ballistic_coefficient, kind: "number" },
+  { key: "muzzle_velocity", input: () => form.elements.muzzle_velocity, kind: "number" },
+  { key: "bullet_weight_gr", input: () => form.elements.bullet_weight_gr, kind: "number" },
+  { key: "sight_height", input: () => form.elements.sight_height, kind: "number" },
+  { key: "zero_range", input: () => form.elements.zero_range, kind: "number" },
+  { key: "expansion_velocity", input: () => expansionVelocityInput, kind: "number" },
+];
+
+function loadPresets() {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(PRESET_STORAGE_KEY) ?? "{}");
+    return sanitisePresetCollection(parsed);
+  } catch {
+    return {};
+  }
+}
+
+function savePresets(presets) {
+  try {
+    window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
+    return true;
+  } catch {
+    // Private browsing and a full quota both land here.
+    setPresetStatus("Could not save - this browser is blocking local storage.");
+    return false;
+  }
+}
+
+/// Validates one preset from anywhere outside this page: a file the user
+/// picked, or a link someone sent them. Returns a clean preset or null.
+/// Nothing is trusted, because a bad ballistic coefficient silently
+/// produces a plausible-looking but wrong trajectory.
+function sanitisePreset(raw) {
+  if (!raw || typeof raw !== "object") return null;
+
+  const clean = {};
+  for (const field of PRESET_FIELDS) {
+    const value = raw[field.key];
+    if (field.kind === "choice") {
+      const allowed = [...field.input().options].map((o) => o.value);
+      if (!allowed.includes(value)) return null;
+      clean[field.key] = value;
+    } else {
+      const number = Number(value);
+      if (!Number.isFinite(number) || number < 0) return null;
+      clean[field.key] = number;
+    }
+  }
+  return clean;
+}
+
+function sanitisePresetCollection(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const clean = {};
+  for (const [name, preset] of Object.entries(raw)) {
+    const trimmed = String(name).trim().slice(0, 60);
+    const valid = sanitisePreset(preset);
+    if (trimmed && valid) clean[trimmed] = valid;
+  }
+  return clean;
+}
+
+function currentPreset() {
+  const preset = {};
+  for (const field of PRESET_FIELDS) {
+    const input = field.input();
+    preset[field.key] = field.kind === "choice" ? input.value : Number(input.value);
+  }
+  return preset;
+}
+
+function applyPreset(preset) {
+  for (const field of PRESET_FIELDS) {
+    field.input().value = preset[field.key];
+  }
+}
+
+function setPresetStatus(message) {
+  presetStatus.hidden = !message;
+  presetStatus.textContent = message ?? "";
+}
+
+function refreshPresetOptions(selected = "") {
+  const names = Object.keys(loadPresets()).sort((a, b) => a.localeCompare(b));
+  presetSelect.innerHTML =
+    `<option value="">${names.length ? "No preset selected" : "None saved yet"}</option>` +
+    names.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join("");
+  presetSelect.value = selected;
+}
+
+/// Preset names are user-supplied and go into option markup, so they are
+/// escaped rather than interpolated raw.
+function escapeHtml(text) {
+  return text.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+  );
+}
+
 function buildColumnToggles() {
   const chosen = new Set(visibleColumnKeys());
   columnToggles.innerHTML = COLUMNS.map(
@@ -324,6 +466,157 @@ function buildColumnToggles() {
 }
 
 buildColumnToggles();
+
+presetSelect.addEventListener("change", () => {
+  const name = presetSelect.value;
+  if (!name) return;
+  const preset = loadPresets()[name];
+  if (!preset) return;
+  applyPreset(preset);
+  presetNameInput.value = name;
+  setPresetStatus(`Loaded "${name}".`);
+  // Recalculate straight away: a preset the user has to press a second
+  // button to see the effect of is only half a preset.
+  form.requestSubmit();
+});
+
+presetSaveButton.addEventListener("click", () => {
+  const name = presetNameInput.value.trim();
+  if (!name) {
+    setPresetStatus("Give the preset a name first.");
+    presetNameInput.focus();
+    return;
+  }
+
+  const preset = sanitisePreset(currentPreset());
+  if (!preset) {
+    setPresetStatus("The current settings are not valid, so there is nothing to save.");
+    return;
+  }
+
+  const presets = loadPresets();
+  const replacing = name in presets;
+  presets[name] = preset;
+  if (!savePresets(presets)) return;
+
+  refreshPresetOptions(name);
+  setPresetStatus(replacing ? `Updated "${name}".` : `Saved "${name}".`);
+});
+
+presetDeleteButton.addEventListener("click", () => {
+  const name = presetSelect.value;
+  if (!name) {
+    setPresetStatus("Select a preset to delete.");
+    return;
+  }
+  const presets = loadPresets();
+  delete presets[name];
+  if (!savePresets(presets)) return;
+  refreshPresetOptions();
+  setPresetStatus(`Deleted "${name}".`);
+});
+
+/// A link that carries the preset in its fragment. The fragment is never
+/// sent to the server, so a shared load stays between the two people.
+presetShareButton.addEventListener("click", async () => {
+  const preset = sanitisePreset(currentPreset());
+  if (!preset) {
+    setPresetStatus("The current settings are not valid, so there is nothing to share.");
+    return;
+  }
+
+  const payload = { name: presetNameInput.value.trim() || "Shared load", preset };
+  const url = `${window.location.origin}${window.location.pathname}${PRESET_SHARE_PREFIX}${encodeURIComponent(
+    JSON.stringify(payload)
+  )}`;
+
+  try {
+    await navigator.clipboard.writeText(url);
+    setPresetStatus("Share link copied to the clipboard.");
+  } catch {
+    // Clipboard access needs a secure context and can be refused, so fall
+    // back to showing the link rather than failing silently.
+    setPresetStatus(`Copy this link: ${url}`);
+  }
+});
+
+presetExportButton.addEventListener("click", () => {
+  const presets = loadPresets();
+  if (!Object.keys(presets).length) {
+    setPresetStatus("There are no presets to export yet.");
+    return;
+  }
+
+  const blob = new Blob([JSON.stringify(presets, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "ballistics-presets.json";
+  link.click();
+  URL.revokeObjectURL(url);
+  setPresetStatus(`Exported ${Object.keys(presets).length} preset(s).`);
+});
+
+presetImportButton.addEventListener("click", () => presetFileInput.click());
+
+presetFileInput.addEventListener("change", async () => {
+  const file = presetFileInput.files?.[0];
+  if (!file) return;
+  // Reset first, so picking the same file twice fires the event again.
+  presetFileInput.value = "";
+
+  let incoming;
+  try {
+    incoming = sanitisePresetCollection(JSON.parse(await file.text()));
+  } catch {
+    setPresetStatus("That file is not valid JSON.");
+    return;
+  }
+
+  const names = Object.keys(incoming);
+  if (!names.length) {
+    setPresetStatus("No usable presets in that file.");
+    return;
+  }
+
+  const presets = loadPresets();
+  const replaced = names.filter((n) => n in presets).length;
+  if (!savePresets({ ...presets, ...incoming })) return;
+
+  refreshPresetOptions();
+  setPresetStatus(
+    `Imported ${names.length} preset(s)` + (replaced ? `, replacing ${replaced} by name.` : ".")
+  );
+});
+
+/// Applies a preset arriving in the URL fragment, without saving it: a link
+/// from someone else should show its load, not quietly add to your list.
+function applySharedPreset() {
+  const hash = window.location.hash;
+  if (!hash.startsWith(PRESET_SHARE_PREFIX)) return;
+
+  let payload;
+  try {
+    payload = JSON.parse(decodeURIComponent(hash.slice(PRESET_SHARE_PREFIX.length)));
+  } catch {
+    setPresetStatus("That shared link is not readable.");
+    return;
+  }
+
+  const preset = sanitisePreset(payload?.preset);
+  if (!preset) {
+    setPresetStatus("That shared link does not contain a usable load.");
+    return;
+  }
+
+  applyPreset(preset);
+  presetNameInput.value = String(payload.name ?? "Shared load").trim().slice(0, 60);
+  setPresetStatus("Loaded a shared load. Press Save to keep it.");
+  pendingSharedPreset = true;
+}
+
+refreshPresetOptions();
+applySharedPreset();
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();

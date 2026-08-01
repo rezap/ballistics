@@ -20,6 +20,31 @@
     </p>
 
     <form id="trajectory-form">
+      <fieldset class="presets">
+        <legend>Rifle &amp; load preset</legend>
+        <label>
+          Saved
+          <select id="preset-select">
+            <option value="">No preset selected</option>
+          </select>
+        </label>
+        <label>
+          Save current settings as
+          <span class="size-row">
+            <input type="text" id="preset-name" placeholder="e.g. .308 168gr TTSX" maxlength="60" />
+            <button type="button" id="preset-save">Save</button>
+          </span>
+        </label>
+        <div class="preset-actions">
+          <button type="button" id="preset-delete" class="link-button">Delete</button>
+          <button type="button" id="preset-share" class="link-button">Copy share link</button>
+          <button type="button" id="preset-export" class="link-button">Export all</button>
+          <button type="button" id="preset-import" class="link-button">Import</button>
+          <input type="file" id="preset-file" accept="application/json,.json" hidden />
+        </div>
+        <p id="preset-status" class="hint" hidden></p>
+      </fieldset>
+
       <fieldset>
         <legend>Load</legend>
         <label>

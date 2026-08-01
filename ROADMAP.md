@@ -72,7 +72,37 @@ Phase 2:
       build step; chosen for fastest path to a working Phase 2 over a
       Leptos/WASM or server-rendered+htmx alternative (revisit if the UI
       outgrows vanilla JS).
-- [ ] Persist common rifle/load presets (SQLite via `sqlx` or similar).
+- [x] **Persist rifle/load presets** - in the browser, not on the server.
+      A preset earns its keep exactly when there is no signal (setting up
+      at first light), and a server-backed store is the one thing that
+      cannot load then. Storing them per user on the server would also
+      mean building accounts, which is a lot of machinery to bolt onto a
+      calculator, and Railway's filesystem is ephemeral so SQLite would
+      need a volume besides. So: `localStorage`, matching how the
+      per-species calibration and column choices are already kept.
+
+      A preset holds what belongs to the rifle and the ammunition - drag
+      function, BC, muzzle velocity, bullet weight, sight height, zero
+      range, expansion floor - and deliberately not atmosphere, wind or
+      shot angle, which are conditions of the day.
+
+      The cost of browser storage is that it lives in one browser, so
+      there are two ways out that need no account: export/import as a
+      JSON file, and a link carrying the preset in its URL *fragment*
+      (which is never sent to the server, so a shared load stays between
+      the two people). A shared link applies its load and solves the
+      trajectory but does not save itself - a link from someone else
+      should not quietly add to your list.
+
+      Both routes are untrusted input and go through the same validation:
+      every numeric field must be finite and non-negative and the drag
+      function must be one the app actually offers, because a bad BC
+      produces a plausible-looking but wrong trajectory rather than an
+      obvious error.
+
+      Not a dead end if sync is wanted later: presets are plain JSON, so
+      a `POST /api/presets` behind a login, or a passwordless sync code,
+      is additive.
 - [x] Deployment: containerize `ballistics-api` + static frontend assets.
       A multi-stage `Dockerfile` builds the release binary and packages it
       with its `static/` assets; `render.yaml` and `railway.json` let

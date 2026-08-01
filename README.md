@@ -45,7 +45,10 @@ change.
 - [`crates/ballistics-api`](./crates/ballistics-api) — an Axum web server
   exposing the engine over a JSON API, plus a static HTML/JS frontend
   (form inputs, a results table, a canvas trajectory chart, and a
-  species-vs-vitals overlay with an animal info panel).
+  species-vs-vitals overlay with an animal info panel). Rifle and load
+  presets are kept in the browser rather than on the server, so they work
+  with no signal; they can be exported as a JSON file or shared as a
+  link.
 
 ## Building and testing
 
