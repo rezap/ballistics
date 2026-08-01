@@ -1,0 +1,276 @@
+//! Loads the factory-ammunition catalogue served at `GET /api/ammunition`.
+//!
+//! Like the species data this lives in the static directory rather than
+//! being compiled in, so adding a load is a data change. It follows the
+//! same shape deliberately: validate hard at startup and report every
+//! problem at once, because the alternative to a loud failure here is a
+//! quietly wrong trajectory.
+//!
+//! Everything in the catalogue is *advertised* data. See the comment block
+//! in `loads.json` for why that matters and what the app has to keep
+//! visible because of it.
+
+use std::path::Path;
+
+use serde::{Deserialize, Serialize};
+
+/// One factory load as authored in `loads.json`.
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+pub struct FactoryLoad {
+    pub id: String,
+    pub manufacturer: String,
+    pub product_line: String,
+    pub cartridge: String,
+    pub bullet: String,
+    pub bullet_weight_gr: f64,
+    pub muzzle_velocity_fps: f64,
+    /// Barrel the maker measured that velocity in. `None` means they do
+    /// not state it, which the frontend reports as unknown rather than
+    /// assuming the usual 24 inches.
+    #[serde(default)]
+    pub test_barrel_in: Option<f64>,
+    /// Ballistic coefficients, each against the drag model it was measured
+    /// with. There is deliberately no bare `bc`: pairing a G1 number with
+    /// the G7 drag function is silently wrong rather than an error.
+    #[serde(default)]
+    pub bc_g1: Option<f64>,
+    #[serde(default)]
+    pub bc_g7: Option<f64>,
+    pub source_url: String,
+    pub retrieved: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct Catalogue {
+    schema_version: u32,
+    loads: Vec<FactoryLoad>,
+}
+
+/// The schema this build understands. Bumped when the shape changes, so a
+/// stale data file fails loudly instead of deserialising into defaults.
+const SUPPORTED_SCHEMA_VERSION: u32 = 1;
+
+fn validate(load: &FactoryLoad) -> Result<(), String> {
+    let mut problems = Vec::new();
+
+    let positive = |label: &str, value: f64, problems: &mut Vec<String>| {
+        if !(value.is_finite() && value > 0.0) {
+            problems.push(format!("{label} must be a positive, finite number"));
+        }
+    };
+
+    positive("bullet_weight_gr", load.bullet_weight_gr, &mut problems);
+    positive(
+        "muzzle_velocity_fps",
+        load.muzzle_velocity_fps,
+        &mut problems,
+    );
+
+    for (label, value) in [("bc_g1", load.bc_g1), ("bc_g7", load.bc_g7)] {
+        if let Some(bc) = value {
+            positive(label, bc, &mut problems);
+        }
+    }
+
+    // A load with no coefficient at all cannot be solved, so it is worse
+    // than absent - it would look selectable and then not work.
+    if load.bc_g1.is_none() && load.bc_g7.is_none() {
+        problems.push("at least one of bc_g1 or bc_g7 is required".to_string());
+    }
+
+    if let Some(barrel) = load.test_barrel_in {
+        if !(barrel.is_finite() && (10.0..=40.0).contains(&barrel)) {
+            problems.push("test_barrel_in must be between 10 and 40 inches".to_string());
+        }
+    }
+
+    for (label, value) in [
+        ("manufacturer", &load.manufacturer),
+        ("product_line", &load.product_line),
+        ("cartridge", &load.cartridge),
+        ("bullet", &load.bullet),
+    ] {
+        if value.trim().is_empty() {
+            problems.push(format!("{label} must not be empty"));
+        }
+    }
+
+    // Provenance is not decoration: an advertised figure with no source
+    // cannot be rechecked when the maker revises it.
+    if !load.source_url.starts_with("https://") {
+        problems.push("source_url must be an https URL".to_string());
+    }
+    if load.retrieved.len() != 10 || !load.retrieved.starts_with("20") {
+        problems.push("retrieved must be an ISO date, e.g. 2026-08-01".to_string());
+    }
+
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("{}: {}", load.id, problems.join("; ")))
+    }
+}
+
+/// Reads `ammunition/loads.json` from `static_dir`.
+///
+/// Returns every load sorted by cartridge then manufacturer, or a list of
+/// every validation problem found.
+pub fn load(static_dir: &Path) -> Result<Vec<FactoryLoad>, String> {
+    let path = static_dir.join("ammunition").join("loads.json");
+
+    let raw = std::fs::read_to_string(&path)
+        .map_err(|err| format!("could not read {}: {err}", path.display()))?;
+    let catalogue: Catalogue = serde_json::from_str(&raw)
+        .map_err(|err| format!("{} is not valid: {err}", path.display()))?;
+
+    if catalogue.schema_version != SUPPORTED_SCHEMA_VERSION {
+        return Err(format!(
+            "{} is schema version {}, but this build understands {}",
+            path.display(),
+            catalogue.schema_version,
+            SUPPORTED_SCHEMA_VERSION
+        ));
+    }
+
+    let mut problems: Vec<String> = catalogue
+        .loads
+        .iter()
+        .filter_map(|l| validate(l).err())
+        .collect();
+
+    let mut ids: Vec<&str> = catalogue.loads.iter().map(|l| l.id.as_str()).collect();
+    ids.sort_unstable();
+    for pair in ids.windows(2) {
+        if pair[0] == pair[1] {
+            problems.push(format!("duplicate id: {}", pair[0]));
+        }
+    }
+
+    if !problems.is_empty() {
+        return Err(problems.join("\n"));
+    }
+
+    let mut loads = catalogue.loads;
+    loads.sort_by(|a, b| {
+        a.cartridge
+            .cmp(&b.cartridge)
+            .then_with(|| a.manufacturer.cmp(&b.manufacturer))
+            .then_with(|| a.bullet_weight_gr.total_cmp(&b.bullet_weight_gr))
+    });
+    Ok(loads)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn static_dir() -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("static")
+    }
+
+    fn valid_load() -> FactoryLoad {
+        serde_json::from_value(serde_json::json!({
+            "id": "test-load",
+            "manufacturer": "Testco",
+            "product_line": "Test Line",
+            "cartridge": ".308 Winchester",
+            "bullet": "168 gr Test",
+            "bullet_weight_gr": 168,
+            "muzzle_velocity_fps": 2700,
+            "test_barrel_in": 24,
+            "bc_g1": 0.478,
+            "bc_g7": 0.241,
+            "source_url": "https://example.com/load",
+            "retrieved": "2026-08-01"
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn ships_a_valid_catalogue() {
+        let loads = load(&static_dir()).expect("bundled loads.json should be valid");
+        assert!(!loads.is_empty());
+        for entry in &loads {
+            assert!(entry.bc_g1.is_some() || entry.bc_g7.is_some());
+            assert!(entry.muzzle_velocity_fps > 0.0);
+        }
+    }
+
+    #[test]
+    fn every_load_records_where_its_numbers_came_from() {
+        // Advertised figures get revised. One with no source cannot be
+        // rechecked, so it is not allowed in.
+        for entry in load(&static_dir()).unwrap() {
+            assert!(entry.source_url.starts_with("https://"), "{}", entry.id);
+            assert_eq!(entry.retrieved.len(), 10, "{}", entry.id);
+        }
+    }
+
+    #[test]
+    fn shipped_velocities_and_coefficients_are_plausible() {
+        // A decimal slip in a hand-entered catalogue is the likely error,
+        // and it would produce a confident, wrong trajectory.
+        for entry in load(&static_dir()).unwrap() {
+            assert!(
+                (1000.0..=4500.0).contains(&entry.muzzle_velocity_fps),
+                "{} has an implausible muzzle velocity: {}",
+                entry.id,
+                entry.muzzle_velocity_fps
+            );
+            assert!(
+                (15.0..=750.0).contains(&entry.bullet_weight_gr),
+                "{} has an implausible bullet weight: {}",
+                entry.id,
+                entry.bullet_weight_gr
+            );
+            for bc in [entry.bc_g1, entry.bc_g7].into_iter().flatten() {
+                assert!(
+                    bc > 0.05 && bc < 1.5,
+                    "{} has an implausible BC: {bc}",
+                    entry.id
+                );
+            }
+            // G7 runs roughly half of G1 for the same bullet; the two being
+            // close together means one was entered against the wrong model.
+            if let (Some(g1), Some(g7)) = (entry.bc_g1, entry.bc_g7) {
+                let ratio = g1 / g7;
+                assert!(
+                    (1.6..=2.6).contains(&ratio),
+                    "{} has a G1/G7 ratio of {ratio:.2}, which suggests one is against the wrong drag model",
+                    entry.id
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn rejects_a_load_with_no_ballistic_coefficient() {
+        let mut entry = valid_load();
+        entry.bc_g1 = None;
+        entry.bc_g7 = None;
+        assert!(validate(&entry).unwrap_err().contains("bc_g1 or bc_g7"));
+
+        // Either one alone is fine.
+        entry.bc_g7 = Some(0.241);
+        assert!(validate(&entry).is_ok());
+    }
+
+    #[test]
+    fn rejects_an_unsourced_load() {
+        let mut entry = valid_load();
+        entry.source_url = "not a url".to_string();
+        assert!(validate(&entry).unwrap_err().contains("source_url"));
+    }
+
+    #[test]
+    fn rejects_nonsense_figures() {
+        let mut entry = valid_load();
+        entry.muzzle_velocity_fps = -1.0;
+        entry.bullet_weight_gr = f64::NAN;
+        entry.test_barrel_in = Some(96.0);
+        let error = validate(&entry).unwrap_err();
+        assert!(error.contains("muzzle_velocity_fps"), "{error}");
+        assert!(error.contains("bullet_weight_gr"), "{error}");
+        assert!(error.contains("test_barrel_in"), "{error}");
+    }
+}

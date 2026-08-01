@@ -15,9 +15,19 @@ use ballistics_core::{DragFunction, TrajectoryPoint, TrajectoryRequest};
 use serde::Serialize;
 use tower_http::services::ServeDir;
 
+mod ammunition;
 mod species;
 
+use ammunition::FactoryLoad;
 use species::AnimalProfile;
+
+/// Reference data loaded once at startup and shared by the handlers that
+/// serve it.
+#[derive(Clone)]
+struct AppState {
+    animals: Arc<Vec<AnimalProfile>>,
+    ammunition: Arc<Vec<FactoryLoad>>,
+}
 
 /// Upper bound on how long a single trajectory solve may run before the
 /// request is failed. Untrusted input (e.g. a near-zero ballistic
@@ -46,13 +56,31 @@ async fn main() {
         }
     };
 
+    // Same treatment for the ammunition catalogue: a bad figure should stop
+    // us at startup, not become a confident, wrong trajectory later.
+    let ammunition = match ammunition::load(std::path::Path::new(&static_dir)) {
+        Ok(loads) => {
+            println!("loaded {} factory loads", loads.len());
+            Arc::new(loads)
+        }
+        Err(problems) => {
+            eprintln!("warning: could not load the ammunition catalogue:\n{problems}");
+            eprintln!("         the app will run, but /api/ammunition will be empty.");
+            Arc::new(Vec::new())
+        }
+    };
+
     let app = Router::new()
         .route("/health", get(health))
         .route("/api/drag-functions", get(drag_functions))
         .route("/api/animals", get(animals_handler))
+        .route("/api/ammunition", get(ammunition_handler))
         .route("/api/trajectory", post(solve_trajectory))
         .fallback_service(ServeDir::new(static_dir))
-        .with_state(animals);
+        .with_state(AppState {
+            animals,
+            ammunition,
+        });
 
     let addr = resolve_addr();
 
@@ -127,12 +155,14 @@ async fn drag_functions() -> Json<Vec<String>> {
     Json(DragFunction::ALL.iter().map(|f| f.to_string()).collect())
 }
 
-async fn animals_handler(
-    State(animals): State<Arc<Vec<AnimalProfile>>>,
-) -> Json<Vec<AnimalProfile>> {
+async fn animals_handler(State(state): State<AppState>) -> Json<Vec<AnimalProfile>> {
     // serde only serializes Arc behind its "rc" feature; the list is a
     // handful of small records, so cloning it is cheaper than the setup.
-    Json(animals.as_ref().clone())
+    Json(state.animals.as_ref().clone())
+}
+
+async fn ammunition_handler(State(state): State<AppState>) -> Json<Vec<FactoryLoad>> {
+    Json(state.ammunition.as_ref().clone())
 }
 
 async fn solve_trajectory(

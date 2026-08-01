@@ -252,8 +252,42 @@ Phase 2:
       a folded group cannot be focused, so the browser refuses to submit
       while showing nothing to fix. A captured `invalid` handler unfolds
       whichever group failed.
-- [ ] Offline-capable (service worker), so the app is usable with no signal
-      rather than merely fast when there is one.
+- [x] **Factory ammunition catalogue.** Picking a box off the shelf beats
+      typing four numbers off it. `crates/ballistics-api/static/ammunition/
+      loads.json` is a hand-curated list of factory loads, validated at
+      startup and served from `GET /api/ammunition`; the picker fills in
+      drag function, BC, muzzle velocity and bullet weight. Same
+      data-driven shape as the species list: adding a load is a data
+      change.
+
+      Three things the schema enforces rather than hopes for:
+
+      - **No bare `bc`.** A ballistic coefficient means nothing without the
+        drag model it was measured against, so there are only `bc_g1` and
+        `bc_g7`, and the app selects the drag function to match whichever
+        it uses (G7 where published - these are boat-tail hunting bullets).
+        A G1 figure used as G7 would not error; it would produce a
+        confident, wrong trajectory.
+      - **Advertised, not measured.** Velocities come from the maker's test
+        barrel. A 20in rifle against a 24in test barrel is roughly 100 ft/s
+        down, which is inches at 400 yards and moves max ethical range the
+        wrong way. The picker says so, gives the test barrel length (or
+        says it is not stated), and points at chronographing.
+      - **Provenance.** `source_url` and `retrieved` are validated. Figures
+        get revised, and one with no source cannot be rechecked.
+
+      Seeded with 15 loads across 6.5 Creedmoor, .308 Win, .30-06, .300
+      Win Mag and 6.5x55 SE from Hornady, Federal, Barnes and Norma.
+- [ ] **"Will it cut it?"** - the reverse query. Given a species and an
+      expected range, filter and rank the catalogue by the terminal
+      thresholds already implemented, and show max ethical range per load.
+      This is what makes the catalogue worth having: a manufacturer's own
+      ballistic app will never tell you its cartridge is not enough.
+- [ ] Barrel-length correction and a chronographed-velocity override, so a
+      user's own measured figure supersedes the advertised one.
+- [ ] Offline-capable (service worker plus a WASM build of `ballistics-core`,
+      so solving does not need the server), making the app usable with no
+      signal rather than merely fast when there is one.
 
 ## Non-goals (for now)
 
