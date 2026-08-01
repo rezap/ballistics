@@ -51,6 +51,22 @@ reports that as unknown rather than assuming 24in.
 validated, not decorative: catalogues are revised, and a figure with no
 provenance cannot be rechecked.
 
+## Fill in `stated_muzzle_energy_ft_lb` whenever the maker publishes it
+
+It is never used to compute anything — it is a free check on your typing.
+Energy is fixed by bullet weight and velocity, so a stated figure that
+disagrees with those two means one of the three was transcribed wrong, and
+a test catches it to within 1.5%. Without it a mistyped velocity is
+invisible: it produces a trajectory that looks entirely reasonable and is
+simply wrong.
+
+## Getting the figures
+
+Manufacturer sites tend to refuse automated fetches, so in practice the
+numbers come from a web search for the specific product and are transcribed
+by hand. That is slower than it sounds it should be, but it is also what
+keeps `stated_muzzle_energy_ft_lb` worth having.
+
 ## On where the data comes from
 
 These are individually published facts, transcribed by hand with their
