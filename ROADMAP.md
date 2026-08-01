@@ -90,12 +90,10 @@ Phase 2:
       size ranges, body length, habitat, diet and fun facts; the API loads
       and validates it at startup and serves it from `GET /api/animals`.
       Adding an animal is: drop in `<key>.raw.png`, run
-      `scripts/prep_silhouettes.py`, add a `species.json` entry.
+      `scripts/prep_silhouettes.py <key>`, add a `species.json` entry,
+      then place the vitals anchor by looking at it.
       - [x] Roe deer, fallow deer, elk, moose, wild hog, red fox, pigeon,
-            wild turkey
-      - [ ] Red deer (stag), hare, whitetail deer - no artwork yet. The
-            loader already serves a species without art (overlay and info
-            panel render, just no silhouette), so only data is missing.
+            wild turkey, red deer stag, whitetail deer, brown hare
 - [x] **Real silhouette artwork**, replacing the earlier hand-drawn canvas
       polygons. `scripts/prep_silhouettes.py` crops each image to the
       animal, excludes the ground shadow from that crop (it is drawn wider

@@ -10,7 +10,13 @@
     "",
     "Set it to null for animals smaller than roe. Below that size the",
     "limiting factor is shot placement and bullet construction rather",
-    "than energy, and a made-up number would only look authoritative."
+    "than energy, and a made-up number would only look authoritative.",
+    "",
+    "body_length_in is the real-world span of the *drawing's width*, which",
+    "for a standing broadside animal is its head-and-body length. Where the",
+    "artwork shows another posture it is that posture's span instead - the",
+    "hare is drawn sitting, so its 18in is rump-to-nose seated, not the",
+    "24-30in of a stretched-out hare. The user can re-measure either way."
   ],
   "roe": {
     "common_name": "Roe Deer",
@@ -354,6 +360,139 @@
     "fun_facts": [
       "Body mass is mostly feather - the actual vital area is small, which is why head and neck shots are the usual advice.",
       "Can run around 25 mph and fly in short bursts far faster than their bulk suggests."
+    ],
+    "min_energy_ft_lb": null
+  },
+  "stag": {
+    "common_name": "Red Deer (Stag)",
+    "scientific_name": "Cervus elaphus",
+    "male_label": "Stag",
+    "female_label": "Hind",
+    "male": {
+      "shoulder_height_in": [
+        43,
+        51
+      ],
+      "weight_lb": [
+        350,
+        530
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        37,
+        43
+      ],
+      "weight_lb": [
+        265,
+        370
+      ]
+    },
+    "body_length_in": 79,
+    "shoulder_height_in": 48,
+    "vitals": {
+      "width_in": 12,
+      "height_in": 13
+    },
+    "vitals_anchor": {
+      "x": 0.59,
+      "y": 0.57
+    },
+    "habitat": "Open hill, moorland and woodland across Britain and Europe; woodland reds grow far larger than the open-hill Scottish ones.",
+    "diet": "Herbivore: grasses, heather, shrubs, tree shoots and bark.",
+    "fun_facts": [
+      "Britain's largest land mammal. A woodland stag can outweigh an open-hill Scottish one of the same bloodline by half again - habitat, not genetics, drives most of the difference.",
+      "Antlers are shed and regrown every year, adding up to an inch a day in summer, among the fastest tissue growth of any mammal.",
+      "Stags can lose a fifth of their body weight through the autumn rut, so a stag taken late in the season carries far less condition than its frame suggests."
+    ],
+    "min_energy_ft_lb": 1500
+  },
+  "whitetail": {
+    "common_name": "Whitetail Deer",
+    "scientific_name": "Odocoileus virginianus",
+    "male_label": "Buck",
+    "female_label": "Doe",
+    "male": {
+      "shoulder_height_in": [
+        36,
+        40
+      ],
+      "weight_lb": [
+        130,
+        300
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        32,
+        36
+      ],
+      "weight_lb": [
+        90,
+        200
+      ]
+    },
+    "body_length_in": 70,
+    "shoulder_height_in": 38,
+    "vitals": {
+      "width_in": 9,
+      "height_in": 10
+    },
+    "vitals_anchor": {
+      "x": 0.59,
+      "y": 0.56
+    },
+    "habitat": "Woodland edge, farmland and river bottoms across North America; the continent's most widespread deer.",
+    "diet": "Herbivore: browse, acorns, forbs, mast and farm crops.",
+    "fun_facts": [
+      "Body size varies enormously with latitude - a northern buck can be twice the weight of a southern one of the same species, so a single set of size figures is only ever a rough guide.",
+      "The white tail is a signal flag, raised and flared when the deer is alarmed. It is usually the last of the animal you see.",
+      "Broadside, the heart sits low and in line with the back of the front leg, a hand's width above the brisket rather than at mid-body."
+    ],
+    "min_energy_ft_lb": 1000
+  },
+  "hare": {
+    "common_name": "Brown Hare",
+    "scientific_name": "Lepus europaeus",
+    "male_label": "Jack",
+    "female_label": "Jill",
+    "male": {
+      "shoulder_height_in": [
+        11,
+        14
+      ],
+      "weight_lb": [
+        6.5,
+        10
+      ]
+    },
+    "female": {
+      "shoulder_height_in": [
+        11,
+        14
+      ],
+      "weight_lb": [
+        7,
+        11
+      ]
+    },
+    "body_length_in": 18,
+    "shoulder_height_in": 12,
+    "vitals": {
+      "width_in": 3,
+      "height_in": 3
+    },
+    "vitals_anchor": {
+      "x": 0.64,
+      "y": 0.62
+    },
+    "habitat": "Open farmland and grassland across Europe; lives above ground in a shallow form rather than a burrow.",
+    "diet": "Herbivore: grasses, herbs, cereal crops, and bark in winter.",
+    "fun_facts": [
+      "With no burrow to bolt for, a hare relies on speed - up to 45 mph, among the fastest land animals in Europe.",
+      "The 'mad March hare' boxing is usually a jill fending off a jack, not two bucks fighting.",
+      "Leverets are born fully furred with their eyes open and are left alone in the open from the first day.",
+      "Drawn sitting, as a hare in its form usually is. The vital zone is barely bigger than a tennis ball, so at any real range this is a rimfire or shotgun quarry."
     ],
     "min_energy_ft_lb": null
   }

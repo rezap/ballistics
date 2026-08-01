@@ -20,9 +20,10 @@ bug in cant/incline compensation has been fixed.
 HTTP with a browser UI, and is deployed and live at
 <https://ballistics-production-2c51.up.railway.app>.
 
-**Phase 3 in progress:** the ethical-shot assistant. Eight game species
-(roe deer, fallow deer, elk, moose, wild hog, red fox, pigeon, wild
-turkey) ship with silhouette artwork, vital-zone geometry, sizes,
+**Phase 3 in progress:** the ethical-shot assistant. Eleven game species
+(roe deer, fallow deer, red deer stag, whitetail deer, elk, moose, wild
+hog, red fox, brown hare, pigeon, wild turkey) ship with silhouette
+artwork, vital-zone geometry, sizes,
 habitat, diet and fun facts. The web app scales the artwork to real-world
 dimensions and overlays the computed point of impact against the vital
 zone. The shot can be aimed dead-on, with elevation dialled, or by

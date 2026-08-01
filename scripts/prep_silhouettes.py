@@ -54,6 +54,10 @@ INK_CLEAR_ABOVE = 190
 # Within the bottom slice of the subject, a row whose ink count jumps by at
 # least this factor over the row above marks the top of the ground shadow.
 SHADOW_JUMP_FACTOR = 1.8
+# Fallback for artwork where that step never happens because the animal is
+# sitting rather than standing: how much wider than the narrowest row above
+# it a row must be to count as ground shadow.
+SHADOW_SPREAD_FACTOR = 1.8
 # Only look for that jump inside the bottom fraction of the subject; the
 # animal's own body has plenty of legitimate width changes higher up.
 SHADOW_SEARCH_FRACTION = 0.25
@@ -83,18 +87,11 @@ def ink_rows(image):
     return rows
 
 
-def find_shadow_top(rows):
-    """First row of the ground shadow, or None if no shadow is detected."""
-    occupied = [y for y, (count, *_) in enumerate(rows) if count]
-    if not occupied:
-        return None
-
-    top, bottom = occupied[0], occupied[-1]
-    search_from = bottom - int((bottom - top) * SHADOW_SEARCH_FRACTION)
-
+def _jump_in_ink_count(rows, search_from, bottom):
+    """Where the row ink count steps up sharply: legs giving way to shadow."""
     best_y = None
     best_ratio = SHADOW_JUMP_FACTOR
-    for y in range(max(search_from, top + 1), bottom + 1):
+    for y in range(search_from, bottom + 1):
         previous = rows[y - 1][0]
         current = rows[y][0]
         if previous <= 0:
@@ -103,7 +100,49 @@ def find_shadow_top(rows):
         if ratio >= best_ratio:
             best_ratio = ratio
             best_y = y
+    return best_y
 
+
+def _widening_into_shadow(rows, search_from, bottom):
+    """Where the silhouette starts spreading out into a shadow ellipse.
+
+    An animal standing on its legs gives the sharp step the count test
+    looks for. One sitting on its haunches does not: the body meets the
+    shadow at nearly its own width, so the widening is gradual and no
+    single row jumps far enough. What still holds is that the shadow ends
+    up much wider than the animal resting on it, so compare each row
+    against the narrowest row above it rather than only its neighbour,
+    then walk back up to where the spreading began.
+    """
+    extent = [(r[2] - r[1] + 1) if r[0] else 0 for r in rows]
+
+    narrowest = None
+    for y in range(search_from, bottom + 1):
+        above = extent[y - 1]
+        if above > 0:
+            narrowest = above if narrowest is None else min(narrowest, above)
+        if narrowest and extent[y] >= narrowest * SHADOW_SPREAD_FACTOR:
+            # Back up to the start of the widening, so the few gradual rows
+            # before the threshold was crossed are cropped away too.
+            start = y
+            while start > search_from and extent[start - 1] < extent[start]:
+                start -= 1
+            return start
+    return None
+
+
+def find_shadow_top(rows):
+    """First row of the ground shadow, or None if no shadow is detected."""
+    occupied = [y for y, (count, *_) in enumerate(rows) if count]
+    if not occupied:
+        return None
+
+    top, bottom = occupied[0], occupied[-1]
+    search_from = max(bottom - int((bottom - top) * SHADOW_SEARCH_FRACTION), top + 1)
+
+    best_y = _jump_in_ink_count(rows, search_from, bottom)
+    if best_y is None:
+        best_y = _widening_into_shadow(rows, search_from, bottom)
     if best_y is None:
         return None
 
@@ -197,12 +236,27 @@ def write_preview(source, bbox, shadow_top, path):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--preview-dir", type=Path, default=None)
+    parser.add_argument(
+        "keys",
+        nargs="*",
+        help=(
+            "species to prepare (default: all). Naming one leaves every other "
+            "asset alone, so adding an animal cannot quietly re-crop the "
+            "existing ones and shift their calibration."
+        ),
+    )
     args = parser.parse_args()
 
     if not SOURCE_DIR.is_dir():
         sys.exit(f"no such directory: {SOURCE_DIR}")
 
     raw_paths = sorted(SOURCE_DIR.glob("*.raw.png"))
+    if args.keys:
+        wanted = set(args.keys)
+        raw_paths = [p for p in raw_paths if p.name[: -len(".raw.png")] in wanted]
+        missing = wanted - {p.name[: -len(".raw.png")] for p in raw_paths}
+        if missing:
+            sys.exit(f"no artwork for: {', '.join(sorted(missing))}")
     if not raw_paths:
         sys.exit(
             f"no *.raw.png found in {SOURCE_DIR}.\n"
@@ -213,7 +267,12 @@ def main():
     if args.preview_dir:
         args.preview_dir.mkdir(parents=True, exist_ok=True)
 
+    # Merge rather than replace, so preparing one species keeps the entries
+    # for the rest.
     manifest = {}
+    if MANIFEST.is_file():
+        manifest = json.loads(MANIFEST.read_text())
+
     for path in raw_paths:
         key = path.name[: -len(".raw.png")]
         with Image.open(path) as source:
