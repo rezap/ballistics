@@ -31,8 +31,11 @@ const presetExportButton = document.getElementById("preset-export");
 const presetImportButton = document.getElementById("preset-import");
 const presetFileInput = document.getElementById("preset-file");
 const presetStatus = document.getElementById("preset-status");
+const factoryLoadSelect = document.getElementById("factory-load");
+const factoryLoadNote = document.getElementById("factory-load-note");
 
 let animalsList = [];
+let factoryLoads = [];
 let lastPoints = null;
 
 // Set when the page was opened from a share link, so the trajectory can be
@@ -125,6 +128,7 @@ if (window.location.protocol === "file:") {
   });
 } else {
   loadAnimals();
+  loadAmmunition();
 }
 
 async function loadAnimals() {
@@ -150,6 +154,97 @@ async function loadAnimals() {
 function currentProfile() {
   return animalsList.find((a) => a.key === speciesSelect.value) ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Factory ammunition.
+//
+// Picking a box off the shelf beats typing four numbers off it, but every
+// figure in the catalogue is what the maker advertises, not what your rifle
+// does. The note under the picker says so, with the test barrel length,
+// because the gap is not academic: a 20in barrel against a 24in test barrel
+// is roughly 100 fps down, which is inches of drop at 400 yards and moves
+// the max ethical range in the direction that wounds animals.
+// ---------------------------------------------------------------------------
+
+async function loadAmmunition() {
+  try {
+    const response = await fetch("/api/ammunition");
+    factoryLoads = await response.json();
+  } catch {
+    factoryLoads = [];
+  }
+
+  if (!factoryLoads.length) return;
+
+  // Grouped by cartridge, which is how anyone shopping for ammunition
+  // thinks about it - you have the rifle already.
+  const byCartridge = new Map();
+  for (const entry of factoryLoads) {
+    if (!byCartridge.has(entry.cartridge)) byCartridge.set(entry.cartridge, []);
+    byCartridge.get(entry.cartridge).push(entry);
+  }
+
+  factoryLoadSelect.innerHTML =
+    `<option value="">Enter figures by hand</option>` +
+    [...byCartridge]
+      .map(
+        ([cartridge, loads]) =>
+          `<optgroup label="${escapeHtml(cartridge)}">` +
+          loads
+            .map(
+              (l) =>
+                `<option value="${escapeHtml(l.id)}">${escapeHtml(
+                  `${l.manufacturer} ${l.product_line} ${l.bullet}`
+                )}</option>`
+            )
+            .join("") +
+          `</optgroup>`
+      )
+      .join("");
+}
+
+/// A ballistic coefficient only means anything paired with the drag model
+/// it was measured against, so the two are chosen together. G7 is preferred
+/// where the maker publishes it: these are boat-tail hunting bullets and G7
+/// fits them far better than G1.
+function dragModelFor(entry) {
+  return entry.bc_g7 != null
+    ? { drag_function: "G7", bc: entry.bc_g7 }
+    : { drag_function: "G1", bc: entry.bc_g1 };
+}
+
+function applyFactoryLoad(entry) {
+  const { drag_function, bc } = dragModelFor(entry);
+  form.elements.drag_function.value = drag_function;
+  form.elements.ballistic_coefficient.value = bc;
+  form.elements.muzzle_velocity.value = entry.muzzle_velocity_fps;
+  form.elements.bullet_weight_gr.value = entry.bullet_weight_gr;
+
+  const barrel =
+    entry.test_barrel_in != null
+      ? `${entry.test_barrel_in}in test barrel`
+      : "test barrel length not stated";
+  factoryLoadNote.hidden = false;
+  factoryLoadNote.innerHTML =
+    `Advertised by ${escapeHtml(entry.manufacturer)} &mdash; ${barrel}, ` +
+    `BC quoted against ${drag_function}. Your rifle will not match the box: ` +
+    `reckon on 20&ndash;30 ft/s per inch of barrel below the test length, and ` +
+    `chronograph it if you can. ` +
+    `<a href="${escapeHtml(entry.source_url)}" target="_blank" rel="noopener noreferrer">Source</a> ` +
+    `(retrieved ${escapeHtml(entry.retrieved)}).`;
+}
+
+factoryLoadSelect.addEventListener("change", () => {
+  const entry = factoryLoads.find((l) => l.id === factoryLoadSelect.value);
+  if (!entry) {
+    factoryLoadNote.hidden = true;
+    factoryLoadNote.textContent = "";
+    return;
+  }
+  applyFactoryLoad(entry);
+  presetNameInput.value = `${entry.manufacturer} ${entry.cartridge} ${entry.bullet_weight_gr}gr`;
+  if (lastPoints) form.requestSubmit();
+});
 
 /// The reference measurement, in inches, that the current scale basis
 /// corresponds to. Body length maps to the artwork's width; overall height

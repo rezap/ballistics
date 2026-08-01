@@ -89,6 +89,7 @@ Endpoints:
 - `POST /api/trajectory` — solve a trajectory from a JSON `{ load, rifle, atmosphere?, shot? }` body (see `crates/ballistics-api/static/app.js` for a working example); returns an array of per-yard trajectory points (drop, wind drift, retained velocity and energy, time of flight).
 - `GET /api/drag-functions` — list the supported drag functions.
 - `GET /api/animals` — list supported game species with vital-zone geometry, artwork dimensions, sizes, habitat, diet, and fun facts. Loaded from `crates/ballistics-api/static/animals/species.json`; see that directory's README for how to add a species.
+- `GET /api/ammunition` — list factory loads with bullet weight, advertised muzzle velocity, test barrel length and ballistic coefficients (each against its own drag model). Loaded from `crates/ballistics-api/static/ammunition/loads.json`; see that directory's README for how to add a load and why the figures are labelled advertised rather than measured.
 - `GET /health` — liveness check.
 
 Configuration is via environment variables: `BALLISTICS_API_ADDR` (a full
