@@ -229,7 +229,31 @@ Phase 2:
 - [ ] Quartering-angle silhouettes (not just broadside) — several fun
       facts already flag that shot placement differs a lot by angle
       (e.g. wild hog's shoulder "shield" mostly matters broadside).
-- [ ] Polish UI/UX for use in the field (mobile-friendly, offline-capable).
+- [x] **Mobile layout.** The app asks for a lot - load, rifle, shot,
+      atmosphere, target, calibration - which is one screen side by side on
+      a desktop but ran to about three screens stacked into a phone's
+      single column, so the first number was two screens below the fold.
+
+      Each group is now a `<details>` rather than a `<fieldset>`. They ship
+      open, so the page still works with no JavaScript, and above the
+      700px breakpoint the marker is hidden and they read as plain section
+      headings exactly as before. On a phone everything set once and left
+      alone starts folded; only the shot and the target animal - what
+      actually changes between shots - stay open. Sizing and calibration
+      moved out of the target animal into its own group, since it is
+      calibration against the drawing rather than aiming, which evens out
+      the desktop columns too.
+
+      Short numeric fields pack two to a row, inputs are 16px so iOS does
+      not zoom the page on focus, and the Calculate button sticks to the
+      bottom of the form so it is always a thumb away.
+
+      Folding creates one trap worth knowing about: a required field inside
+      a folded group cannot be focused, so the browser refuses to submit
+      while showing nothing to fix. A captured `invalid` handler unfolds
+      whichever group failed.
+- [ ] Offline-capable (service worker), so the app is usable with no signal
+      rather than merely fast when there is one.
 
 ## Non-goals (for now)
 

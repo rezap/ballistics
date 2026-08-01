@@ -19,172 +19,202 @@
       <a href="http://localhost:3000">http://localhost:3000</a> instead.
     </p>
 
+    <!--
+      Each group is a <details> rather than a <fieldset> so that a phone can
+      fold away the parts that are set once and left alone. They ship open,
+      so the page still works with no JavaScript; app.js collapses the
+      set-once ones on a narrow screen, and above the breakpoint the CSS
+      hides the disclosure marker so they read as plain section headings.
+    -->
     <form id="trajectory-form">
-      <fieldset class="presets">
-        <legend>Rifle &amp; load preset</legend>
-        <label>
-          Saved
-          <select id="preset-select">
-            <option value="">No preset selected</option>
-          </select>
-        </label>
-        <label>
-          Save current settings as
-          <span class="size-row">
-            <input type="text" id="preset-name" placeholder="e.g. .308 168gr TTSX" maxlength="60" />
-            <button type="button" id="preset-save">Save</button>
-          </span>
-        </label>
-        <div class="preset-actions">
-          <button type="button" id="preset-delete" class="link-button">Delete</button>
-          <button type="button" id="preset-share" class="link-button">Copy share link</button>
-          <button type="button" id="preset-export" class="link-button">Export all</button>
-          <button type="button" id="preset-import" class="link-button">Import</button>
-          <input type="file" id="preset-file" accept="application/json,.json" hidden />
-        </div>
-        <p id="preset-status" class="hint" hidden></p>
-      </fieldset>
-
-      <fieldset>
-        <legend>Load</legend>
-        <label>
-          Drag function
-          <select name="drag_function">
-            <option value="G1">G1 (flat base)</option>
-            <option value="G7" selected>G7 (boat-tail / VLD)</option>
-            <option value="G2">G2</option>
-            <option value="G3">G3</option>
-            <option value="G5">G5</option>
-            <option value="G6">G6</option>
-            <option value="G8">G8</option>
-          </select>
-        </label>
-        <label>
-          Ballistic coefficient
-          <input type="number" name="ballistic_coefficient" step="0.001" min="0.001" value="0.243" required />
-        </label>
-        <label>
-          Muzzle velocity (ft/s)
-          <input type="number" name="muzzle_velocity" step="1" min="1" max="9999" value="2700" required />
-        </label>
-        <label>
-          Bullet weight (gr)
-          <input type="number" name="bullet_weight_gr" step="1" min="1" max="19999" value="168" required />
-        </label>
-        <label title="Impact velocity below which this bullet may not expand reliably. Roughly 1800 ft/s for cup-and-core, 1600 for bonded; monolithics often need more.">
-          Expansion floor (ft/s)
-          <input type="number" id="expansion-velocity" step="10" min="0" max="5000" value="1800" />
-        </label>
-      </fieldset>
-
-      <fieldset>
-        <legend>Rifle</legend>
-        <label>
-          Sight height (in)
-          <input type="number" name="sight_height" step="0.1" value="1.7" required />
-        </label>
-        <label>
-          Zero range (yd)
-          <input type="number" name="zero_range" step="1" min="1" max="1000" value="100" required />
-        </label>
-      </fieldset>
-
-      <fieldset>
-        <legend>Shot</legend>
-        <label>
-          Shooting angle (deg, uphill +/downhill -)
-          <input type="number" name="shooting_angle" step="1" min="-88" max="88" value="0" required />
-        </label>
-        <label>
-          Wind speed (mph)
-          <input type="number" name="wind_speed" step="1" min="0" max="199" value="10" required />
-        </label>
-        <label>
-          Wind angle (deg, 0=head, 90=right-to-left, 180=tail)
-          <input type="number" name="wind_angle" step="1" value="90" required />
-        </label>
-      </fieldset>
-
-      <fieldset>
-        <legend>Atmosphere</legend>
-        <label>
-          Altitude (ft)
-          <input type="number" name="altitude" step="1" value="0" required />
-        </label>
-        <label>
-          Pressure (in-Hg)
-          <input type="number" name="pressure" step="0.01" min="0.01" value="29.53" required />
-        </label>
-        <label>
-          Temperature (F)
-          <input type="number" name="temperature" step="1" value="59" required />
-        </label>
-        <label>
-          Relative humidity (0-1)
-          <input type="number" name="relative_humidity" step="0.01" min="0" max="1" value="0.78" required />
-        </label>
-      </fieldset>
-
-      <fieldset>
-        <legend>Target animal</legend>
-        <label>
-          Species
-          <select name="species" id="species-select">
-            <option value="">Loading species...</option>
-          </select>
-        </label>
-        <label>
-          Shot range (yd)
-          <input type="number" name="shot_range" id="shot-range" step="1" min="1" max="1000" value="100" required />
-        </label>
-        <label title="How elevation is dealt with. Dead-on shows the raw drop; dialled removes it; hold-over lets you place the crosshair yourself.">
-          Aiming
-          <select id="aim-mode">
-            <option value="dead-on">Dead-on hold (see the drop)</option>
-            <option value="dialled">Dialled elevation (turrets)</option>
-            <option value="holdover">Hold-over (drag the crosshair)</option>
-          </select>
-        </label>
-        <button type="button" id="solve-hold" class="link-button" hidden>
-          Put the crosshair where the hold should be
-        </button>
-        <label title="Your rifle-and-load group size in minutes of angle. 0 treats the rifle as perfect and shows the aim point alone.">
-          Group size (MOA)
-          <input type="number" id="group-moa" step="0.25" min="0" max="20" value="0" />
-        </label>
-        <p id="group-warning" class="inline-warning" hidden></p>
-        <label>
-          Scale drawing by
-          <select id="scale-basis">
-            <option value="length">Body length (nose to tail)</option>
-            <option value="height">Overall height (as drawn)</option>
-          </select>
-        </label>
-        <label>
-          Measured size
-          <span class="size-row">
-            <input type="number" id="scale-value" step="0.1" min="0.1" />
-            <select id="scale-unit">
-              <option value="in">in</option>
-              <option value="cm">cm</option>
-              <option value="m">m</option>
+      <details class="section presets" open data-section="presets">
+        <summary>Rifle &amp; load preset</summary>
+        <div class="fields">
+          <label class="wide">
+            Saved
+            <select id="preset-select">
+              <option value="">No preset selected</option>
             </select>
-          </span>
-        </label>
-        <label>
-          Vital zone (w &times; h)
-          <span class="size-row">
-            <input type="number" id="vitals-width" step="0.5" min="0.5" title="Vital zone width, inches" />
-            <input type="number" id="vitals-height" step="0.5" min="0.5" title="Vital zone height, inches" />
-            <span class="unit-suffix">in</span>
-          </span>
-        </label>
-        <label title="Minimum retained energy considered enough for a clean kill. Left blank for small game, where placement matters more than energy.">
-          Min. energy (ft&middot;lb)
-          <input type="number" id="min-energy" step="50" min="0" placeholder="not applicable" />
-        </label>
-        <button type="button" id="scale-reset" class="link-button">Reset calibration</button>
-      </fieldset>
+          </label>
+          <label class="wide">
+            Save current settings as
+            <span class="size-row">
+              <input type="text" id="preset-name" placeholder="e.g. .308 168gr TTSX" maxlength="60" />
+              <button type="button" id="preset-save">Save</button>
+            </span>
+          </label>
+          <div class="preset-actions wide">
+            <button type="button" id="preset-delete" class="link-button">Delete</button>
+            <button type="button" id="preset-share" class="link-button">Copy share link</button>
+            <button type="button" id="preset-export" class="link-button">Export all</button>
+            <button type="button" id="preset-import" class="link-button">Import</button>
+            <input type="file" id="preset-file" accept="application/json,.json" hidden />
+          </div>
+          <p id="preset-status" class="hint wide" hidden></p>
+        </div>
+      </details>
+
+      <details class="section" open data-section="load">
+        <summary>Load</summary>
+        <div class="fields">
+          <label class="wide">
+            Drag function
+            <select name="drag_function">
+              <option value="G1">G1 (flat base)</option>
+              <option value="G7" selected>G7 (boat-tail / VLD)</option>
+              <option value="G2">G2</option>
+              <option value="G3">G3</option>
+              <option value="G5">G5</option>
+              <option value="G6">G6</option>
+              <option value="G8">G8</option>
+            </select>
+          </label>
+          <label>
+            Ballistic coefficient
+            <input type="number" name="ballistic_coefficient" step="0.001" min="0.001" value="0.243" required />
+          </label>
+          <label>
+            Muzzle velocity (ft/s)
+            <input type="number" name="muzzle_velocity" step="1" min="1" max="9999" value="2700" required />
+          </label>
+          <label>
+            Bullet weight (gr)
+            <input type="number" name="bullet_weight_gr" step="1" min="1" max="19999" value="168" required />
+          </label>
+          <label title="Impact velocity below which this bullet may not expand reliably. Roughly 1800 ft/s for cup-and-core, 1600 for bonded; monolithics often need more.">
+            Expansion floor (ft/s)
+            <input type="number" id="expansion-velocity" step="10" min="0" max="5000" value="1800" />
+          </label>
+        </div>
+      </details>
+
+      <details class="section" open data-section="rifle">
+        <summary>Rifle</summary>
+        <div class="fields">
+          <label>
+            Sight height (in)
+            <input type="number" name="sight_height" step="0.1" value="1.7" required />
+          </label>
+          <label>
+            Zero range (yd)
+            <input type="number" name="zero_range" step="1" min="1" max="1000" value="100" required />
+          </label>
+        </div>
+      </details>
+
+      <details class="section" open data-section="shot">
+        <summary>Shot</summary>
+        <div class="fields">
+          <label title="Uphill positive, downhill negative.">
+            Shooting angle (deg)
+            <input type="number" name="shooting_angle" step="1" min="-88" max="88" value="0" required />
+          </label>
+          <label>
+            Wind speed (mph)
+            <input type="number" name="wind_speed" step="1" min="0" max="199" value="10" required />
+          </label>
+          <label title="0 = headwind, 90 = blowing right to left, 180 = tailwind.">
+            Wind angle (deg)
+            <input type="number" name="wind_angle" step="1" value="90" required />
+          </label>
+        </div>
+      </details>
+
+      <details class="section" open data-section="atmosphere">
+        <summary>Atmosphere</summary>
+        <div class="fields">
+          <label>
+            Altitude (ft)
+            <input type="number" name="altitude" step="1" value="0" required />
+          </label>
+          <label>
+            Pressure (in-Hg)
+            <input type="number" name="pressure" step="0.01" min="0.01" value="29.53" required />
+          </label>
+          <label>
+            Temperature (F)
+            <input type="number" name="temperature" step="1" value="59" required />
+          </label>
+          <label>
+            Relative humidity (0-1)
+            <input type="number" name="relative_humidity" step="0.01" min="0" max="1" value="0.78" required />
+          </label>
+        </div>
+      </details>
+
+      <details class="section" open data-section="animal">
+        <summary>Target animal</summary>
+        <div class="fields">
+          <label class="wide">
+            Species
+            <select name="species" id="species-select">
+              <option value="">Loading species...</option>
+            </select>
+          </label>
+          <label>
+            Shot range (yd)
+            <input type="number" name="shot_range" id="shot-range" step="1" min="1" max="1000" value="100" required />
+          </label>
+          <label title="Your rifle-and-load group size in minutes of angle. 0 treats the rifle as perfect and shows the aim point alone.">
+            Group size (MOA)
+            <input type="number" id="group-moa" step="0.25" min="0" max="20" value="0" />
+          </label>
+          <p id="group-warning" class="inline-warning wide" hidden></p>
+          <label class="wide" title="How elevation is dealt with. Dead-on shows the raw drop; dialled removes it; hold-over lets you place the crosshair yourself.">
+            Aiming
+            <select id="aim-mode">
+              <option value="dead-on">Dead-on hold (see the drop)</option>
+              <option value="dialled">Dialled elevation (turrets)</option>
+              <option value="holdover">Hold-over (drag the crosshair)</option>
+            </select>
+          </label>
+          <button type="button" id="solve-hold" class="link-button wide" hidden>
+            Put the crosshair where the hold should be
+          </button>
+        </div>
+      </details>
+
+      <!--
+        Split from the target animal because it is calibration, not aiming:
+        set once per species against the drawing and then left alone, while
+        species, range, aiming and group size change shot to shot.
+      -->
+      <details class="section" open data-section="calibration">
+        <summary>Sizing &amp; calibration</summary>
+        <div class="fields">
+          <label class="wide">
+            Scale drawing by
+            <select id="scale-basis">
+              <option value="length">Body length (nose to tail)</option>
+              <option value="height">Overall height (as drawn)</option>
+            </select>
+          </label>
+          <label class="wide">
+            Measured size
+            <span class="size-row">
+              <input type="number" id="scale-value" step="0.1" min="0.1" />
+              <select id="scale-unit">
+                <option value="in">in</option>
+                <option value="cm">cm</option>
+                <option value="m">m</option>
+              </select>
+            </span>
+          </label>
+          <label class="wide">
+            Vital zone (w &times; h)
+            <span class="size-row">
+              <input type="number" id="vitals-width" step="0.5" min="0.5" title="Vital zone width, inches" />
+              <input type="number" id="vitals-height" step="0.5" min="0.5" title="Vital zone height, inches" />
+              <span class="unit-suffix">in</span>
+            </span>
+          </label>
+          <label class="wide" title="Minimum retained energy considered enough for a clean kill. Left blank for small game, where placement matters more than energy.">
+            Min. energy (ft&middot;lb)
+            <input type="number" id="min-energy" step="50" min="0" placeholder="not applicable" />
+          </label>
+          <button type="button" id="scale-reset" class="link-button wide">Reset calibration</button>
+        </div>
+      </details>
 
       <button type="submit">Calculate trajectory</button>
     </form>

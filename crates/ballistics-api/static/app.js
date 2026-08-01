@@ -467,6 +467,36 @@ function buildColumnToggles() {
 
 buildColumnToggles();
 
+// The sections that change shot to shot. Everything else is set up once and
+// then left alone, so on a phone those start folded away - the form ran to
+// about three screens before the first number otherwise. They ship open in
+// the markup so the page still works with no JavaScript, and above the
+// breakpoint nothing is collapsed at all.
+const SECTIONS_OPEN_ON_PHONE = new Set(["animal", "shot"]);
+
+const PHONE = "(max-width: 700px)";
+
+function collapseSetOnceSections() {
+  if (!window.matchMedia(PHONE).matches) return;
+  for (const section of document.querySelectorAll(".section")) {
+    section.open = SECTIONS_OPEN_ON_PHONE.has(section.dataset.section);
+  }
+}
+
+collapseSetOnceSections();
+
+// A required field inside a folded section cannot be focused, so the browser
+// would refuse to submit while showing nothing to fix. Unfold whatever failed
+// validation. Captured rather than bubbled, because `invalid` does not bubble.
+form.addEventListener(
+  "invalid",
+  (event) => {
+    const section = event.target.closest(".section");
+    if (section) section.open = true;
+  },
+  true
+);
+
 presetSelect.addEventListener("change", () => {
   const name = presetSelect.value;
   if (!name) return;
@@ -613,6 +643,14 @@ function applySharedPreset() {
   presetNameInput.value = String(payload.name ?? "Shared load").trim().slice(0, 60);
   setPresetStatus("Loaded a shared load. Press Save to keep it.");
   pendingSharedPreset = true;
+
+  // Someone has just been handed a load; on a phone those sections are
+  // folded by default, and they should be able to see what they got and
+  // reach the Save button without hunting for them.
+  for (const key of ["presets", "load"]) {
+    const section = document.querySelector(`[data-section="${key}"]`);
+    if (section) section.open = true;
+  }
 }
 
 refreshPresetOptions();
