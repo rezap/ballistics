@@ -270,21 +270,6 @@
       "retrieved": "2026-08-01"
     },
     {
-      "id": "norma-oryx-93x62-285",
-      "manufacturer": "Norma",
-      "product_line": "Oryx",
-      "cartridge": "9.3x62",
-      "bullet": "285 gr Oryx bonded SP",
-      "bullet_weight_gr": 285,
-      "muzzle_velocity_fps": 2362,
-      "test_barrel_in": null,
-      "bc_g1": 0.33,
-      "bc_g7": null,
-      "stated_muzzle_energy_ft_lb": null,
-      "source_url": "https://www.norma-ammunition.com/en-gb/products/dedicated-hunting/centerfire-rifle/norma-oryx/norma-oryx-93-x-62-285gr---20193132",
-      "retrieved": "2026-08-01"
-    },
-    {
       "id": "norma-oryx-93x74r-285",
       "manufacturer": "Norma",
       "product_line": "Oryx",
@@ -298,6 +283,22 @@
       "stated_muzzle_energy_ft_lb": 3433,
       "maker_max_range_yd": 157,
       "source_url": "https://www.norma-ammunition.com/products/hunting/norma-oryx/norma-oryx-9-3-x-74-r-285gr---20193322",
+      "retrieved": "2026-08-01"
+    },
+    {
+      "id": "norma-oryx-93x62-325",
+      "manufacturer": "Norma",
+      "product_line": "Oryx",
+      "cartridge": "9.3x62",
+      "bullet": "325 gr Oryx bonded SP",
+      "bullet_weight_gr": 325,
+      "muzzle_velocity_fps": 2198,
+      "test_barrel_in": null,
+      "bc_g1": 0.383,
+      "bc_g7": null,
+      "stated_muzzle_energy_ft_lb": 3487,
+      "maker_max_range_yd": 149,
+      "source_url": "https://www.norma-ammunition.com/products/hunting/norma-oryx/norma-oryx-9-3-x-62-325gr---20193142",
       "retrieved": "2026-08-01"
     }
   ]
