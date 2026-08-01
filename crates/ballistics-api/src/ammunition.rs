@@ -36,6 +36,16 @@ pub struct FactoryLoad {
     pub bc_g1: Option<f64>,
     #[serde(default)]
     pub bc_g7: Option<f64>,
+    /// Muzzle energy as the maker states it, where they do.
+    ///
+    /// Carried purely as a cross-check and never used to compute anything:
+    /// energy is fixed by bullet weight and velocity, so a stated figure
+    /// that disagrees with those two means one of them was transcribed
+    /// wrong. That is the likely error in a hand-entered catalogue, and it
+    /// is otherwise invisible - a wrong velocity produces a trajectory that
+    /// looks entirely reasonable.
+    #[serde(default)]
+    pub stated_muzzle_energy_ft_lb: Option<f64>,
     pub source_url: String,
     pub retrieved: String,
 }
@@ -241,6 +251,45 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn stated_muzzle_energy_agrees_with_weight_and_velocity() {
+        // Energy is fixed by the other two, so a maker's own figure is a
+        // free check on the transcription. A velocity typed wrong yields a
+        // perfectly plausible trajectory and nothing else would catch it.
+        for entry in load(&static_dir()).unwrap() {
+            let Some(stated) = entry.stated_muzzle_energy_ft_lb else {
+                continue;
+            };
+            let computed =
+                ballistics_core::energy::ft_lb(entry.bullet_weight_gr, entry.muzzle_velocity_fps);
+            let error = (computed - stated).abs() / stated;
+            assert!(
+                error < 0.015,
+                "{}: {} gr at {} ft/s is {computed:.0} ft-lb, but the maker states {stated:.0} \
+                 ({:.1}% out) - one of the three figures is wrong",
+                entry.id,
+                entry.bullet_weight_gr,
+                entry.muzzle_velocity_fps,
+                error * 100.0
+            );
+        }
+    }
+
+    #[test]
+    fn catches_a_mistyped_velocity_via_the_stated_energy() {
+        let mut entry = valid_load();
+        entry.stated_muzzle_energy_ft_lb = Some(2718.0);
+        let computed =
+            ballistics_core::energy::ft_lb(entry.bullet_weight_gr, entry.muzzle_velocity_fps);
+        assert!((computed - 2718.0).abs() / 2718.0 < 0.015, "{computed}");
+
+        // A transposed digit - 2700 typed as 2070 - is far outside it.
+        entry.muzzle_velocity_fps = 2070.0;
+        let slipped =
+            ballistics_core::energy::ft_lb(entry.bullet_weight_gr, entry.muzzle_velocity_fps);
+        assert!((slipped - 2718.0).abs() / 2718.0 > 0.015, "{slipped}");
     }
 
     #[test]

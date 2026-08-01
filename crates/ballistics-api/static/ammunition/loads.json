@@ -28,7 +28,15 @@
     "",
     "Every entry records where its numbers came from and when. Keep that up",
     "when adding loads: catalogues change yearly, and a figure with no",
-    "provenance cannot be rechecked."
+    "provenance cannot be rechecked.",
+    "",
+    "`stated_muzzle_energy_ft_lb` is the maker's own energy figure, carried",
+    "purely as a cross-check and never used to compute anything. Energy is",
+    "fixed by bullet weight and velocity, so a stated figure that disagrees",
+    "with those two means one of them was typed wrong - and a wrong velocity",
+    "is otherwise invisible, since it yields a trajectory that looks entirely",
+    "reasonable. Fill it in wherever the maker publishes it; a test checks it",
+    "to within 1.5%."
   ],
   "schema_version": 1,
   "loads": [
@@ -44,7 +52,8 @@
       "bc_g1": 0.625,
       "bc_g7": 0.315,
       "source_url": "https://www.hornady.com/ammunition/rifle/6-5-creedmoor-143-gr-eld-x-precision-hunter",
-      "retrieved": "2026-08-01"
+      "retrieved": "2026-08-01",
+      "stated_muzzle_energy_ft_lb": 2315
     },
     {
       "id": "hornady-american-whitetail-65cm-129-interlock",
@@ -58,7 +67,8 @@
       "bc_g1": 0.445,
       "bc_g7": null,
       "source_url": "https://www.hornady.com/ammunition/rifle/6.5-creedmoor-129-gr.-interlock-american-whitetail",
-      "retrieved": "2026-08-01"
+      "retrieved": "2026-08-01",
+      "stated_muzzle_energy_ft_lb": 2277
     },
     {
       "id": "federal-terminal-ascent-65cm-130",
@@ -100,7 +110,8 @@
       "bc_g1": 0.552,
       "bc_g7": 0.278,
       "source_url": "https://www.hornady.com/ammunition/rifle/308-win-178-gr-eld-x-precision-hunter",
-      "retrieved": "2026-08-01"
+      "retrieved": "2026-08-01",
+      "stated_muzzle_energy_ft_lb": 2671
     },
     {
       "id": "hornady-american-whitetail-308-150-interlock",
@@ -114,7 +125,8 @@
       "bc_g1": 0.338,
       "bc_g7": null,
       "source_url": "https://www.hornady.com/ammunition/rifle/308-win-150-gr-interlock-sp-american-whitetail",
-      "retrieved": "2026-08-01"
+      "retrieved": "2026-08-01",
+      "stated_muzzle_energy_ft_lb": 2649
     },
     {
       "id": "barnes-vortx-308-168-ttsx",
@@ -240,6 +252,36 @@
       "bc_g1": 0.348,
       "bc_g7": null,
       "source_url": "https://www.norma-ammunition.com/en-gb/products/dedicated-hunting/centerfire-rifle/norma-oryx/norma-oryx-65x55-swedish-mauser-156gr---20165622",
+      "retrieved": "2026-08-01"
+    },
+    {
+      "id": "norma-odin-93x74r-230",
+      "manufacturer": "Norma",
+      "product_line": "ODIN",
+      "cartridge": "9.3x74R",
+      "bullet": "230 gr ODIN monolithic",
+      "bullet_weight_gr": 230,
+      "muzzle_velocity_fps": 2575,
+      "test_barrel_in": 24,
+      "bc_g1": 0.472,
+      "bc_g7": null,
+      "stated_muzzle_energy_ft_lb": 3387,
+      "source_url": "https://www.norma-ammunition.com/products/hunting/norma-odin/norma-odin-9-3x74r-230gr---20193632",
+      "retrieved": "2026-08-01"
+    },
+    {
+      "id": "norma-oryx-93x62-285",
+      "manufacturer": "Norma",
+      "product_line": "Oryx",
+      "cartridge": "9.3x62",
+      "bullet": "285 gr Oryx bonded SP",
+      "bullet_weight_gr": 285,
+      "muzzle_velocity_fps": 2362,
+      "test_barrel_in": null,
+      "bc_g1": 0.33,
+      "bc_g7": null,
+      "stated_muzzle_energy_ft_lb": null,
+      "source_url": "https://www.norma-ammunition.com/en-gb/products/dedicated-hunting/centerfire-rifle/norma-oryx/norma-oryx-93-x-62-285gr---20193132",
       "retrieved": "2026-08-01"
     }
   ]
