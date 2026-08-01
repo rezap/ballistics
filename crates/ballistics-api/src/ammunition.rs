@@ -315,6 +315,9 @@ mod tests {
     fn bore_in(cartridge: &str) -> Option<f64> {
         Some(match cartridge {
             "6.5 Creedmoor" | "6.5x55 SE" => 0.264,
+            // As with 8x57, the R is a rim on the case and not a change of
+            // bullet, so 7x64 and 7x65R take the same projectile.
+            "7x64" | "7x65R" => 0.284,
             ".308 Winchester" | ".30-06 Springfield" | ".300 Winchester Magnum" => 0.308,
             // The suffixes matter here. S means the .323 bore and its
             // absence means the older .318; R means rimmed, which changes
