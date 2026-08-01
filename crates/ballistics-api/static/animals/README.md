@@ -4,9 +4,16 @@
 
 1. Drop the artwork in as `<key>.raw.png` (side profile, facing right,
    plain light background).
-2. Run `python3 scripts/prep_silhouettes.py` from the repository root.
-   That writes the web asset `<key>.png` and updates `manifest.json`.
+2. Run `python3 scripts/prep_silhouettes.py <key>` from the repository
+   root. That writes the web asset `<key>.png` and merges an entry into
+   `manifest.json`. **Name the species.** Running the script bare
+   re-prepares everything, and a change to the crop heuristic will then
+   silently re-crop animals whose placement was already calibrated.
 3. Add an entry to `species.json` under the same `<key>`.
+4. Place `vitals_anchor` by looking at it. Load the app, pick the
+   species, and compare against an animal whose placement is already
+   right (the roe deer is the reference). There is no substitute for
+   this - see below.
 
 No Rust or JavaScript changes are needed - the species dropdown, the
 silhouette overlay and the info panel are all driven by these files.
@@ -53,6 +60,22 @@ rejects a present-but-nonsensical value.
 artwork, as a fraction of its width and height. Combined with the pixel
 dimensions in `manifest.json`, that maps the ballistics engine's
 real-inch drop and wind drift onto the drawing.
+
+`body_length_in` is the real-world span of the drawing's *width*. For a
+standing broadside animal that is its head-and-body length. Where the
+artwork shows another posture it is that posture's span instead: the
+hare is drawn sitting, so its 18in is rump-to-nose seated rather than
+the 24-30in of a stretched-out hare.
+
+### Placing the vitals anchor
+
+By eye, against the drawing. Deriving it from the artwork does not work
+and is not worth attempting - a heuristic that finds the shoulder crease
+on a standing deer has nothing to say about a sitting hare, a strutting
+turkey or a bird, and every species needs checking by eye anyway. Aim
+for the crease just behind the front leg, roughly a third of the chest's
+depth below the back line, and compare against the roe deer, whose
+placement is the reference the others were matched to.
 
 Those dimensions are typical figures from general wildlife references,
 not authoritative measurements, and the artwork is stylised. The app

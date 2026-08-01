@@ -7,6 +7,10 @@
     "height_px": 582,
     "width_px": 900
   },
+  "hare": {
+    "height_px": 482,
+    "width_px": 395
+  },
   "hog": {
     "height_px": 601,
     "width_px": 900
@@ -27,8 +31,16 @@
     "height_px": 900,
     "width_px": 828
   },
+  "stag": {
+    "height_px": 657,
+    "width_px": 585
+  },
   "turkey": {
     "height_px": 727,
     "width_px": 900
+  },
+  "whitetail": {
+    "height_px": 596,
+    "width_px": 551
   }
 }
