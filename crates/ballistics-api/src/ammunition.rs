@@ -316,7 +316,7 @@ mod tests {
         Some(match cartridge {
             "6.5 Creedmoor" | "6.5x55 SE" => 0.264,
             ".308 Winchester" | ".30-06 Springfield" | ".300 Winchester Magnum" => 0.308,
-            "9.3x62" | "9.3x74R" => 0.366,
+            "9.3x57" | "9.3x62" | "9.3x74R" => 0.366,
             _ => return None,
         })
     }
