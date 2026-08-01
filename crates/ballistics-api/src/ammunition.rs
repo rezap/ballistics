@@ -316,9 +316,12 @@ mod tests {
         Some(match cartridge {
             "6.5 Creedmoor" | "6.5x55 SE" => 0.264,
             ".308 Winchester" | ".30-06 Springfield" | ".300 Winchester Magnum" => 0.308,
-            // JS is the .323 bore; the older J is .318 and is not the same
-            // bullet, so the two must never share a group here.
-            "8x57 JS" => 0.323,
+            // The suffixes matter here. S means the .323 bore and its
+            // absence means the older .318; R means rimmed, which changes
+            // the case and not the bullet. So JS and JRS take the same
+            // projectile and must be grouped together, while a plain J or
+            // JR would be .318 and must not.
+            "8x57 JS" | "8x57 JRS" => 0.323,
             "9.3x57" | "9.3x62" | "9.3x74R" => 0.366,
             _ => return None,
         })
