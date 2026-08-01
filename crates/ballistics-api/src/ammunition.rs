@@ -10,7 +10,6 @@
 //! in `loads.json` for why that matters and what the app has to keep
 //! visible because of it.
 
-use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -182,7 +181,15 @@ pub fn load(static_dir: &Path) -> Result<Vec<FactoryLoad>, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
+
+    /// What identifies one projectile: product line, weight and bore. The
+    /// floats are bit patterns so the tuple can be a map key.
+    type BulletKey = (String, u64, u64);
+    /// A cartridge that bullet is loaded in, and its coefficients.
+    type LoadedIn = (String, Option<f64>, Option<f64>);
 
     fn static_dir() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("static")
@@ -323,8 +330,7 @@ mod tests {
         // This is not hypothetical tidiness. The 285 gr Oryx was entered as
         // 0.330 in 9.3x62 and 0.356 in 9.3x74R, and the mismatch was the
         // only visible sign that one of them came from a bad source.
-        let mut seen: BTreeMap<(String, u64, u64), Vec<(String, Option<f64>, Option<f64>)>> =
-            BTreeMap::new();
+        let mut seen: BTreeMap<BulletKey, Vec<LoadedIn>> = BTreeMap::new();
 
         for entry in load(&static_dir()).unwrap() {
             let Some(bore) = bore_in(&entry.cartridge) else {
