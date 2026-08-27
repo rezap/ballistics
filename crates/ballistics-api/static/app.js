@@ -33,6 +33,8 @@ const presetFileInput = document.getElementById("preset-file");
 const presetStatus = document.getElementById("preset-status");
 const factoryLoadSelect = document.getElementById("factory-load");
 const factoryLoadNote = document.getElementById("factory-load-note");
+const windScaleSelect = document.getElementById("wind-scale");
+const rangeUncertaintyInput = document.getElementById("range-uncertainty");
 
 let animalsList = [];
 let factoryLoads = [];
@@ -780,7 +782,25 @@ form.addEventListener("submit", async (event) => {
   // Recalculating the shot also solves it from wherever the crosshair has
   // been left, so the button does what it says even mid-drag.
   applyHold();
+  bandPoints = await solveWindBand(payload);
   renderResults(body);
+});
+
+// A different wind band is a different pair of trajectories, so it needs a
+// re-solve rather than a re-render. Picking a force also fills in the speed
+// with the middle of that band, so the table and chart stay sensible.
+windScaleSelect.addEventListener("change", () => {
+  const band = windBand();
+  if (band.force) {
+    form.elements.wind_speed.value = Math.round((band.lo + band.hi) / 2);
+  }
+  if (lastPoints) form.requestSubmit();
+});
+
+// The range band needs no new trajectories - the client already holds every
+// yard of them - so this is a re-render only.
+rangeUncertaintyInput.addEventListener("input", () => {
+  if (lastPoints) renderAnimalPanel(lastPoints);
 });
 
 // The shot range and species controls don't need a new API call: the
@@ -1239,6 +1259,7 @@ function renderVitalsOverlay(profile, point, image) {
   const inPerPx = inchesPerPixel(profile);
   const { aim, impact } = shotGeometry(point);
   const groupRadiusIn = groupDiameterInches(point.yards) / 2;
+  const region = uncertaintyRegion(point);
 
   const artW = profile.image_width_px ?? 400;
   const artH = profile.image_height_px ?? 300;
@@ -1256,14 +1277,17 @@ function renderVitalsOverlay(profile, point, image) {
   const impactX = toArtX(impact.x);
   const impactY = toArtY(impact.y);
   const groupRadiusArt = groupRadiusIn / inPerPx;
+  const regionArt = region.map((p) => [toArtX(p.x), toArtY(p.y)]);
 
-  // Fit the artwork, the impact and the whole group circle, so nothing
-  // that matters gets clipped at long range.
+  // Fit the artwork, the impact, the whole group circle and the whole
+  // uncertainty region, so nothing that matters gets clipped at long range.
   const pad = 26;
-  const minX = Math.min(0, impactX - groupRadiusArt, aimX);
-  const maxX = Math.max(artW, impactX + groupRadiusArt, aimX);
-  const minY = Math.min(0, impactY - groupRadiusArt, aimY);
-  const maxY = Math.max(artH, impactY + groupRadiusArt, aimY);
+  const regionXs = regionArt.map(([x]) => x);
+  const regionYs = regionArt.map(([, y]) => y);
+  const minX = Math.min(0, impactX - groupRadiusArt, aimX, ...regionXs.map((x) => x - groupRadiusArt));
+  const maxX = Math.max(artW, impactX + groupRadiusArt, aimX, ...regionXs.map((x) => x + groupRadiusArt));
+  const minY = Math.min(0, impactY - groupRadiusArt, aimY, ...regionYs.map((y) => y - groupRadiusArt));
+  const maxY = Math.max(artH, impactY + groupRadiusArt, aimY, ...regionYs.map((y) => y + groupRadiusArt));
   const fit = Math.min(
     (width - pad * 2) / (maxX - minX),
     (height - pad * 2) / (maxY - minY)
@@ -1313,17 +1337,43 @@ function renderVitalsOverlay(profile, point, image) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  const assessment = assessShot(vitals, impact, groupRadiusIn);
+  const assessment = assessRegion(vitals, region, groupRadiusIn);
   const [impactPxX, impactPxY] = toPx(impactX, impactY);
   const [crossPxX, crossPxY] = toPx(aimX, aimY);
 
-  // Group dispersion: where the shot could land, not where it will.
-  if (groupRadiusArt > 0) {
+  // Everything the shot could do: the region swept by the range and wind
+  // bands, widened by the group.
+  //
+  // The widening is done by stroking the region's own outline with a pen as
+  // wide as the group and round joins, which is exactly a Minkowski sum with
+  // the group disc - the true footprint, not an approximation of it. With no
+  // bands the region collapses to a single point and this draws the plain
+  // group circle it did before.
+  const groupPx = groupRadiusArt * fit * 2;
+  if (regionArt.length > 1 || groupPx > 0) {
     ctx.beginPath();
-    ctx.arc(impactPxX, impactPxY, groupRadiusArt * fit, 0, Math.PI * 2);
-    ctx.fillStyle = "#f59e0b26";
+    if (regionArt.length > 1) {
+      regionArt.forEach(([x, y], i) => {
+        const [px, py] = toPx(x, y);
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      });
+      ctx.closePath();
+    } else {
+      ctx.arc(impactPxX, impactPxY, Math.max(groupPx / 2, 0.5), 0, Math.PI * 2);
+    }
+
+    const shade = REGION_SHADES[assessment.verdict];
+    if (regionArt.length > 1 && groupPx > 0) {
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.lineWidth = groupPx;
+      ctx.strokeStyle = shade.fill;
+      ctx.stroke();
+    }
+    ctx.fillStyle = shade.fill;
     ctx.fill();
-    ctx.strokeStyle = "#f59e0b";
+    ctx.strokeStyle = shade.line;
     ctx.setLineDash([4, 3]);
     ctx.lineWidth = 1.5;
     ctx.stroke();
@@ -1414,6 +1464,15 @@ const VERDICT_COLOURS = {
   miss: "#dc2626",
 };
 
+/// The uncertainty footprint is shaded by verdict rather than by a fixed
+/// colour: the question it answers is whether the shot is safe, so the
+/// answer should be readable without reading the panel.
+const REGION_SHADES = {
+  hit: { fill: "#16a34a2e", line: "#16a34a" },
+  marginal: { fill: "#f59e0b2e", line: "#f59e0b" },
+  miss: { fill: "#dc26262e", line: "#dc2626" },
+};
+
 /// Assesses the shot as a group rather than a point.
 ///
 /// A perfect rifle either hits the vitals or does not. A real one throws a
@@ -1422,31 +1481,49 @@ const VERDICT_COLOURS = {
 /// a clean shot. The group is sampled around its rim because the vitals
 /// are an ellipse, where "how far to the edge" depends on direction.
 function assessShot(vitals, impact, groupRadiusIn) {
+  return assessRegion(vitals, [impact], groupRadiusIn);
+}
+
+/// The same judgement over a whole region of possible impacts.
+///
+/// A verdict of "hit" means every combination of range and wind inside the
+/// bands, with the group around each of them, still lands in the vitals.
+/// That is a demanding test, and it is meant to be: the point of admitting
+/// what you do not know is that it sometimes says do not shoot.
+function assessRegion(vitals, region, groupRadiusIn) {
   const halfWidth = vitals.width_in / 2;
   const halfHeight = vitals.height_in / 2;
   const inside = (x, y) => (x / halfWidth) ** 2 + (y / halfHeight) ** 2 <= 1;
 
-  const centreInside = inside(impact.x, impact.y);
-  if (groupRadiusIn <= 0) {
-    return {
-      verdict: centreInside ? "hit" : "miss",
-      centreInside,
-      groupFullyInside: centreInside,
-    };
-  }
-
   let allInside = true;
   let anyInside = false;
   const samples = 24;
-  for (let i = 0; i < samples; i++) {
-    const angle = (i / samples) * Math.PI * 2;
-    const ok = inside(
-      impact.x + Math.cos(angle) * groupRadiusIn,
-      impact.y + Math.sin(angle) * groupRadiusIn
-    );
-    allInside = allInside && ok;
-    anyInside = anyInside || ok;
+
+  for (const impact of region) {
+    if (groupRadiusIn <= 0) {
+      const ok = inside(impact.x, impact.y);
+      allInside = allInside && ok;
+      anyInside = anyInside || ok;
+      continue;
+    }
+    // The group is sampled around its rim because the vitals are an
+    // ellipse, where "how far to the edge" depends on direction.
+    for (let i = 0; i < samples; i++) {
+      const angle = (i / samples) * Math.PI * 2;
+      const ok = inside(
+        impact.x + Math.cos(angle) * groupRadiusIn,
+        impact.y + Math.sin(angle) * groupRadiusIn
+      );
+      allInside = allInside && ok;
+      anyInside = anyInside || ok;
+    }
   }
+
+  const centre = {
+    x: region.reduce((s, p) => s + p.x, 0) / region.length,
+    y: region.reduce((s, p) => s + p.y, 0) / region.length,
+  };
+  const centreInside = inside(centre.x, centre.y);
 
   const verdict = allInside ? "hit" : centreInside || anyInside ? "marginal" : "miss";
   return { verdict, centreInside, groupFullyInside: allInside };
@@ -1487,6 +1564,163 @@ function drawScaleBar(ctx, width, height, pxPerInch, textColor) {
   ctx.font = "11px sans-serif";
   ctx.fillText("1 ft", x + barPx + 6, y + 4);
 }
+
+// ---------------------------------------------------------------------------
+// What you do not know.
+//
+// A shot in the field is not taken against known numbers. The range is a
+// judgement, the wind is a guess, and the rifle throws a group. Those three
+// are different in kind, and that is the useful part:
+//
+//   * range error is almost purely vertical - drop changes steeply with it
+//   * wind error is almost purely horizontal
+//   * group is circular
+//
+// So the impact is not a point but a region, and the *shape* of that region
+// says which unknown is the problem. Tall means range it properly. Wide
+// means wait for the wind or get closer. Round means it is the rifle, or
+// you. A point estimate hides all of that behind a single confident dot.
+// ---------------------------------------------------------------------------
+
+/// The Beaufort scale, land observations.
+///
+/// Written in 1805 for observers with no instruments, which is exactly the
+/// problem here: nobody reads wind speed off the air to the mile per hour,
+/// but anyone can see whether twigs are moving or small trees are swaying.
+/// Every force is already a band rather than a number, so it doubles as the
+/// uncertainty itself.
+const BEAUFORT = [
+  { force: "0-1", lo: 0, hi: 3, seen: "Calm - smoke rises near vertical" },
+  { force: "2", lo: 4, hi: 7, seen: "Felt on the face, leaves rustle" },
+  { force: "3", lo: 8, hi: 12, seen: "Leaves and twigs always moving, a flag extends" },
+  { force: "4", lo: 13, hi: 18, seen: "Dust and loose paper lifting, small branches move" },
+  { force: "5", lo: 19, hi: 24, seen: "Small trees in leaf begin to sway" },
+  { force: "6", lo: 25, hi: 31, seen: "Large branches moving, hard to hold steady" },
+];
+
+/// Trajectories solved at the edges of the wind band, or null when the wind
+/// is treated as exact.
+let bandPoints = null;
+
+function buildWindScaleOptions() {
+  // Keyed by the force itself rather than by position in the array, so the
+  // value means something on its own.
+  windScaleSelect.innerHTML =
+    `<option value="">Measured &mdash; use the exact figure</option>` +
+    BEAUFORT.map(
+      (b) =>
+        `<option value="${b.force}">Force ${b.force} (${b.lo}-${b.hi} mph) &mdash; ${escapeHtml(b.seen)}</option>`
+    ).join("");
+}
+
+/// The range of wind speeds the shot might actually be taken in.
+function windBand() {
+  const chosen = BEAUFORT.find((b) => b.force === windScaleSelect.value);
+  if (!chosen) {
+    const exact = Number(form.elements.wind_speed.value) || 0;
+    return { lo: exact, hi: exact, force: null };
+  }
+  return { lo: chosen.lo, hi: chosen.hi, force: chosen };
+}
+
+/// The range of distances the animal might actually be at.
+function rangeBand(yards) {
+  const slop = Math.max(0, Number(rangeUncertaintyInput.value) || 0);
+  return { lo: Math.max(1, yards - slop), hi: yards + slop, slop };
+}
+
+/// Solves the two extra trajectories the wind band needs. Only the edges are
+/// required: drift grows monotonically with both wind speed and range, so
+/// everything in between is bounded by them.
+async function solveWindBand(payload) {
+  const band = windBand();
+  if (band.lo === band.hi) return null;
+
+  const at = async (wind_speed) => {
+    try {
+      const response = await fetch("/api/trajectory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, shot: { ...payload.shot, wind_speed } }),
+      });
+      return response.ok ? await response.json() : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const [lo, hi] = await Promise.all([at(band.lo), at(band.hi)]);
+  return lo && hi ? { lo, hi } : null;
+}
+
+/// Where the bullet lands for one (range, wind) pair, in inches from the
+/// vitals centre.
+///
+/// The aim mode decides what the vertical reference is. Dialled elevation is
+/// dialled for the range you *believe*, so being wrong about the range puts
+/// you off by the difference in drop between the two - which is why it takes
+/// the nominal point's drop off rather than zeroing the drop outright.
+function impactOffset(point, nominalPoint) {
+  const hold = aimMode() === "holdover" ? appliedHoldIn : { x: 0, y: 0 };
+  const dialledFor = aimMode() === "dialled" ? nominalPoint.path_inches : 0;
+  return {
+    x: hold.x + point.windage_in,
+    y: hold.y + point.path_inches - dialledFor,
+  };
+}
+
+function bandRanges(band, steps = 8) {
+  if (band.hi <= band.lo) return [band.lo];
+  return Array.from({ length: steps + 1 }, (_, i) => band.lo + ((band.hi - band.lo) * i) / steps);
+}
+
+/// The region the impact could fall in, as a closed polygon in inches.
+///
+/// Traced rather than sampled: one edge walks the range band at the low wind,
+/// the other walks back at the high wind. Because drop and drift are both
+/// monotonic in range, and drift is monotonic in wind, everything the shot
+/// could do lies between those two edges.
+function uncertaintyRegion(nominalPoint) {
+  const ranges = bandRanges(rangeBand(nominalPoint.yards));
+  const edge = (points, list) =>
+    list.map((r) => impactOffset(nearestPoint(points, r), nominalPoint));
+
+  if (!bandPoints) return edge(lastPoints, ranges);
+  return [...edge(bandPoints.lo, ranges), ...edge(bandPoints.hi, [...ranges].reverse())];
+}
+
+/// The same spread, but with the aim assumed correct for the nominal range.
+/// Used for the range recommendation, where the question is how big the
+/// uncertainty is rather than where this particular shot is pointed.
+function centredSpreadAt(yards) {
+  const nominal = nearestPoint(lastPoints, yards);
+  const ranges = bandRanges(rangeBand(yards));
+  const edge = (points) =>
+    ranges.map((r) => {
+      const p = nearestPoint(points, r);
+      return {
+        x: p.windage_in - nominal.windage_in,
+        y: p.path_inches - nominal.path_inches,
+      };
+    });
+
+  if (!bandPoints) return edge(lastPoints);
+  return [...edge(bandPoints.lo), ...edge(bandPoints.hi).reverse()];
+}
+
+function regionBounds(region) {
+  const xs = region.map((p) => p.x);
+  const ys = region.map((p) => p.y);
+  return {
+    width: Math.max(...xs) - Math.min(...xs),
+    height: Math.max(...ys) - Math.min(...ys),
+  };
+}
+
+// Populated here rather than beside the other startup calls: BEAUFORT is a
+// const in this block, so calling it from further up the file would run
+// before that binding is initialised.
+buildWindScaleOptions();
 
 /// Where the crosshair is held and where the bullet lands, both as offsets
 /// in inches from the vitals centre.
@@ -1531,15 +1765,6 @@ function assessTerminal(profile, point) {
   return { minEnergy, expansionFloor, energyOk, expansionOk };
 }
 
-/// Whether the whole group would stay inside the vitals if it were centred
-/// on them. This is precision alone, with aim error taken out of it - the
-/// range beyond which even a perfectly-placed shot can no longer be relied
-/// on to land where it was aimed.
-function groupFitsVitals(vitals, yards) {
-  const radius = groupDiameterInches(yards) / 2;
-  return radius <= Math.min(vitals.width_in, vitals.height_in) / 2;
-}
-
 /// Furthest range at which the round still meets every threshold: enough
 /// retained energy, enough velocity to expand, and a group still small
 /// enough to fit the vitals.
@@ -1550,11 +1775,23 @@ function groupFitsVitals(vitals, yards) {
 function maxEthicalRange(profile, points) {
   const { minEnergy, expansionFloor } = assessTerminal(profile, points[0]);
   const vitals = effectiveVitals(profile);
+  const groupRadius = (yards) => groupDiameterInches(yards) / 2;
+
   let furthest = null;
   for (const point of points) {
-    const energyOk = minEnergy == null || point.energy_ft_lb >= minEnergy;
-    const expansionOk = !(expansionFloor > 0) || point.velocity_fps >= expansionFloor;
-    if (!energyOk || !expansionOk || !groupFitsVitals(vitals, point.yards)) break;
+    // Terminal performance is judged at the *far* end of the range band,
+    // where the bullet has least left. Believing 300 and shooting at 325 is
+    // the case that has to hold, not the one you hoped for.
+    const worst = nearestPoint(points, rangeBand(point.yards).hi);
+    const energyOk = minEnergy == null || worst.energy_ft_lb >= minEnergy;
+    const expansionOk = !(expansionFloor > 0) || worst.velocity_fps >= expansionFloor;
+
+    // And placement is judged against the whole spread, not the group alone.
+    const spreadOk =
+      assessRegion(vitals, centredSpreadAt(point.yards), groupRadius(point.yards)).verdict ===
+      "hit";
+
+    if (!energyOk || !expansionOk || !spreadOk) break;
     furthest = point.yards;
   }
   return furthest;
@@ -1580,8 +1817,45 @@ function describeHold(offset, yards) {
   return parts.length ? parts.join(", ") : "dead on";
 }
 
+/// Names the unknown that is costing the most, and what to do about it.
+///
+/// This is the part worth reading. The three sources spread the shot in
+/// different directions, so the shape of the footprint says which one to go
+/// and fix - and they are fixed in completely different ways. Range you can
+/// measure. Wind you can wait out or walk closer to. The group is the rifle
+/// and the position, and neither changes in the next thirty seconds.
+///
+/// Also carries the one asymmetry that matters: getting the range short
+/// throws the shot low, into brisket and leg, while getting it long throws
+/// it high, into spine or clean over the back. A miss beats a gut shot, so
+/// when the estimate is a band, take the long end of it.
+function describeDominantUncertainty(spread, groupInches, range, wind) {
+  const parts = [
+    { source: "range", size: spread.height, advice: "range it if you can - a rangefinder collapses this to nothing" },
+    { source: "wind", size: spread.width, advice: "wait for it to drop, or close the distance" },
+    { source: "group", size: groupInches, advice: "that is the rifle and your position, and neither improves in the next minute" },
+  ].filter((p) => p.size > 0.05);
+
+  if (!parts.length) return "nothing much - everything is pinned down";
+
+  parts.sort((a, b) => b.size - a.size);
+  const worst = parts[0];
+  const lead = `the ${worst.source}, ${formatInches(worst.size)} in of it &mdash; ${worst.advice}`;
+
+  if (worst.source !== "range" || range.slop <= 0) return lead;
+  return `${lead}. Being short throws the shot low into the brisket; being long throws it high. Take the long end of your estimate.`;
+}
+
 function renderAnimalInfo(profile, assessment, point) {
-  const terminal = assessTerminal(profile, point);
+  const range = rangeBand(point.yards);
+  const wind = windBand();
+  const uncertain = range.slop > 0 || wind.force != null;
+
+  // Terminal performance is read at the far end of the range band. If the
+  // animal might be at 325 and you believe 300, 325 is the shot you are
+  // actually taking.
+  const worstPoint = nearestPoint(lastPoints ?? [point], range.hi);
+  const terminal = assessTerminal(profile, worstPoint);
   const furthest = maxEthicalRange(profile, lastPoints ?? [point]);
   const vitals = effectiveVitals(profile);
   const terminalOk = terminal.energyOk && terminal.expansionOk;
@@ -1589,17 +1863,57 @@ function renderAnimalInfo(profile, assessment, point) {
   // Placement is judged first: a round that still performs is no help if
   // the shot is not in the vitals to begin with.
   let badgeClass = "hit";
-  let badgeText = "Vitals hit, round still performing";
+  let badgeText = uncertain
+    ? "Safe across everything you are unsure of"
+    : "Vitals hit, round still performing";
+  // Placement is tested before terminal performance, and "in the vitals" is
+  // only ever claimed when the verdict is actually a hit. A marginal spread
+  // with failing energy used to report "in the vitals, but past its limits",
+  // which is a comforting way of saying something untrue about the half of
+  // the problem that matters most.
   if (assessment.verdict === "miss") {
     badgeClass = "miss";
     badgeText = "Impact outside the vitals - reconsider this shot";
+  } else if (assessment.verdict === "marginal" && !terminalOk) {
+    badgeClass = "miss";
+    badgeText = "Spread reaches past the vitals, and the round is past its limits";
+  } else if (assessment.verdict === "marginal") {
+    badgeClass = "marginal";
+    badgeText = uncertain
+      ? "Only safe if every estimate is right - do not take it"
+      : "Group overlaps the edge of the vitals";
   } else if (!terminalOk) {
     badgeClass = "miss";
     badgeText = "In the vitals, but the round is past its limits";
-  } else if (assessment.verdict === "marginal") {
-    badgeClass = "marginal";
-    badgeText = "Group overlaps the edge of the vitals";
   }
+
+  const spread = regionBounds(uncertaintyRegion(point));
+  const groupHere = groupDiameterInches(point.yards);
+  const uncertaintyRows = uncertain
+    ? `
+      <dt>Range could be</dt>
+      <dd>${Math.round(range.lo)}&ndash;${Math.round(range.hi)} yd${
+        range.slop > 0 ? "" : " (ranged)"
+      }</dd>
+      <dt>Wind could be</dt>
+      <dd>${
+        wind.force
+          ? `Beaufort ${wind.force.force}, ${wind.lo}&ndash;${wind.hi} mph &mdash; ${escapeHtml(
+              wind.force.seen.toLowerCase()
+            )}`
+          : `${formatInches(wind.lo)} mph, taken as measured`
+      }</dd>
+      <dt>That spreads the shot</dt>
+      <dd class="${assessment.groupFullyInside ? "ok" : "bad"}">
+        ${formatInches(spread.height + groupHere)} in tall &times;
+        ${formatInches(spread.width + groupHere)} in wide,
+        against a ${formatInches(vitals.width_in)}&times;${formatInches(
+          vitals.height_in
+        )} in vital zone
+      </dd>
+      <dt>Worst of it is</dt>
+      <dd>${describeDominantUncertainty(spread, groupHere, range, wind)}</dd>`
+    : "";
 
   const groupRow =
     groupMoa() > 0
@@ -1628,17 +1942,17 @@ function renderAnimalInfo(profile, assessment, point) {
       }`;
 
   const terminalRows = `
-      <dt>Energy here</dt>
+      <dt>Energy${uncertain ? ` at ${Math.round(range.hi)} yd` : " here"}</dt>
       <dd class="${terminal.energyOk ? "ok" : "bad"}">
-        ${Math.round(point.energy_ft_lb)} ft&middot;lb${
+        ${Math.round(worstPoint.energy_ft_lb)} ft&middot;lb${
           terminal.minEnergy == null
             ? " (no minimum set for this species)"
             : ` vs ${Math.round(terminal.minEnergy)} minimum`
         }
       </dd>
-      <dt>Velocity here</dt>
+      <dt>Velocity${uncertain ? ` at ${Math.round(range.hi)} yd` : " here"}</dt>
       <dd class="${terminal.expansionOk ? "ok" : "bad"}">
-        ${Math.round(point.velocity_fps)} ft/s${
+        ${Math.round(worstPoint.velocity_fps)} ft/s${
           terminal.expansionFloor > 0
             ? ` vs ${Math.round(terminal.expansionFloor)} expansion floor`
             : " (no expansion floor set)"
@@ -1661,6 +1975,7 @@ function renderAnimalInfo(profile, assessment, point) {
       <dd>${formatRange(profile.female.shoulder_height_in)} in shoulder height, ${formatRange(profile.female.weight_lb)} lb</dd>
       <dt>Vitals</dt>
       <dd>~${profile.vitals.width_in}in x ${profile.vitals.height_in}in behind the shoulder</dd>
+      ${uncertaintyRows}
       ${holdRows}
       ${groupRow}
       ${terminalRows}

@@ -120,6 +120,12 @@
             Wind speed (mph)
             <input type="number" name="wind_speed" step="1" min="0" max="199" value="10" required />
           </label>
+          <label class="wide" title="Nobody estimates wind speed to the mile per hour. The Beaufort scale was written in 1805 for exactly that problem: pick what you can see, and each force is a range rather than a number.">
+            How sure are you?
+            <select id="wind-scale">
+              <option value="">Measured &mdash; use the exact figure</option>
+            </select>
+          </label>
           <label title="0 = headwind, 90 = blowing right to left, 180 = tailwind.">
             Wind angle (deg)
             <input type="number" name="wind_angle" step="1" value="90" required />
@@ -161,6 +167,10 @@
           <label>
             Shot range (yd)
             <input type="number" name="shot_range" id="shot-range" step="1" min="1" max="1000" value="100" required />
+          </label>
+          <label title="How far out your range estimate could be. Zero if you have ranged it and the animal has not moved; 25 or more if you are judging it by eye.">
+            Could be &plusmn; (yd)
+            <input type="number" id="range-uncertainty" step="5" min="0" max="300" value="0" />
           </label>
           <label title="Your rifle-and-load group size in minutes of angle. 0 treats the rifle as perfect and shows the aim point alone.">
             Group size (MOA)
