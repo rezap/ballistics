@@ -278,6 +278,87 @@ Phase 2:
 
       Seeded with 15 loads across 6.5 Creedmoor, .308 Win, .30-06, .300
       Win Mag and 6.5x55 SE from Hornady, Federal, Barnes and Norma.
+- [x] **What you do not know.** The app judged shots against numbers nobody
+      has in the field. The range is a judgement, the wind is a guess, and
+      a single confident dot hid both.
+
+      Range now takes a "could be ±" band and wind takes a **Beaufort
+      force** rather than a speed. That is the answer to "who can estimate
+      wind properly?" - nobody, which is why the scale was written in 1805
+      for observers with no instruments. It is defined by what you can see
+      (twigs moving, small trees swaying) and every force is already a
+      *band*, so it doubles as the uncertainty itself.
+
+      The impact becomes a region rather than a point, traced as a closed
+      polygon: one edge walks the range band at the low wind, the other
+      walks back at the high wind. Drop and drift are monotonic in range and
+      drift is monotonic in wind, so everything the shot could do lies
+      between those two edges - exact, not sampled. The group widens it by
+      stroking that outline with a pen as wide as the group and round
+      joins, which is a Minkowski sum with the group disc.
+
+      The three sources spread the shot in different directions, and that is
+      the useful part: **range error is vertical, wind error is horizontal,
+      group is circular**. So the shape says which unknown to go and fix, and
+      they are fixed in completely different ways - range you can measure,
+      wind you can wait out or walk closer to, the group is the rifle and
+      your position and neither improves in the next minute. The panel names
+      whichever is costing most.
+
+      Terminal performance is now read at the *far* end of the range band.
+      If the animal might be at 325 and you believe 300, 325 is the shot you
+      are taking.
+
+      One asymmetry worth stating outright, and the panel does: being short
+      on range throws the shot low into brisket and leg, being long throws
+      it high into spine or clean over the back. A miss beats a gut shot, so
+      **take the long end of your estimate**.
+
+      Worth recording what this ruled *out*. Drop is convex in range, so the
+      far-end error exceeds the near-end error and the ideal aim point is
+      not the drop at your best guess. The correction is 0.18in at 300 yards
+      and 0.95in at 500 - real, and far too small to build anything on.
+- [ ] **Let the wind be compensated for, not just the elevation.** Dialled
+      mode dials elevation only, so with a real crosswind at range the whole
+      uncertainty region sits downwind of the vitals. That is correct for a
+      shooter who does not hold off, and almost nobody shoots that way -
+      they hold into the wind on the reticle or dial windage too. Today the
+      only way to compensate is dragging the hold-over crosshair. Wind
+      probably wants the same three-way choice elevation has: dialled, held,
+      or neither. This changes the model rather than the interface.
+- [ ] **Make the defaults personal.** The form opens on 168 gr, G7 0.243, a
+      100 yd zero and a roe deer, which is nobody's actual rifle. With the
+      preset machinery already in place, the app could open on the last
+      thing used, or on a preset marked as the default. Related: "could be
+      ±" defaults to zero, which quietly lets the uncertainty feature be
+      ignored - worth deciding whether that is right.
+- [ ] **Two loads waiting on data**, dropped for now rather than guessed:
+      - Norma Oryx **8.5x55 Blaser 230 gr** - the product page carried no
+        ballistic coefficient, and without one the load cannot be solved at
+        all. The .338 Win Mag 230 gr Oryx would settle it, being the same
+        projectile.
+      - An unlabelled Norma page, 170 gr Oryx at 2657 ft/s, G1 0.324 - the
+        figures are complete and self-consistent but the cartridge is not
+        known. Almost certainly **7x65R**, the rimmed 7x64: same bullet, same
+        coefficient, 99 ft/s slower, exactly the relationship 8x57 JS and
+        JRS have. The bore table already lists it. Filing a load under the
+        wrong cartridge would put ammunition in someone's hand that does not
+        chamber, which is worse than any of the numeric errors the catalogue
+        guards against - hence waiting rather than inferring.
+- [ ] **Say what the model cannot fix.** Two errors dominate in the field and
+      neither is in any of the maths:
+
+      - **The wind you feel at the muzzle is not the wind at 300 yards.**
+        The bullet flies through air you cannot sense - across a gully, out
+        of tree shadow into open ground. This is the largest real-world
+        error in the whole calculation and no model touches it.
+      - **A bench group is not a field group.** A 1 MOA rifle off a bipod is
+        not 1 MOA leaning against a tree with your heart rate up, so the
+        group input probably wants relabelling to what you can hold *in this
+        position*.
+
+      Both need saying somewhere the reader will see them. Where, and how
+      loudly, is still to decide.
 - [ ] **"Will it cut it?"** - the reverse query. Given a species and an
       expected range, filter and rank the catalogue by the terminal
       thresholds already implemented, and show max ethical range per load.

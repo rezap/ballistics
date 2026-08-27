@@ -26,7 +26,11 @@ hog, red fox, brown hare, pigeon, wild turkey) ship with silhouette
 artwork, vital-zone geometry, sizes,
 habitat, diet and fun facts. The web app scales the artwork to real-world
 dimensions and overlays the computed point of impact against the vital
-zone. The shot can be aimed dead-on, with elevation dialled, or by
+zone. Range takes a "could be ±" band and wind takes a Beaufort force
+rather than a speed, so the impact is drawn as the region it could
+actually fall in rather than a single confident dot — and the shape of
+that region says which unknown is costing you. The shot can be aimed
+dead-on, with elevation dialled, or by
 dragging a hold-over crosshair onto the drawing, and the rifle's group
 size in MOA is drawn as a dispersion circle so the impact is judged as a
 group rather than a single perfect point. Species data is data-driven:

@@ -46,6 +46,15 @@ pub struct FactoryLoad {
     /// looks entirely reasonable.
     #[serde(default)]
     pub stated_muzzle_energy_ft_lb: Option<f64>,
+    /// The maker's own "maximum recommended distance", where they publish
+    /// one (Norma prints it on every product page).
+    ///
+    /// Stored but not acted on. It is the manufacturer's answer to the same
+    /// question this app answers from energy and expansion thresholds, so
+    /// it is worth having the two side by side - if they disagree badly on
+    /// a load, one of the two is wrong and it is worth knowing which.
+    #[serde(default)]
+    pub maker_max_range_yd: Option<f64>,
     pub source_url: String,
     pub retrieved: String,
 }
@@ -172,7 +181,15 @@ pub fn load(static_dir: &Path) -> Result<Vec<FactoryLoad>, String> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
+
+    /// What identifies one projectile: product line, weight and bore. The
+    /// floats are bit patterns so the tuple can be a map key.
+    type BulletKey = (String, u64, u64);
+    /// A cartridge that bullet is loaded in, and its coefficients.
+    type LoadedIn = (String, Option<f64>, Option<f64>);
 
     fn static_dir() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("static")
@@ -290,6 +307,65 @@ mod tests {
         let slipped =
             ballistics_core::energy::ft_lb(entry.bullet_weight_gr, entry.muzzle_velocity_fps);
         assert!((slipped - 2718.0).abs() / 2718.0 > 0.015, "{slipped}");
+    }
+
+    /// Bore diameter per cartridge, so "the same bullet" can be recognised.
+    /// Test-only: a cartridge missing here just skips the check below rather
+    /// than failing it.
+    fn bore_in(cartridge: &str) -> Option<f64> {
+        Some(match cartridge {
+            "6.5 Creedmoor" | "6.5x55 SE" => 0.264,
+            // As with 8x57, the R is a rim on the case and not a change of
+            // bullet, so 7x64 and 7x65R take the same projectile.
+            "7x64" | "7x65R" => 0.284,
+            ".308 Winchester" | ".30-06 Springfield" | ".300 Winchester Magnum" => 0.308,
+            // The suffixes matter here. S means the .323 bore and its
+            // absence means the older .318; R means rimmed, which changes
+            // the case and not the bullet. So JS and JRS take the same
+            // projectile and must be grouped together, while a plain J or
+            // JR would be .318 and must not.
+            "8x57 JS" | "8x57 JRS" => 0.323,
+            "9.3x57" | "9.3x62" | "9.3x74R" => 0.366,
+            _ => return None,
+        })
+    }
+
+    #[test]
+    fn one_bullet_has_one_ballistic_coefficient() {
+        // BC is a property of the projectile, not the cartridge it is loaded
+        // in, so the same bullet at the same weight and bore must carry the
+        // same figure everywhere. Velocity is free to differ; BC is not.
+        //
+        // This is not hypothetical tidiness. The 285 gr Oryx was entered as
+        // 0.330 in 9.3x62 and 0.356 in 9.3x74R, and the mismatch was the
+        // only visible sign that one of them came from a bad source.
+        let mut seen: BTreeMap<BulletKey, Vec<LoadedIn>> = BTreeMap::new();
+
+        for entry in load(&static_dir()).unwrap() {
+            let Some(bore) = bore_in(&entry.cartridge) else {
+                continue;
+            };
+            let key = (
+                entry.product_line.clone(),
+                entry.bullet_weight_gr.to_bits(),
+                bore.to_bits(),
+            );
+            seen.entry(key)
+                .or_default()
+                .push((entry.cartridge.clone(), entry.bc_g1, entry.bc_g7));
+        }
+
+        for ((line, _, _), group) in seen {
+            let (first_cartridge, g1, g7) = &group[0];
+            for (cartridge, other_g1, other_g7) in &group[1..] {
+                assert_eq!(
+                    (g1, g7),
+                    (other_g1, other_g7),
+                    "{line}: the same bullet has different coefficients in {first_cartridge} \
+                     and {cartridge} - one of them came from the wrong source"
+                );
+            }
+        }
     }
 
     #[test]
