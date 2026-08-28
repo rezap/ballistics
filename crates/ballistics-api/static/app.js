@@ -35,6 +35,7 @@ const factoryLoadSelect = document.getElementById("factory-load");
 const factoryLoadNote = document.getElementById("factory-load-note");
 const windScaleSelect = document.getElementById("wind-scale");
 const rangeUncertaintyInput = document.getElementById("range-uncertainty");
+const windAngleUncertaintyInput = document.getElementById("wind-angle-uncertainty");
 
 let animalsList = [];
 let factoryLoads = [];
@@ -803,6 +804,12 @@ rangeUncertaintyInput.addEventListener("input", () => {
   if (lastPoints) renderAnimalPanel(lastPoints);
 });
 
+// Direction does need them, the same as a speed band: a different angle is a
+// different wind vector and therefore a different flight.
+windAngleUncertaintyInput.addEventListener("input", () => {
+  if (lastPoints) form.requestSubmit();
+});
+
 // The shot range and species controls don't need a new API call: the
 // client already has the full per-yard trajectory from the last submit,
 // so re-rendering the vitals overlay against a different range or species
@@ -1260,6 +1267,7 @@ function renderVitalsOverlay(profile, point, image) {
   const { aim, impact } = shotGeometry(point);
   const groupRadiusIn = groupDiameterInches(point.yards) / 2;
   const region = uncertaintyRegion(point);
+  const windEnds = windBandEnds(point);
 
   const artW = profile.image_width_px ?? 400;
   const artH = profile.image_height_px ?? 300;
@@ -1364,20 +1372,54 @@ function renderVitalsOverlay(profile, point, image) {
     }
 
     const shade = REGION_SHADES[assessment.verdict];
+
+    // Shaded from the least wind to the most, along the line between the two
+    // wind extremes. That way one picture carries both things: how far the
+    // wind pushes the shot at all, and how much of that you are unsure of.
+    // The outline keeps the verdict, so safe-or-not is still readable
+    // without decoding the fill.
+    let fill = shade.fill;
+    if (windEnds) {
+      const [x0, y0] = toPx(toArtX(windEnds.lo.x), toArtY(windEnds.lo.y));
+      const [x1, y1] = toPx(toArtX(windEnds.hi.x), toArtY(windEnds.hi.y));
+      if (Math.hypot(x1 - x0, y1 - y0) > 1) {
+        const gradient = ctx.createLinearGradient(x0, y0, x1, y1);
+        gradient.addColorStop(0, WIND_GRADIENT.calm);
+        gradient.addColorStop(1, WIND_GRADIENT.strong);
+        fill = gradient;
+      }
+    }
+
     if (regionArt.length > 1 && groupPx > 0) {
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
       ctx.lineWidth = groupPx;
-      ctx.strokeStyle = shade.fill;
+      ctx.strokeStyle = fill;
       ctx.stroke();
     }
-    ctx.fillStyle = shade.fill;
+    ctx.fillStyle = fill;
     ctx.fill();
     ctx.strokeStyle = shade.line;
     ctx.setLineDash([4, 3]);
     ctx.lineWidth = 1.5;
     ctx.stroke();
     ctx.setLineDash([]);
+
+    // Label which end is which, so the gradient is a scale rather than
+    // decoration.
+    if (windEnds && bandPoints?.lowest) {
+      ctx.font = "10px sans-serif";
+      for (const [end, wind, align] of [
+        [windEnds.lo, bandPoints.lowest, "right"],
+        [windEnds.hi, bandPoints.highest, "left"],
+      ]) {
+        const [ex, ey] = toPx(toArtX(end.x), toArtY(end.y));
+        ctx.fillStyle = textColor;
+        ctx.textAlign = align;
+        ctx.fillText(`${Math.round(wind.wind_speed)} mph`, ex + (align === "right" ? -6 : 6), ey - 8);
+      }
+      ctx.textAlign = "left";
+    }
   }
 
   // Crosshair, at the hold point rather than the vitals centre. Stroked
@@ -1467,6 +1509,15 @@ const VERDICT_COLOURS = {
 /// The uncertainty footprint is shaded by verdict rather than by a fixed
 /// colour: the question it answers is whether the shot is safe, so the
 /// answer should be readable without reading the panel.
+/// The gradient the uncertainty footprint is shaded with: cool where the
+/// wind is lightest, hot where it is strongest. It reads as a scale, so the
+/// picture shows the offset the wind causes and how much of that offset is
+/// guesswork, in one shape.
+const WIND_GRADIENT = {
+  calm: "#38bdf83d",
+  strong: "#ef44443d",
+};
+
 const REGION_SHADES = {
   hit: { fill: "#16a34a2e", line: "#16a34a" },
   marginal: { fill: "#f59e0b2e", line: "#f59e0b" },
@@ -1629,19 +1680,63 @@ function rangeBand(yards) {
   return { lo: Math.max(1, yards - slop), hi: yards + slop, slop };
 }
 
-/// Solves the two extra trajectories the wind band needs. Only the edges are
-/// required: drift grows monotonically with both wind speed and range, so
-/// everything in between is bounded by them.
-async function solveWindBand(payload) {
-  const band = windBand();
-  if (band.lo === band.hi) return null;
+/// How far out the wind's direction could be, in degrees either side.
+function windAngleBand() {
+  const nominal = Number(form.elements.wind_angle.value) || 0;
+  const slop = Math.max(0, Number(windAngleUncertaintyInput.value) || 0);
+  return { nominal, lo: nominal - slop, hi: nominal + slop, slop };
+}
 
-  const at = async (wind_speed) => {
+/// The two wind vectors that bound the drift: least crosswind and most.
+///
+/// Not simply the corners of the speed and angle bands. Crosswind is
+/// `speed * sin(angle)`, and sine is not monotonic - if the band straddles
+/// 90 degrees then the *middle* of it is the worst case, not either end. A
+/// full-value wind called to +/-30 degrees runs from 0.87 to 1.0 of its
+/// speed, with the maximum in the interior. So the angle interval is swept
+/// and the extremes taken from the sweep.
+///
+/// Angle is carried alongside speed rather than folded into an equivalent
+/// crosswind, because the headwind component changes with it too and that
+/// feeds the drag.
+function windExtremes() {
+  const speed = windBand();
+  const angle = windAngleBand();
+
+  let lowest = null;
+  let highest = null;
+  for (const s of [speed.lo, speed.hi]) {
+    for (let step = 0; step <= 24; step++) {
+      const a = angle.lo + ((angle.hi - angle.lo) * step) / 24;
+      const cross = s * Math.sin((a * Math.PI) / 180);
+      const candidate = { wind_speed: s, wind_angle: a, cross };
+      if (!lowest || cross < lowest.cross) lowest = candidate;
+      if (!highest || cross > highest.cross) highest = candidate;
+      if (angle.hi === angle.lo) break;
+    }
+  }
+  return { lowest, highest, spread: highest.cross - lowest.cross };
+}
+
+/// Solves the two extra trajectories the uncertainty band needs, at the
+/// wind vectors that produce the least and the most drift.
+async function solveWindBand(payload) {
+  const { lowest, highest } = windExtremes();
+  if (Math.abs(highest.cross - lowest.cross) < 1e-9) return null;
+
+  const at = async (wind) => {
     try {
       const response = await fetch("/api/trajectory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...payload, shot: { ...payload.shot, wind_speed } }),
+        body: JSON.stringify({
+          ...payload,
+          shot: {
+            ...payload.shot,
+            wind_speed: wind.wind_speed,
+            wind_angle: wind.wind_angle,
+          },
+        }),
       });
       return response.ok ? await response.json() : null;
     } catch {
@@ -1649,8 +1744,8 @@ async function solveWindBand(payload) {
     }
   };
 
-  const [lo, hi] = await Promise.all([at(band.lo), at(band.hi)]);
-  return lo && hi ? { lo, hi } : null;
+  const [lo, hi] = await Promise.all([at(lowest), at(highest)]);
+  return lo && hi ? { lo, hi, lowest, highest } : null;
 }
 
 /// Where the bullet lands for one (range, wind) pair, in inches from the
@@ -1706,6 +1801,16 @@ function centredSpreadAt(yards) {
 
   if (!bandPoints) return edge(lastPoints);
   return [...edge(bandPoints.lo), ...edge(bandPoints.hi).reverse()];
+}
+
+/// Where the shot lands at each end of the wind band, at the nominal range.
+/// These anchor the gradient, and give the labels something to sit on.
+function windBandEnds(nominalPoint) {
+  if (!bandPoints) return null;
+  return {
+    lo: impactOffset(nearestPoint(bandPoints.lo, nominalPoint.yards), nominalPoint),
+    hi: impactOffset(nearestPoint(bandPoints.hi, nominalPoint.yards), nominalPoint),
+  };
 }
 
 function regionBounds(region) {
@@ -1817,6 +1922,26 @@ function describeHold(offset, yards) {
   return parts.length ? parts.join(", ") : "dead on";
 }
 
+/// How far the wind moves the shot, and how much of that is guesswork.
+///
+/// Reported separately from the spread because they are separate problems.
+/// The offset you can hold off for; the spread you cannot, because you do
+/// not know which way to correct. At any real range on a small animal the
+/// offset alone is usually the bigger number - ten miles an hour at three
+/// hundred yards is most of the way across a roe deer's vitals - and a
+/// shooter who reads only the uncertainty would miss that entirely.
+function describeWindPush(point) {
+  const drift = point.windage_in;
+  const side = drift >= 0 ? "right" : "left";
+  const offset = `${formatInches(Math.abs(drift))} in ${side} at ${point.yards} yd`;
+
+  const ends = windBandEnds(point);
+  if (!ends) return offset;
+
+  const spread = Math.abs(ends.hi.x - ends.lo.x);
+  return `${offset}, and you are unsure of ${formatInches(spread)} in of that`;
+}
+
 /// Names the unknown that is costing the most, and what to do about it.
 ///
 /// This is the part worth reading. The three sources spread the shot in
@@ -1849,7 +1974,8 @@ function describeDominantUncertainty(spread, groupInches, range, wind) {
 function renderAnimalInfo(profile, assessment, point) {
   const range = rangeBand(point.yards);
   const wind = windBand();
-  const uncertain = range.slop > 0 || wind.force != null;
+  const angle = windAngleBand();
+  const uncertain = range.slop > 0 || wind.force != null || angle.slop > 0;
 
   // Terminal performance is read at the far end of the range band. If the
   // animal might be at 325 and you believe 300, 325 is the shot you are
@@ -1902,7 +2028,15 @@ function renderAnimalInfo(profile, assessment, point) {
               wind.force.seen.toLowerCase()
             )}`
           : `${formatInches(wind.lo)} mph, taken as measured`
+      }${
+        angle.slop > 0
+          ? `, from ${Math.round(angle.lo)}&ndash;${Math.round(angle.hi)}&deg;`
+          : ` at ${Math.round(angle.nominal)}&deg;`
       }</dd>
+      <dt>Wind pushes it</dt>
+      <dd class="${Math.abs(point.windage_in) <= vitals.width_in / 2 ? "ok" : "bad"}">
+        ${describeWindPush(point)}
+      </dd>
       <dt>That spreads the shot</dt>
       <dd class="${assessment.groupFullyInside ? "ok" : "bad"}">
         ${formatInches(spread.height + groupHere)} in tall &times;

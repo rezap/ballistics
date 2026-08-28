@@ -130,6 +130,10 @@
             Wind angle (deg)
             <input type="number" name="wind_angle" step="1" value="90" required />
           </label>
+          <label title="How far out the direction could be. Direction is easier to judge than speed but nobody reads it to the degree, and a wind you call full-value that is really quartering drifts a good deal less.">
+            Could be &plusmn; (deg)
+            <input type="number" id="wind-angle-uncertainty" step="5" min="0" max="90" value="0" />
+          </label>
         </div>
       </details>
 
