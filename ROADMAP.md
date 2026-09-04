@@ -345,6 +345,36 @@ Phase 2:
         wrong cartridge would put ammunition in someone's hand that does not
         chamber, which is worse than any of the numeric errors the catalogue
         guards against - hence waiting rather than inferring.
+- [ ] **Wind drift reads about 12% low, and it is the model rather than a
+      conversion.** Checked against published figures for the Hornady 6.5
+      Creedmoor 143 ELD-X at 2700 ft/s:
+
+      | | app | published |
+      | --- | --- | --- |
+      | drop at 400 yd | -30.1 in | -30.4 in |
+      | drop at 500 yd | -54.1 in | about -54 in |
+      | drift at 500 yd, 10 mph | 15.3 in | 17.5 in |
+
+      Drop agreeing to one percent means the trajectory, the drag model and
+      the time of flight are all sound, so the shortfall is not a unit slip.
+      The conversions check out too - one mile per hour is 17.6 inches per
+      second, range is passed to `windage()` in feet, and recomputing the
+      lag by hand from the app's own time of flight reproduces what it
+      reports.
+
+      What is left is the lag-time rule itself, `W * (t - x/V0)`, inherited
+      from GNU Ballistics. It is an approximation, and it errs low - which
+      on an app about not wounding animals is the wrong direction to be
+      wrong in.
+
+      The principled fix is to carry lateral motion in the integrator
+      instead: give the state a `vz` and a `z`, and take drag against the
+      full relative-velocity vector rather than adding the headwind
+      component to the speed as a scalar. That drops the separate windage
+      formula entirely. It is a deliberate divergence from upstream, so the
+      parity tests would need splitting: keep them for the windless case,
+      where the two models agree, and document the wind case as an
+      intentional fix in the same way as the angle-unit one.
 - [ ] **Say what the model cannot fix.** Two errors dominate in the field and
       neither is in any of the maths:
 
