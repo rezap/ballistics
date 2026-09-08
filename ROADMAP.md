@@ -211,8 +211,16 @@ Phase 2:
       drawn is the error being nulled rather than the drop, which never
       changes at a fixed range.
 
-      Wind is deliberately never dialled away: dialling elevation and
-      holding for wind is what most people actually do in the field.
+- [x] **Windage compensated separately from elevation.** The two are now
+      independent three-way choices - take it, dial it, or hold for it - so
+      any combination can be set, including the one most people actually
+      shoot: elevation on the turret, wind held on the reticle.
+
+      A turret is dialled for the range and the wind you *believe*, so being
+      wrong about either leaves the difference rather than nothing; a hold is
+      a fixed offset that does not track the range at all. The crosshair is
+      draggable whenever either axis is held, and slides only along the axes
+      being held, so holding for wind alone keeps it level.
 - [x] **Precision folded into the recommendation.** Group size is entered
       in MOA (default 0, i.e. treat the rifle as perfect) and drawn as a
       dispersion circle around the impact, so the shot is judged as a group
@@ -318,14 +326,6 @@ Phase 2:
       far-end error exceeds the near-end error and the ideal aim point is
       not the drop at your best guess. The correction is 0.18in at 300 yards
       and 0.95in at 500 - real, and far too small to build anything on.
-- [ ] **Let the wind be compensated for, not just the elevation.** Dialled
-      mode dials elevation only, so with a real crosswind at range the whole
-      uncertainty region sits downwind of the vitals. That is correct for a
-      shooter who does not hold off, and almost nobody shoots that way -
-      they hold into the wind on the reticle or dial windage too. Today the
-      only way to compensate is dragging the hold-over crosshair. Wind
-      probably wants the same three-way choice elevation has: dialled, held,
-      or neither. This changes the model rather than the interface.
 - [ ] **Make the defaults personal.** The form opens on 168 gr, G7 0.243, a
       100 yd zero and a roe deer, which is nobody's actual rifle. With the
       preset machinery already in place, the app could open on the last
@@ -345,9 +345,8 @@ Phase 2:
         wrong cartridge would put ammunition in someone's hand that does not
         chamber, which is worse than any of the numeric errors the catalogue
         guards against - hence waiting rather than inferring.
-- [ ] **Wind drift reads about 12% low, and it is the model rather than a
-      conversion.** Checked against published figures for the Hornady 6.5
-      Creedmoor 143 ELD-X at 2700 ft/s:
+- [x] **Audited the wind model against published figures.** Checked against
+      Hornady's own for the 6.5 Creedmoor 143 ELD-X at 2700 ft/s:
 
       | | app | published |
       | --- | --- | --- |
@@ -355,26 +354,22 @@ Phase 2:
       | drop at 500 yd | -54.1 in | about -54 in |
       | drift at 500 yd, 10 mph | 15.3 in | 17.5 in |
 
-      Drop agreeing to one percent means the trajectory, the drag model and
-      the time of flight are all sound, so the shortfall is not a unit slip.
-      The conversions check out too - one mile per hour is 17.6 inches per
-      second, range is passed to `windage()` in feet, and recomputing the
-      lag by hand from the app's own time of flight reproduces what it
-      reports.
+      Drop agreeing to one percent says the trajectory, the drag model and
+      the time of flight are all sound. The remaining drift gap is *not* the
+      lag-time rule `W * (t - x/V0)`: integrating the lateral equation
+      numerically against the app's own time-of-flight gives 15.33 in where
+      the rule gives 15.34 in, so the rule is essentially the exact solution
+      of that equation. Replacing it with a `vz`/`z` state in the integrator
+      was proposed and **withdrawn** - it would have bought a hundredth of an
+      inch. The residual is a difference in inputs (published tables assume
+      their own atmosphere and a slightly different BC), not in the maths.
 
-      What is left is the lag-time rule itself, `W * (t - x/V0)`, inherited
-      from GNU Ballistics. It is an approximation, and it errs low - which
-      on an app about not wounding animals is the wrong direction to be
-      wrong in.
-
-      The principled fix is to carry lateral motion in the integrator
-      instead: give the state a `vz` and a `z`, and take drag against the
-      full relative-velocity vector rather than adding the headwind
-      component to the speed as a scalar. That drops the separate windage
-      formula entirely. It is a deliberate divergence from upstream, so the
-      parity tests would need splitting: keep them for the windless case,
-      where the two models agree, and document the wind case as an
-      intentional fix in the same way as the angle-unit one.
+      One real bug did fall out of the audit and is fixed:
+      `windage::headwind` reports miles per hour and `solve()` added it
+      straight to a feet-per-second velocity, so a headwind was felt at 68%
+      of its strength. Converted at the point of use. The effect is small -
+      0.05 in of drop at 500 yd for 10 mph - because drag depends on the sum
+      of a large velocity and a small wind.
 - [ ] **Say what the model cannot fix.** Two errors dominate in the field and
       neither is in any of the maths:
 

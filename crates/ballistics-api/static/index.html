@@ -182,11 +182,19 @@
           </label>
           <p id="group-warning" class="inline-warning wide" hidden></p>
           <label class="wide" title="How elevation is dealt with. Dead-on shows the raw drop; dialled removes it; hold-over lets you place the crosshair yourself.">
-            Aiming
+            Elevation
             <select id="aim-mode">
               <option value="dead-on">Dead-on hold (see the drop)</option>
               <option value="dialled">Dialled elevation (turrets)</option>
               <option value="holdover">Hold-over (drag the crosshair)</option>
+            </select>
+          </label>
+          <label class="wide" title="How wind drift is dealt with, independently of elevation. Dialling elevation and holding off into the wind is the usual combination.">
+            Windage
+            <select id="wind-mode">
+              <option value="none">Take the drift (no wind hold)</option>
+              <option value="dialled">Dialled windage (turrets)</option>
+              <option value="held">Hold off (drag the crosshair)</option>
             </select>
           </label>
           <button type="button" id="solve-hold" class="link-button wide" hidden>
@@ -268,11 +276,13 @@
       <p class="hint">
         The vital zone is positioned by eye against each drawing, and its size is a
         typical figure rather than a measurement. Drag it on the illustration to
-        reposition it, or edit its dimensions above. In hold-over mode the
-        crosshair is draggable too: it marks where the rifle is pointed, not
-        where the bullet lands. Drag it above the vitals and let go &mdash;
-        the shot is then solved from that aim point, and the impact moves to
-        where the bullet would actually go.
+        reposition it, or edit its dimensions above. Whenever elevation or
+        windage is set to hold, the crosshair is draggable too: it marks
+        where the rifle is pointed, not where the bullet lands. Drag it high
+        or into the wind and let go &mdash; the shot is then solved from that
+        aim point, and the impact moves to where the bullet would actually
+        go. It only slides along the axes you are holding on, so holding for
+        wind alone keeps it level.
       </p>
       <div class="animal-panel">
         <canvas id="vitals-canvas" width="460" height="380" aria-label="Point of impact vs. vital zone" role="img"></canvas>
