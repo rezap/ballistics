@@ -34,6 +34,13 @@ const presetFileInput = document.getElementById("preset-file");
 const presetStatus = document.getElementById("preset-status");
 const factoryLoadSelect = document.getElementById("factory-load");
 const factoryLoadNote = document.getElementById("factory-load-note");
+const shortlistRunButton = document.getElementById("shortlist-run");
+const shortlistSameCartridge = document.getElementById("shortlist-same-cartridge");
+const shortlistFilterLabel = document.getElementById("shortlist-filter-label");
+const shortlistCartridgeName = document.getElementById("shortlist-cartridge-name");
+const shortlistNote = document.getElementById("shortlist-note");
+const shortlistWrap = document.getElementById("shortlist-wrap");
+const shortlistBody = document.querySelector("#shortlist tbody");
 const windScaleSelect = document.getElementById("wind-scale");
 const rangeUncertaintyInput = document.getElementById("range-uncertainty");
 const windAngleUncertaintyInput = document.getElementById("wind-angle-uncertainty");
@@ -267,9 +274,11 @@ factoryLoadSelect.addEventListener("change", () => {
   if (!entry) {
     factoryLoadNote.hidden = true;
     factoryLoadNote.textContent = "";
+    noteShortlistCartridge(null);
     return;
   }
   applyFactoryLoad(entry);
+  noteShortlistCartridge(entry.cartridge);
   presetNameInput.value = `${entry.manufacturer} ${entry.cartridge} ${entry.bullet_weight_gr}gr`;
   if (lastPoints) form.requestSubmit();
 });
@@ -1831,20 +1840,25 @@ function uncertaintyRegion(nominalPoint) {
 /// The same spread, but with the aim assumed correct for the nominal range.
 /// Used for the range recommendation, where the question is how big the
 /// uncertainty is rather than where this particular shot is pointed.
-function centredSpreadAt(yards) {
-  const nominal = nearestPoint(lastPoints, yards);
+///
+/// Takes the trajectory to measure rather than reading the current one, so
+/// the ammunition shortlist can ask the same question of every load in the
+/// catalogue. A load with no wind band solved for it gets the range band
+/// alone, which is the honest answer for what has been computed.
+function centredSpreadAt(yards, points = lastPoints, band = bandPoints) {
+  const nominal = nearestPoint(points, yards);
   const ranges = bandRanges(rangeBand(yards));
-  const edge = (points) =>
+  const edge = (from) =>
     ranges.map((r) => {
-      const p = nearestPoint(points, r);
+      const p = nearestPoint(from, r);
       return {
         x: p.windage_in - nominal.windage_in,
         y: p.path_inches - nominal.path_inches,
       };
     });
 
-  if (!bandPoints) return edge(lastPoints);
-  return [...edge(bandPoints.lo), ...edge(bandPoints.hi).reverse()];
+  if (!band) return edge(points);
+  return [...edge(band.lo), ...edge(band.hi).reverse()];
 }
 
 /// Where the shot lands at each end of the wind band, at the nominal range.
@@ -1920,7 +1934,7 @@ function assessTerminal(profile, point) {
 /// Deliberately ignores drop and drift: those are dialled or held off for,
 /// so they do not cap the range the way terminal performance and precision
 /// do. Returns null when the shot fails even at the muzzle.
-function maxEthicalRange(profile, points) {
+function maxEthicalRange(profile, points, band = bandPoints) {
   const { minEnergy, expansionFloor } = assessTerminal(profile, points[0]);
   const vitals = effectiveVitals(profile);
   const groupRadius = (yards) => groupDiameterInches(yards) / 2;
@@ -1936,14 +1950,258 @@ function maxEthicalRange(profile, points) {
 
     // And placement is judged against the whole spread, not the group alone.
     const spreadOk =
-      assessRegion(vitals, centredSpreadAt(point.yards), groupRadius(point.yards)).verdict ===
-      "hit";
+      assessRegion(
+        vitals,
+        centredSpreadAt(point.yards, points, band),
+        groupRadius(point.yards)
+      ).verdict === "hit";
 
     if (!energyOk || !expansionOk || !spreadOk) break;
     furthest = point.yards;
   }
   return furthest;
 }
+
+// ---------------------------------------------------------------------------
+// The reverse query: "what will do it?"
+//
+// Everything above answers the forward question - I have this box of
+// ammunition, where will it hit? The question a hunter actually asks is the
+// other way round: I am after a red deer at 250 yards, what will do the job?
+// The app already knows what makes a shot ethical, so answering it is a
+// matter of asking that same question of every load in the catalogue rather
+// than of the one in the form.
+//
+// One request does the solving: two dozen trajectories from the browser
+// would be two dozen round trips, and this is meant to work on a phone with
+// one bar of signal.
+//
+// What it deliberately does *not* fold in is the wind band. That would be
+// three solves per load rather than one, and the wind uncertainty is very
+// nearly common to every load - it moves each row by about the same amount,
+// so it changes the absolute verdict but not the order. The panel above is
+// where a chosen load gets the full treatment; this table is for narrowing
+// the shelf down to the two or three worth putting in the panel.
+// ---------------------------------------------------------------------------
+
+let shortlistCartridge = null;
+
+/// Notes what cartridge the form is currently set up for, so the shortlist
+/// can offer to stay inside it. Only a catalogue pick establishes this - a
+/// hand-typed BC and velocity say nothing about what the rifle chambers.
+function noteShortlistCartridge(cartridge) {
+  shortlistCartridge = cartridge ?? null;
+  shortlistFilterLabel.hidden = shortlistCartridge == null;
+  if (shortlistCartridge != null) {
+    shortlistCartridgeName.textContent = `${shortlistCartridge} only`;
+  }
+}
+
+function shortlistStatus(message) {
+  shortlistNote.hidden = false;
+  shortlistNote.textContent = message;
+}
+
+async function runShortlist() {
+  const profile = currentProfile();
+  if (!profile) {
+    shortlistStatus("Pick a species first - the thresholds come from the animal.");
+    return;
+  }
+
+  const payload = buildRequestPayload(new FormData(form));
+  const sameCartridge = shortlistCartridge != null && shortlistSameCartridge.checked;
+
+  shortlistRunButton.disabled = true;
+  shortlistStatus("Solving the catalogue...");
+
+  let entries;
+  try {
+    const response = await fetch("/api/suitability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        rifle: payload.rifle,
+        atmosphere: payload.atmosphere,
+        shot: payload.shot,
+        ...(sameCartridge ? { cartridges: [shortlistCartridge] } : {}),
+      }),
+    });
+    if (!response.ok) throw new Error((await response.json()).error ?? response.statusText);
+    entries = await response.json();
+  } catch (err) {
+    shortlistStatus(`Could not rank the catalogue: ${err.message}`);
+    shortlistRunButton.disabled = false;
+    return;
+  }
+  shortlistRunButton.disabled = false;
+
+  renderShortlist(profile, entries);
+}
+
+/// Judges one catalogue load the way the panel judges the one in the form.
+function assessLoad(profile, points) {
+  const range = Number(shotRangeInput.value);
+  const point = nearestPoint(points, range);
+  const worst = nearestPoint(points, rangeBand(range).hi);
+
+  // No wind band solved for these, so the spread is the range band alone.
+  const terminal = assessTerminal(profile, worst);
+  const placement = assessRegion(
+    effectiveVitals(profile),
+    centredSpreadAt(range, points, null),
+    groupDiameterInches(range) / 2
+  );
+
+  return {
+    point,
+    worst,
+    terminal,
+    placement,
+    furthest: maxEthicalRange(profile, points, null),
+    // How far the engine solved at all. A load still passing every
+    // threshold at the last point has not been shown a limit, only the end
+    // of the table, and the row says "+" rather than claiming a figure.
+    solvedTo: points[points.length - 1].yards,
+    ok: terminal.energyOk && terminal.expansionOk && placement.verdict === "hit",
+  };
+}
+
+function renderShortlist(profile, entries) {
+  const byId = new Map(factoryLoads.map((l) => [l.id, l]));
+  const range = Number(shotRangeInput.value);
+
+  const rows = entries
+    .map((entry) => {
+      const load = byId.get(entry.load_id);
+      if (!load || !entry.points.length) return null;
+      return { load, ...assessLoad(profile, entry.points) };
+    })
+    .filter(Boolean)
+    // Loads that will do the job first, then by how much margin they have -
+    // a load that carries to 500 is a safer choice at 250 than one that
+    // only just makes it, because the range estimate is a judgement.
+    .sort((a, b) => {
+      if (a.ok !== b.ok) return a.ok ? -1 : 1;
+      return (b.furthest ?? -1) - (a.furthest ?? -1);
+    });
+
+  if (!rows.length) {
+    shortlistWrap.hidden = true;
+    shortlistStatus("No loads in the catalogue to rank.");
+    return;
+  }
+
+  const band = rangeBand(range);
+  const passing = rows.filter((r) => r.ok).length;
+  shortlistStatus(
+    `${passing} of ${rows.length} will do it on ${profile.common_name.toLowerCase()} at ` +
+      `${range} yd${band.slop > 0 ? ` (±${band.slop})` : ""}. ` +
+      `Wind uncertainty is not folded in here - pick a load and read the panel above for that.`
+  );
+
+  // Terminal performance is read at the far end of the range band and
+  // placement at the range itself, so the headers say which is which rather
+  // than leaving two different distances looking like one column of
+  // figures.
+  document.querySelector("#shortlist thead tr").innerHTML = [
+    "Load",
+    "Carries to",
+    `Energy at ${band.hi} yd`,
+    `Velocity at ${band.hi} yd`,
+    `Drift at ${range} yd`,
+    `Drop at ${range} yd`,
+  ]
+    .map((h) => `<th>${h}</th>`)
+    .join("");
+
+  shortlistBody.innerHTML = rows
+    .map((row) => {
+      const why = [];
+      if (!row.terminal.energyOk) why.push("not enough energy");
+      if (!row.terminal.expansionOk) why.push("below expansion velocity");
+      if (row.placement.verdict !== "hit") why.push("spread wider than the vitals");
+
+      const carries =
+        row.furthest == null
+          ? "not at any range"
+          : row.furthest >= row.solvedTo
+            ? `${row.furthest}+ yd`
+            : `${row.furthest} yd`;
+
+      return `
+        <tr class="shortlist-row ${row.ok ? "ok" : "bad"}" data-load-id="${escapeHtml(row.load.id)}" tabindex="0" role="button">
+          <td>
+            ${escapeHtml(`${row.load.manufacturer} ${row.load.product_line}`)}<br />
+            <span class="shortlist-detail">${escapeHtml(
+              // `bullet` already carries the weight, e.g. "143 gr ELD-X".
+              `${row.load.cartridge} · ${row.load.bullet}`
+            )}${why.length ? ` · <span class="shortlist-why">${escapeHtml(why.join(", "))}</span>` : ""}</span>
+          </td>
+          <td class="${row.ok ? "ok" : "bad"}">${carries}</td>
+          <td class="${row.terminal.energyOk ? "ok" : "bad"}">${Math.round(row.worst.energy_ft_lb)}</td>
+          <td class="${row.terminal.expansionOk ? "ok" : "bad"}">${Math.round(row.worst.velocity_fps)}</td>
+          <td>${formatInches(Math.abs(row.point.windage_in))}</td>
+          <td>${formatInches(Math.abs(row.point.path_inches))}</td>
+        </tr>`;
+    })
+    .join("");
+
+  shortlistWrap.hidden = false;
+}
+
+/// Picking a row is the point of the table: it puts that load in the form
+/// and re-solves, so the full panel - wind band and all - is one click from
+/// the shortlist.
+function chooseShortlistRow(row) {
+  const id = row?.dataset.loadId;
+  if (!id) return;
+  factoryLoadSelect.value = id;
+  factoryLoadSelect.dispatchEvent(new Event("change"));
+  row.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// A ranking is only true for the conditions it was run in, and those are
+// half the form: move the range, change the species, widen the group, and
+// every figure in the table is wrong. Rather than re-solving the catalogue
+// on every keystroke, the table says so and waits to be asked again.
+//
+// The ammunition fields are exempt because the shortlist does not depend on
+// them - it varies the load itself - so picking a row would otherwise
+// invalidate the table that was just clicked.
+const SHORTLIST_INDEPENDENT_FIELDS = new Set([
+  "drag_function",
+  "ballistic_coefficient",
+  "muzzle_velocity",
+  "bullet_weight_gr",
+  "factory-load",
+]);
+
+function markShortlistStale(event) {
+  if (shortlistWrap.hidden) return;
+  const field = event.target;
+  if (SHORTLIST_INDEPENDENT_FIELDS.has(field.name) || SHORTLIST_INDEPENDENT_FIELDS.has(field.id)) {
+    return;
+  }
+  shortlistWrap.classList.add("stale");
+  shortlistStatus("Conditions have changed since this was ranked. Rank the catalogue again.");
+}
+
+form.addEventListener("input", markShortlistStale);
+form.addEventListener("change", markShortlistStale);
+
+shortlistRunButton.addEventListener("click", () => {
+  shortlistWrap.classList.remove("stale");
+  runShortlist();
+});
+shortlistBody.addEventListener("click", (event) =>
+  chooseShortlistRow(event.target.closest(".shortlist-row"))
+);
+shortlistBody.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  event.preventDefault();
+  chooseShortlistRow(event.target.closest(".shortlist-row"));
+});
 
 /// Describes an aim offset the way a hunter would say it out loud, in both
 /// inches on the animal and the MOA they would actually dial or hold.

@@ -384,9 +384,32 @@ Phase 2:
 
       Both need saying somewhere the reader will see them. Where, and how
       loudly, is still to decide.
-- [ ] **"Will it cut it?"** - the reverse query. Given a species and an
-      expected range, filter and rank the catalogue by the terminal
-      thresholds already implemented, and show max ethical range per load.
+- [x] **"Will it cut it?" - the reverse query.** Everything else answers the
+      forward question: I have this box of ammunition, where will it hit? The
+      one a hunter actually asks is the other way round - I am after a red
+      deer at 250 yards, what will do the job?
+
+      **What will do it?** ranks the whole catalogue, fired from your rifle
+      in your conditions, by how far each load still carries enough to kill
+      cleanly. Judged on exactly the thresholds the panel already uses -
+      retained energy and expansion velocity at the far end of the range
+      band, and your group against the vital zone - so the shortlist and the
+      panel cannot disagree. Failing loads stay in the table with the reason
+      spelled out, because "your usual round runs out sixty yards short" is
+      the answer, not an omission. Picking a row loads it into the form.
+
+      `POST /api/suitability` does the solving: one request rather than the
+      two dozen the browser would otherwise make, which matters on a phone
+      with one bar. Responses are gzipped (350 kB of trajectory table
+      compresses to about 95 kB) and thinned to every ten yards, since
+      roughly how far a load carries is not a per-yard question.
+
+      Deliberately **not** folded in: the wind band. That is three solves per
+      load instead of one, and the wind uncertainty is nearly common to every
+      load - it moves each row by about the same amount, so it changes the
+      absolute verdict but not the order. The shortlist narrows the shelf;
+      the panel gives a chosen load the full treatment.
+
       This is what makes the catalogue worth having: a manufacturer's own
       ballistic app will never tell you its cartridge is not enough.
 - [ ] Barrel-length correction and a chronographed-velocity override, so a
