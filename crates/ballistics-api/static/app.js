@@ -19,6 +19,7 @@ const columnToggles = document.getElementById("column-toggles");
 const expansionVelocityInput = document.getElementById("expansion-velocity");
 const minEnergyInput = document.getElementById("min-energy");
 const aimModeSelect = document.getElementById("aim-mode");
+const windModeSelect = document.getElementById("wind-mode");
 const groupMoaInput = document.getElementById("group-moa");
 const groupWarning = document.getElementById("group-warning");
 const solveHoldButton = document.getElementById("solve-hold");
@@ -54,9 +55,13 @@ const imageCache = new Map();
 let lastTransform = null;
 
 // Where the crosshair sits relative to the vitals centre, in inches, when
-// aiming by hold-over. Deliberately survives a change of range: seeing
-// where one fixed hold lands across a band of ranges is what the mode is
-// for. It resets on a change of species or aim mode.
+// either axis is being held off for. Deliberately survives a change of
+// range: seeing where one fixed hold lands across a band of ranges is what
+// the mode is for. It resets on a change of species or of either mode.
+//
+// One offset covers both axes, but each axis is only live when its own
+// mode says so - see `heldAxes`. Holding for wind while dialling elevation
+// therefore moves the crosshair sideways only.
 let holdOffsetIn = { x: 0, y: 0 };
 
 // The aim point the impact is actually solved from. It lags the crosshair
@@ -98,6 +103,26 @@ let confirmedGroupMoa = 0;
 
 function aimMode() {
   return aimModeSelect.value;
+}
+
+function windMode() {
+  return windModeSelect.value;
+}
+
+/// Which axes the crosshair is free to move on. Elevation and windage are
+/// compensated independently - dialling the turret for drop while holding
+/// off into the wind is the usual field combination - so the two selects
+/// each own one axis of the hold.
+function heldAxes() {
+  return {
+    x: windMode() === "held",
+    y: aimMode() === "holdover",
+  };
+}
+
+function crosshairIsMovable() {
+  const axes = heldAxes();
+  return axes.x || axes.y;
 }
 
 function groupMoa() {
@@ -907,14 +932,17 @@ expansionVelocityInput.addEventListener("input", () => {
   if (lastPoints) renderAnimalPanel(lastPoints);
 });
 
-aimModeSelect.addEventListener("change", () => {
-  // Start each hold-over session from the vitals centre, so the crosshair
-  // is somewhere predictable and switching modes is also how you undo a
-  // hold you have dragged into a corner.
+// Start each hold session from the vitals centre, so the crosshair is
+// somewhere predictable and switching modes is also how you undo a hold you
+// have dragged into a corner.
+function onCompensationModeChanged() {
   resetHold();
-  solveHoldButton.hidden = aimMode() !== "holdover";
+  solveHoldButton.hidden = !crosshairIsMovable();
   if (lastPoints) renderAnimalPanel(lastPoints);
-});
+}
+
+aimModeSelect.addEventListener("change", onCompensationModeChanged);
+windModeSelect.addEventListener("change", onCompensationModeChanged);
 
 // Finding the hold by dragging is fine for exploring, but the exact answer
 // is something the trajectory already knows. Placing the crosshair on it
@@ -923,7 +951,14 @@ aimModeSelect.addEventListener("change", () => {
 solveHoldButton.addEventListener("click", () => {
   if (!lastPoints) return;
   const point = nearestPoint(lastPoints, Number(shotRangeInput.value));
-  holdOffsetIn = { x: -point.windage_in, y: -point.path_inches };
+  const axes = heldAxes();
+  // Only the axes actually being held move. A dialled axis is already
+  // corrected at the turret, so putting a hold on it too would double the
+  // correction.
+  holdOffsetIn = {
+    x: axes.x ? -point.windage_in : 0,
+    y: axes.y ? -point.path_inches : 0,
+  };
   applyHold();
   renderAnimalPanel(lastPoints);
 });
@@ -980,10 +1015,10 @@ function withinVitals(point) {
 }
 
 function withinCrosshair(point) {
-  // Only a hold-over crosshair is movable. In the other modes it is pinned
-  // to the vitals centre by definition, and dragging it would also fight
-  // the vital-zone drag underneath it.
-  if (aimMode() !== "holdover" || !lastTransform?.crosshairPx) return false;
+  // The crosshair is only movable where at least one axis is held off for.
+  // With nothing held it is pinned to the vitals centre by definition, and
+  // dragging it would also fight the vital-zone drag underneath it.
+  if (!crosshairIsMovable() || !lastTransform?.crosshairPx) return false;
   const [cx, cy] = lastTransform.crosshairPx;
   return Math.hypot(point.x - cx, point.y - cy) <= 14;
 }
@@ -1013,15 +1048,20 @@ function moveAnchorTo(point) {
   if (lastPoints) renderAnimalPanel(lastPoints);
 }
 
-/// Moves the hold-over crosshair, in inches relative to the vitals centre.
+/// Moves the hold crosshair, in inches relative to the vitals centre.
 /// Canvas y grows downward while a positive bullet path is above the line
 /// of sight, so holding high is a *negative* canvas offset.
+///
+/// Constrained to the axes actually being held: with elevation dialled and
+/// only wind held, the crosshair slides along the horizontal and cannot be
+/// nudged off it, which is both the honest geometry and a steadier drag.
 function moveHoldTo(point) {
   if (!lastTransform) return;
   const { offsetX, offsetY, fit, centreX, centreY, inPerPx } = lastTransform;
+  const axes = heldAxes();
   holdOffsetIn = {
-    x: ((point.x - offsetX) / fit - centreX) * inPerPx,
-    y: -((point.y - offsetY) / fit - centreY) * inPerPx,
+    x: axes.x ? ((point.x - offsetX) / fit - centreX) * inPerPx : 0,
+    y: axes.y ? -((point.y - offsetY) / fit - centreY) * inPerPx : 0,
   };
   if (lastPoints) renderAnimalPanel(lastPoints);
 }
@@ -1445,7 +1485,7 @@ function renderVitalsOverlay(profile, point, image) {
   // moved. It goes dashed while the crosshair has been moved but the shot
   // has not been re-solved from it yet, so a frozen impact reads as
   // "not applied" rather than as a stuck marker.
-  if (aimMode() === "holdover") {
+  if (crosshairIsMovable()) {
     const accent = style.getPropertyValue("--accent").trim() || "#b3441e";
     ctx.beginPath();
     ctx.arc(crossPxX, crossPxY, 14, 0, Math.PI * 2);
@@ -1485,7 +1525,7 @@ function renderVitalsOverlay(profile, point, image) {
   // Both markers move together when the hold is dragged - the bullet falls
   // from wherever the rifle is pointed - so without labels the pair reads
   // as one stuck object rather than as an aim point and its consequence.
-  if (aimMode() === "holdover") {
+  if (crosshairIsMovable()) {
     ctx.font = "11px sans-serif";
     ctx.fillStyle = holdIsPending()
       ? style.getPropertyValue("--accent").trim() || "#b3441e"
@@ -1751,16 +1791,20 @@ async function solveWindBand(payload) {
 /// Where the bullet lands for one (range, wind) pair, in inches from the
 /// vitals centre.
 ///
-/// The aim mode decides what the vertical reference is. Dialled elevation is
-/// dialled for the range you *believe*, so being wrong about the range puts
-/// you off by the difference in drop between the two - which is why it takes
-/// the nominal point's drop off rather than zeroing the drop outright.
+/// Each axis has its own reference, set by its own mode. A turret is dialled
+/// for the range and the wind you *believe*, so being wrong about either
+/// leaves the difference between believed and actual - which is why this
+/// takes the nominal point's figure off rather than zeroing the axis
+/// outright. A hold is a fixed offset and does not track the range at all.
 function impactOffset(point, nominalPoint) {
-  const hold = aimMode() === "holdover" ? appliedHoldIn : { x: 0, y: 0 };
-  const dialledFor = aimMode() === "dialled" ? nominalPoint.path_inches : 0;
+  const axes = heldAxes();
+  const elevationHold = axes.y ? appliedHoldIn.y : 0;
+  const elevationDialled = aimMode() === "dialled" ? nominalPoint.path_inches : 0;
+  const windHold = axes.x ? appliedHoldIn.x : 0;
+  const windDialled = windMode() === "dialled" ? nominalPoint.windage_in : 0;
   return {
-    x: hold.x + point.windage_in,
-    y: hold.y + point.path_inches - dialledFor,
+    x: windHold + point.windage_in - windDialled,
+    y: elevationHold + point.path_inches - elevationDialled,
   };
 }
 
@@ -1830,29 +1874,28 @@ buildWindScaleOptions();
 /// Where the crosshair is held and where the bullet lands, both as offsets
 /// in inches from the vitals centre.
 ///
-/// Dead-on hold shows the raw drop, which is what makes the compensation
-/// obvious. Dialled elevation removes the drop entirely - wind is left
-/// alone, because dialling elevation and holding for wind is what most
-/// people actually do. Hold-over puts the crosshair wherever the user has
-/// dragged it and lets the bullet fall from there.
+/// Elevation and windage are compensated independently, so each axis is
+/// built the same way and the two selects can be set in any combination.
+/// Taking the drift or the drop shows it raw, which is what makes the
+/// compensation obvious; a dialled turret removes it; a hold puts the
+/// crosshair where the user has dragged it and lets the bullet fall from
+/// there.
+///
+/// The crosshair is where you are pointing *now*, while the impact is solved
+/// from the aim point that was last applied - so during a drag the impact
+/// stays put instead of sliding along with the crosshair.
 function shotGeometry(point) {
-  const drift = point.windage_in;
-  const drop = point.path_inches;
-
-  switch (aimMode()) {
-    case "dialled":
-      return { aim: { x: 0, y: 0 }, impact: { x: drift, y: 0 } };
-    case "holdover":
-      // The crosshair is where you are pointing now; the impact is solved
-      // from the aim point that was last applied, so it does not simply
-      // follow the drag.
-      return {
-        aim: { ...holdOffsetIn },
-        impact: { x: appliedHoldIn.x + drift, y: appliedHoldIn.y + drop },
-      };
-    default:
-      return { aim: { x: 0, y: 0 }, impact: { x: drift, y: drop } };
-  }
+  const axes = heldAxes();
+  return {
+    aim: {
+      x: axes.x ? holdOffsetIn.x : 0,
+      y: axes.y ? holdOffsetIn.y : 0,
+    },
+    impact: {
+      x: (axes.x ? appliedHoldIn.x : 0) + (windMode() === "dialled" ? 0 : point.windage_in),
+      y: (axes.y ? appliedHoldIn.y : 0) + (aimMode() === "dialled" ? 0 : point.path_inches),
+    },
+  };
 }
 
 /// Judges whether the round still performs at this range, separately from
@@ -2060,18 +2103,27 @@ function renderAnimalInfo(profile, assessment, point) {
       </dd>`
       : "";
 
-  // Dialled elevation answers the hold question by definition, so the row
-  // would only be noise there.
+  // A dialled turret answers the hold question for its axis by definition,
+  // so that axis is dropped from the row - and with both dialled there is
+  // no row at all.
+  const heldOrTaken = {
+    x: windMode() === "dialled" ? 0 : -point.windage_in,
+    y: aimMode() === "dialled" ? 0 : -point.path_inches,
+  };
+  const axes = heldAxes();
   const holdRows =
-    aimMode() === "dialled"
+    aimMode() === "dialled" && windMode() === "dialled"
       ? ""
       : `
       <dt>Hold needed</dt>
-      <dd>${describeHold({ x: -point.windage_in, y: -point.path_inches }, point.yards)}</dd>${
-        aimMode() === "holdover"
+      <dd>${describeHold(heldOrTaken, point.yards)}</dd>${
+        crosshairIsMovable()
           ? `
       <dt>Hold set</dt>
-      <dd>${describeHold(appliedHoldIn, point.yards)}</dd>`
+      <dd>${describeHold(
+        { x: axes.x ? appliedHoldIn.x : 0, y: axes.y ? appliedHoldIn.y : 0 },
+        point.yards
+      )}</dd>`
           : ""
       }`;
 

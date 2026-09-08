@@ -11,6 +11,12 @@ use crate::energy;
 use crate::utils::moa_to_inch;
 use crate::windage;
 
+/// Miles per hour to feet per second.
+///
+/// [`windage::headwind`] reports miles per hour, following upstream, while
+/// the integrator works in feet per second.
+const MPH_TO_FPS: f64 = 5280.0 / 3600.0;
+
 /// One sampled range along a computed trajectory (one row per yard).
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TrajectoryPoint {
@@ -91,7 +97,15 @@ pub fn solve(
     wind_angle: f64,
     bullet_weight_gr: f64,
 ) -> Vec<TrajectoryPoint> {
-    let hwind = windage::headwind(wind_speed, wind_angle);
+    // Converted to feet per second before it meets a feet-per-second
+    // velocity below. Upstream adds the miles-per-hour figure straight to
+    // `v`, so a 10 mph headwind is felt as 10 ft/s rather than 14.67 - a
+    // deliberate divergence from pyBallistics, in the same spirit as the
+    // angle-unit fix in `utils`.
+    //
+    // The crosswind needs no such treatment: `windage::windage` does its
+    // own conversion, at 17.6 inches per second per mile per hour.
+    let hwind = windage::headwind(wind_speed, wind_angle) * MPH_TO_FPS;
     let xwind = windage::crosswind(wind_speed, wind_angle);
 
     let gy = GRAVITY * deg_to_rad(shooting_angle + zero_angle).cos();
@@ -199,6 +213,116 @@ mod tests {
                 previous_seconds = point.seconds;
             }
         }
+    }
+
+    #[test]
+    fn a_headwind_is_felt_in_feet_per_second_not_miles_per_hour() {
+        // Upstream adds the mile-per-hour figure straight to a
+        // feet-per-second velocity, so a headwind is felt at 68% of its
+        // real strength. Deliberately fixed here.
+        //
+        // Pinned by equivalence rather than by a magic number. The old code
+        // fed `speed` to the drag term as though it were feet per second, so
+        // whatever it did at 10 mph is now reproduced by asking for
+        // 10 / 1.4667 = 6.82 mph. A real 10 mph must bite harder than that.
+        let solve_head = |speed: f64| {
+            solve(
+                DragFunction::G1,
+                0.5,
+                2700.0,
+                1.5,
+                0.0,
+                0.1,
+                speed,
+                0.0,
+                143.0,
+            )
+        };
+
+        let at = |points: &[TrajectoryPoint], yards: i64| {
+            points
+                .iter()
+                .find(|p| p.yards == yards)
+                .expect("range present")
+                .velocity_fps
+        };
+
+        let calm = solve_head(0.0);
+        let fixed = solve_head(10.0);
+        let as_the_old_code_read_it = solve_head(10.0 / MPH_TO_FPS);
+
+        // A headwind slows the bullet, and the conversion makes 10 mph slow
+        // it by more than the unconverted code managed.
+        assert!(
+            at(&fixed, 400) < at(&as_the_old_code_read_it, 400),
+            "the conversion should make a headwind bite harder: {} vs {}",
+            at(&fixed, 400),
+            at(&as_the_old_code_read_it, 400)
+        );
+        assert!(
+            at(&as_the_old_code_read_it, 400) < at(&calm, 400),
+            "any headwind should cost velocity: {} vs {}",
+            at(&as_the_old_code_read_it, 400),
+            at(&calm, 400)
+        );
+
+        // And the conversion itself: one mile per hour is 22/15 feet per
+        // second, near enough 1.4667.
+        assert!((MPH_TO_FPS - 1.466_666_666_666_666_7).abs() < 1e-12);
+    }
+
+    #[test]
+    fn a_pure_crosswind_is_untouched_by_the_headwind_conversion() {
+        // cos(90 deg) is zero, so a full-value crosswind has no headwind
+        // component and the conversion cannot reach it. This is what keeps
+        // the one wind-carrying parity test valid.
+        let crosswind_only = solve(
+            DragFunction::G7,
+            0.5,
+            2700.0,
+            1.5,
+            0.0,
+            0.1,
+            10.0,
+            90.0,
+            143.0,
+        );
+        let calm = solve(
+            DragFunction::G7,
+            0.5,
+            2700.0,
+            1.5,
+            0.0,
+            0.1,
+            0.0,
+            90.0,
+            143.0,
+        );
+
+        let at = |points: &[TrajectoryPoint], yards: i64| {
+            *points
+                .iter()
+                .find(|p| p.yards == yards)
+                .expect("range present")
+        };
+        let with_wind = at(&crosswind_only, 400);
+        let without = at(&calm, 400);
+
+        assert!(
+            (with_wind.velocity_fps - without.velocity_fps).abs() < 1e-9,
+            "a pure crosswind must not change retained velocity: {} vs {}",
+            with_wind.velocity_fps,
+            without.velocity_fps
+        );
+        assert!(
+            (with_wind.path_inches - without.path_inches).abs() < 1e-9,
+            "nor the path"
+        );
+        assert!(
+            with_wind.windage_in.abs() > 1.0,
+            "but it must still produce drift, got {}",
+            with_wind.windage_in
+        );
     }
 
     #[test]
