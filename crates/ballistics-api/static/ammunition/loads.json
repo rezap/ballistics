@@ -256,6 +256,18 @@
       "stated_muzzle_energy_ft_lb": 2913
     },
     {
+      "id": "sako-super-hammerhead-3006-150",
+      "manufacturer": "Sako",
+      "product_line": "Super Hammerhead",
+      "cartridge": ".30-06 Springfield",
+      "bullet": "150 gr Super Hammerhead bonded SP-BT",
+      "bullet_weight_gr": 150,
+      "muzzle_velocity_fps": 2953,
+      "bc_g5": 0.263,
+      "source_url": "https://www.sako.global/ammunition/super-hammerhead",
+      "retrieved": "2026-09-19"
+    },
+    {
       "id": "hornady-precision-hunter-300wm-178-eldx",
       "manufacturer": "Hornady",
       "product_line": "Precision Hunter",
