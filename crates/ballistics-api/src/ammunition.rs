@@ -330,11 +330,28 @@ mod tests {
         })
     }
 
+    /// How far two published coefficients for the same bullet may differ
+    /// before one of them is suspected of coming from the wrong source.
+    ///
+    /// Not zero, because a *published* G1 figure is not quite a property of
+    /// the projectile. The G1 reference shape is a blunt flat-base form that
+    /// no modern spitzer boat-tail resembles, so its drag curve is the wrong
+    /// shape and a single coefficient cannot fit the whole velocity range.
+    /// Makers therefore fit one at the load's own muzzle velocity, and the
+    /// same bullet picks up slightly different numbers in a fast cartridge
+    /// and a slow one. Federal publish 0.503 for the 180 gr Fusion in .308
+    /// Winchester at 2600 ft/s and 0.498 in .30-06 at 2700 - one percent
+    /// apart, and both correct.
+    ///
+    /// Two percent leaves that alone while still catching the error this
+    /// test was written for, which was eight percent wide.
+    const BC_TOLERANCE: f64 = 0.02;
+
     #[test]
     fn one_bullet_has_one_ballistic_coefficient() {
-        // BC is a property of the projectile, not the cartridge it is loaded
-        // in, so the same bullet at the same weight and bore must carry the
-        // same figure everywhere. Velocity is free to differ; BC is not.
+        // The same bullet at the same weight and bore must carry near enough
+        // the same figure everywhere. Velocity is free to differ; BC is not,
+        // beyond the velocity fit above.
         //
         // This is not hypothetical tidiness. The 285 gr Oryx was entered as
         // 0.330 in 9.3x62 and 0.356 in 9.3x74R, and the mismatch was the
@@ -355,15 +372,36 @@ mod tests {
                 .push((entry.cartridge.clone(), entry.bc_g1, entry.bc_g7));
         }
 
-        for ((line, _, _), group) in seen {
-            let (first_cartridge, g1, g7) = &group[0];
-            for (cartridge, other_g1, other_g7) in &group[1..] {
-                assert_eq!(
-                    (g1, g7),
-                    (other_g1, other_g7),
-                    "{line}: the same bullet has different coefficients in {first_cartridge} \
-                     and {cartridge} - one of them came from the wrong source"
+        // Absent in one and present in the other is a data error, not a
+        // velocity fit, so the two cases are judged separately.
+        let agree = |model: &str, line: &str, a: (&str, Option<f64>), b: (&str, Option<f64>)| match (
+            a.1, b.1,
+        ) {
+            (Some(x), Some(y)) => {
+                let apart = (x - y).abs() / x.max(y);
+                assert!(
+                    apart <= BC_TOLERANCE,
+                    "{line}: the same bullet has {model} {x} in {} and {y} in {} - \
+                     {:.1}% apart, too far to be a velocity fit, so one came from \
+                     the wrong source",
+                    a.0,
+                    b.0,
+                    apart * 100.0
                 );
+            }
+            (None, None) => {}
+            _ => panic!(
+                "{line}: the same bullet has a {model} figure in one of {} and {} \
+                 but not the other",
+                a.0, b.0
+            ),
+        };
+
+        for ((line, _, _), group) in seen {
+            let (first, g1, g7) = &group[0];
+            for (cartridge, other_g1, other_g7) in &group[1..] {
+                agree("G1", &line, (first, *g1), (cartridge, *other_g1));
+                agree("G7", &line, (first, *g7), (cartridge, *other_g7));
             }
         }
     }

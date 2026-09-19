@@ -286,19 +286,25 @@ Phase 2:
 
       Seeded with 15 loads across 6.5 Creedmoor, .308 Win, .30-06, .300
       Win Mag and 6.5x55 SE from Hornady, Federal, Barnes and Norma, since
-      grown to 26 with the Norma Oryx range and Sako Super Hammerhead.
+      grown to 27 with the Norma Oryx range, Sako Super Hammerhead and
+      Federal Fusion.
 
-      **Two entries have weaker provenance than the rest.** The Sako Super
-      Hammerhead 180 gr loads (.308 Win and .30-06) were assembled from
-      search-engine summaries, because sako.global and every retailer
-      carrying the figures are blocked by this environment's egress policy -
-      no page was actually read. Sources disagreed, and the .30-06 figure
-      in particular had to be picked rather than transcribed: see
-      `sako-super-hammerhead-*` below and in the commit that added them.
-      Neither carries a `stated_muzzle_energy_ft_lb`, so the cross-check
-      that catches a mistyped velocity does not cover them - the one guard
-      that matters most where the reading is weakest. Worth re-checking
-      against a page or a chronograph.
+      **One entry has weaker provenance than the rest.** The Sako Super
+      Hammerhead 180 gr in .308 Win was assembled from search-engine
+      summaries, because sako.global and every retailer carrying the figures
+      are blocked by this environment's egress policy - no page was read.
+      Its velocity has since been confirmed against the owner's own data, so
+      it stands, but it carries no `stated_muzzle_energy_ft_lb` and so sits
+      outside the cross-check that catches a mistyped velocity.
+
+      A .30-06 Super Hammerhead 180 gr was briefly added from the same
+      search and **removed**: it does not exist. Sako load the .30-06 in
+      150 gr. Worth recording how it got in, since the same trap is still
+      open: summaries offered 2953, 2903 and 2690 ft/s, and reasoning about
+      which was physically possible produced a confident, plausible,
+      entirely fictitious load. Arithmetic can rule a figure out; it cannot
+      conjure a product. The catalogue's guards all check whether numbers
+      are consistent, and none of them asks whether the box is real.
 - [x] **What you do not know.** The app judged shots against numbers nobody
       has in the field. The range is a judgement, the wind is a guess, and
       a single confident dot hid both.
