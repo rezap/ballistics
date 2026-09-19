@@ -11,8 +11,11 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
-use ballistics_core::{DragFunction, TrajectoryPoint, TrajectoryRequest};
+use ballistics_core::{
+    Atmosphere, DragFunction, Load, Rifle, Shot, TrajectoryPoint, TrajectoryRequest,
+};
 use serde::Serialize;
+use tower_http::compression::CompressionLayer;
 use tower_http::services::ServeDir;
 
 mod ammunition;
@@ -76,11 +79,18 @@ async fn main() {
         .route("/api/animals", get(animals_handler))
         .route("/api/ammunition", get(ammunition_handler))
         .route("/api/trajectory", post(solve_trajectory))
+        .route("/api/suitability", post(solve_suitability))
         .fallback_service(ServeDir::new(static_dir))
         .with_state(AppState {
             animals,
             ammunition,
-        });
+        })
+        // Trajectory tables are long runs of similar numbers, which gzip
+        // eats: the whole-catalogue solve behind `/api/suitability` is
+        // roughly 350 kB of JSON and about a tenth of that compressed. The
+        // app is meant to be used standing in a field on whatever signal
+        // there is, so that difference is the feature.
+        .layer(CompressionLayer::new());
 
     let addr = resolve_addr();
 
@@ -182,17 +192,140 @@ async fn solve_trajectory(
     }
 }
 
+/// The reverse query: one set of conditions, every load in the catalogue.
+///
+/// The forward question is "I have this box of ammunition - where will it
+/// hit?". This is the one a hunter actually asks in a shop: "I am after a
+/// red deer at 250 yards - what will do the job?". Answering it means
+/// solving the whole catalogue against the same rifle, air and shot, which
+/// is one request rather than the two dozen the browser would otherwise
+/// make.
+#[derive(serde::Deserialize)]
+struct SuitabilityRequest {
+    rifle: Rifle,
+    #[serde(default)]
+    atmosphere: Atmosphere,
+    #[serde(default)]
+    shot: Shot,
+    /// Only these cartridges, when given; absent means the whole catalogue.
+    /// You cannot chamber what your rifle is not cut for, so the usual case
+    /// is a list of one.
+    #[serde(default)]
+    cartridges: Option<Vec<String>>,
+    /// Yard spacing of the returned points.
+    ///
+    /// A per-yard table for two dozen loads is megabytes, and the answer
+    /// this endpoint gives - roughly how far each load still carries - is
+    /// not a per-yard question. Ten yards keeps the response small enough
+    /// to be worth sending over a phone signal.
+    #[serde(default = "default_step_yards")]
+    step_yards: u32,
+}
+
+fn default_step_yards() -> u32 {
+    10
+}
+
+/// A solved catalogue entry. Carries the load id rather than the load
+/// itself: the frontend already has the catalogue from `/api/ammunition`,
+/// and repeating every field two dozen times would double the response for
+/// nothing.
+#[derive(Serialize)]
+struct SuitabilityEntry {
+    load_id: String,
+    points: Vec<TrajectoryPoint>,
+}
+
+async fn solve_suitability(
+    State(state): State<AppState>,
+    Json(request): Json<SuitabilityRequest>,
+) -> Result<Json<Vec<SuitabilityEntry>>, ApiError> {
+    validate_conditions(&request.rifle, &request.atmosphere, &request.shot)?;
+    if !(1..=100).contains(&request.step_yards) {
+        return Err(ApiError::bad_request(
+            "step_yards must be between 1 and 100",
+        ));
+    }
+
+    let catalogue = Arc::clone(&state.ammunition);
+    let work = move || {
+        catalogue
+            .iter()
+            .filter(|load| match &request.cartridges {
+                Some(wanted) => wanted.iter().any(|c| c == &load.cartridge),
+                None => true,
+            })
+            .filter_map(|load| {
+                let solved = TrajectoryRequest {
+                    load: load_from_catalogue(load)?,
+                    rifle: request.rifle,
+                    atmosphere: request.atmosphere,
+                    shot: request.shot,
+                }
+                .solve();
+
+                Some(SuitabilityEntry {
+                    load_id: load.id.clone(),
+                    points: sample(solved, request.step_yards),
+                })
+            })
+            .collect::<Vec<_>>()
+    };
+
+    match tokio::time::timeout(SOLVE_TIMEOUT, tokio::task::spawn_blocking(work)).await {
+        Ok(Ok(entries)) => Ok(Json(entries)),
+        Ok(Err(_)) => Err(ApiError::internal("the solver task panicked")),
+        Err(_) => Err(ApiError::internal("the solver timed out")),
+    }
+}
+
+/// Turns a catalogue entry into something the solver can take.
+///
+/// A ballistic coefficient only means anything paired with the drag model
+/// it was measured against, so the two are chosen together, and G7 wins
+/// where the maker publishes it - these are boat-tail hunting bullets, and
+/// G7 fits them far better than G1. The frontend picks the same way.
+///
+/// `None` for a load with no coefficient at all. Startup validation rejects
+/// those, so this is belt and braces rather than a live case.
+fn load_from_catalogue(entry: &FactoryLoad) -> Option<Load> {
+    let (drag_function, ballistic_coefficient) = match (entry.bc_g7, entry.bc_g1) {
+        (Some(bc), _) => (DragFunction::G7, bc),
+        (None, Some(bc)) => (DragFunction::G1, bc),
+        (None, None) => return None,
+    };
+
+    Some(Load {
+        drag_function,
+        ballistic_coefficient,
+        muzzle_velocity: entry.muzzle_velocity_fps,
+        bullet_weight_gr: entry.bullet_weight_gr,
+    })
+}
+
+/// Thins a per-yard trajectory to every `step` yards, always keeping the
+/// last point so the furthest range the load reaches is not rounded away.
+fn sample(points: Vec<TrajectoryPoint>, step: u32) -> Vec<TrajectoryPoint> {
+    let last = points.len().saturating_sub(1);
+    points
+        .into_iter()
+        .enumerate()
+        .filter(|(i, point)| *i == last || point.yards % i64::from(step) == 0)
+        .map(|(_, point)| point)
+        .collect()
+}
+
 /// Rejects inputs that are non-physical or that could send the point-mass
 /// integrator into pathological behavior (e.g. dividing by a near-zero
 /// velocity, or an unbounded zero range keeping the zero-angle search loop
 /// running far longer than any real rifle setup would need).
 fn validate_request(request: &TrajectoryRequest) -> Result<(), ApiError> {
-    let load = &request.load;
-    let rifle = &request.rifle;
-    let atmosphere = &request.atmosphere;
-    let shot = &request.shot;
+    validate_load(&request.load)?;
+    validate_conditions(&request.rifle, &request.atmosphere, &request.shot)
+}
 
-    let checks: [(bool, &str); 12] = [
+fn validate_load(load: &Load) -> Result<(), ApiError> {
+    let checks: [(bool, &str); 3] = [
         (
             load.ballistic_coefficient.is_finite() && load.ballistic_coefficient > 0.0,
             "load.ballistic_coefficient must be a positive, finite number",
@@ -209,6 +342,21 @@ fn validate_request(request: &TrajectoryRequest) -> Result<(), ApiError> {
                 && load.bullet_weight_gr < 20_000.0,
             "load.bullet_weight_gr must be between 0 and 20000 grains",
         ),
+    ];
+
+    first_failure(&checks)
+}
+
+/// Everything that is not the ammunition: the rifle it is fired from, the
+/// air it flies through and the shot being taken. Split out because
+/// `/api/suitability` holds these fixed while varying the load, so they are
+/// checked once rather than once per catalogue entry.
+fn validate_conditions(
+    rifle: &Rifle,
+    atmosphere: &Atmosphere,
+    shot: &Shot,
+) -> Result<(), ApiError> {
+    let checks: [(bool, &str); 9] = [
         (
             rifle.sight_height.is_finite() && rifle.sight_height.abs() < 100.0,
             "rifle.sight_height must be a plausible number of inches",
@@ -249,6 +397,10 @@ fn validate_request(request: &TrajectoryRequest) -> Result<(), ApiError> {
         ),
     ];
 
+    first_failure(&checks)
+}
+
+fn first_failure(checks: &[(bool, &str)]) -> Result<(), ApiError> {
     match checks.iter().find(|(ok, _)| !ok) {
         Some((_, message)) => Err(ApiError::bad_request(*message)),
         None => Ok(()),
@@ -402,5 +554,83 @@ mod tests {
     fn resolve_addr_defaults_when_nothing_set() {
         let addr = resolve_addr_from(None, None);
         assert_eq!(addr, "0.0.0.0:3000".parse().unwrap());
+    }
+
+    fn catalogue_entry(bc_g1: Option<f64>, bc_g7: Option<f64>) -> FactoryLoad {
+        FactoryLoad {
+            id: "test".to_string(),
+            manufacturer: "Test".to_string(),
+            product_line: "Line".to_string(),
+            cartridge: ".308 Winchester".to_string(),
+            bullet: "168 gr TTSX".to_string(),
+            bullet_weight_gr: 168.0,
+            muzzle_velocity_fps: 2700.0,
+            test_barrel_in: Some(24.0),
+            bc_g1,
+            bc_g7,
+            stated_muzzle_energy_ft_lb: None,
+            maker_max_range_yd: None,
+            source_url: "https://example.invalid/load".to_string(),
+            retrieved: "2026-01-01".to_string(),
+        }
+    }
+
+    /// The pairing that matters: a G1 number handed to the G7 drag function
+    /// is not an error, just a wrong trajectory, so the two travel together.
+    #[test]
+    fn a_catalogue_load_keeps_its_coefficient_with_its_drag_model() {
+        let g7 = load_from_catalogue(&catalogue_entry(Some(0.45), Some(0.22))).unwrap();
+        assert_eq!(g7.drag_function, DragFunction::G7);
+        assert_eq!(g7.ballistic_coefficient, 0.22);
+
+        let g1_only = load_from_catalogue(&catalogue_entry(Some(0.45), None)).unwrap();
+        assert_eq!(g1_only.drag_function, DragFunction::G1);
+        assert_eq!(g1_only.ballistic_coefficient, 0.45);
+
+        assert!(load_from_catalogue(&catalogue_entry(None, None)).is_none());
+    }
+
+    fn point_at(yards: i64) -> TrajectoryPoint {
+        TrajectoryPoint {
+            yards,
+            moa_correction: 0.0,
+            impact_in: 0.0,
+            path_inches: 0.0,
+            seconds: 0.0,
+            velocity_fps: 0.0,
+            energy_ft_lb: 0.0,
+            windage_in: 0.0,
+        }
+    }
+
+    #[test]
+    fn sampling_thins_to_the_step_and_keeps_the_last_point() {
+        let points: Vec<_> = (1..=25).map(point_at).collect();
+        let yards: Vec<_> = sample(points, 10).iter().map(|p| p.yards).collect();
+        // 10 and 20 are on the step; 25 survives as the furthest range the
+        // load reached, which is the figure the shortlist reports.
+        assert_eq!(yards, vec![10, 20, 25]);
+    }
+
+    #[test]
+    fn sampling_does_not_duplicate_a_last_point_already_on_the_step() {
+        let points: Vec<_> = (1..=20).map(point_at).collect();
+        let yards: Vec<_> = sample(points, 10).iter().map(|p| p.yards).collect();
+        assert_eq!(yards, vec![10, 20]);
+    }
+
+    /// The whole point of the split: the shortlist holds these fixed while
+    /// varying the load, so they have to be checkable on their own.
+    #[test]
+    fn conditions_validate_without_a_load() {
+        let request = valid_request();
+        assert!(
+            validate_conditions(&request.rifle, &request.atmosphere, &request.shot).is_ok(),
+            "the shared valid fixture should pass"
+        );
+
+        let mut bad = request;
+        bad.rifle.zero_range = 0.0;
+        assert!(validate_conditions(&bad.rifle, &bad.atmosphere, &bad.shot).is_err());
     }
 }

@@ -288,6 +288,46 @@
         <canvas id="vitals-canvas" width="460" height="380" aria-label="Point of impact vs. vital zone" role="img"></canvas>
         <div id="animal-info" class="animal-info"></div>
       </div>
+
+      <!--
+        The reverse query. Everything above answers "I have this box - where
+        will it hit?"; this answers the question you actually ask standing in
+        a shop, which is "I am after this animal at this range - what will do
+        it?". Behind a button because it solves the whole catalogue, which is
+        not worth doing on every Calculate.
+      -->
+      <h2>What will do it?</h2>
+      <p class="hint">
+        Every load in the catalogue, fired from <em>your</em> rifle in
+        <em>these</em> conditions, ranked by how far it still carries enough
+        to kill this animal cleanly. Judged on the same thresholds as the
+        panel above: retained energy and expansion velocity at the far end of
+        your range band, and your group against the vital zone. Pick a row to
+        load it into the form.
+      </p>
+      <div class="shortlist-controls">
+        <button type="button" id="shortlist-run">Rank the catalogue</button>
+        <label class="shortlist-filter" hidden id="shortlist-filter-label">
+          <input type="checkbox" id="shortlist-same-cartridge" checked />
+          <span id="shortlist-cartridge-name">only my cartridge</span>
+        </label>
+      </div>
+      <p id="shortlist-note" class="hint" hidden></p>
+      <div id="shortlist-wrap" class="table-wrap" hidden>
+        <table id="shortlist">
+          <thead>
+            <tr>
+              <th>Load</th>
+              <th>Carries to</th>
+              <th>Energy</th>
+              <th>Velocity</th>
+              <th>Drift</th>
+              <th>Drop</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </section>
 
     <p id="error" class="error" hidden></p>
