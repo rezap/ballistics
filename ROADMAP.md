@@ -285,7 +285,20 @@ Phase 2:
         get revised, and one with no source cannot be rechecked.
 
       Seeded with 15 loads across 6.5 Creedmoor, .308 Win, .30-06, .300
-      Win Mag and 6.5x55 SE from Hornady, Federal, Barnes and Norma.
+      Win Mag and 6.5x55 SE from Hornady, Federal, Barnes and Norma, since
+      grown to 26 with the Norma Oryx range and Sako Super Hammerhead.
+
+      **Two entries have weaker provenance than the rest.** The Sako Super
+      Hammerhead 180 gr loads (.308 Win and .30-06) were assembled from
+      search-engine summaries, because sako.global and every retailer
+      carrying the figures are blocked by this environment's egress policy -
+      no page was actually read. Sources disagreed, and the .30-06 figure
+      in particular had to be picked rather than transcribed: see
+      `sako-super-hammerhead-*` below and in the commit that added them.
+      Neither carries a `stated_muzzle_energy_ft_lb`, so the cross-check
+      that catches a mistyped velocity does not cover them - the one guard
+      that matters most where the reading is weakest. Worth re-checking
+      against a page or a chronograph.
 - [x] **What you do not know.** The app judged shots against numbers nobody
       has in the field. The range is a judgement, the wind is a guess, and
       a single confident dot hid both.
@@ -332,19 +345,6 @@ Phase 2:
       thing used, or on a preset marked as the default. Related: "could be
       ±" defaults to zero, which quietly lets the uncertainty feature be
       ignored - worth deciding whether that is right.
-- [ ] **Two loads waiting on data**, dropped for now rather than guessed:
-      - Norma Oryx **8.5x55 Blaser 230 gr** - the product page carried no
-        ballistic coefficient, and without one the load cannot be solved at
-        all. The .338 Win Mag 230 gr Oryx would settle it, being the same
-        projectile.
-      - An unlabelled Norma page, 170 gr Oryx at 2657 ft/s, G1 0.324 - the
-        figures are complete and self-consistent but the cartridge is not
-        known. Almost certainly **7x65R**, the rimmed 7x64: same bullet, same
-        coefficient, 99 ft/s slower, exactly the relationship 8x57 JS and
-        JRS have. The bore table already lists it. Filing a load under the
-        wrong cartridge would put ammunition in someone's hand that does not
-        chamber, which is worse than any of the numeric errors the catalogue
-        guards against - hence waiting rather than inferring.
 - [x] **Audited the wind model against published figures.** Checked against
       Hornady's own for the 6.5 Creedmoor 143 ELD-X at 2700 ft/s:
 

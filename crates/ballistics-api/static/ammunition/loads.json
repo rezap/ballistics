@@ -176,6 +176,18 @@
       "retrieved": "2026-08-01"
     },
     {
+      "id": "sako-super-hammerhead-308-180",
+      "manufacturer": "Sako",
+      "product_line": "Super Hammerhead",
+      "cartridge": ".308 Winchester",
+      "bullet": "180 gr Super Hammerhead bonded SP-BT",
+      "bullet_weight_gr": 180,
+      "muzzle_velocity_fps": 2493,
+      "bc_g1": 0.421,
+      "source_url": "https://www.sako.global/ammunition/super-hammerhead",
+      "retrieved": "2026-09-19"
+    },
+    {
       "id": "hornady-american-whitetail-3006-180-interlock",
       "manufacturer": "Hornady",
       "product_line": "American Whitetail",
@@ -216,6 +228,18 @@
       "bc_g7": null,
       "source_url": "https://www.pyramydair.com/product/norma-30-06-springfield-oryx-180gr-20ct",
       "retrieved": "2026-08-01"
+    },
+    {
+      "id": "sako-super-hammerhead-3006-180",
+      "manufacturer": "Sako",
+      "product_line": "Super Hammerhead",
+      "cartridge": ".30-06 Springfield",
+      "bullet": "180 gr Super Hammerhead bonded SP-BT",
+      "bullet_weight_gr": 180,
+      "muzzle_velocity_fps": 2690,
+      "bc_g1": 0.421,
+      "source_url": "https://www.sako.global/ammunition/super-hammerhead",
+      "retrieved": "2026-09-19"
     },
     {
       "id": "hornady-precision-hunter-300wm-178-eldx",
