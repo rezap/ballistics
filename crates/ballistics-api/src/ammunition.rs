@@ -32,8 +32,16 @@ pub struct FactoryLoad {
     /// Ballistic coefficients, each against the drag model it was measured
     /// with. There is deliberately no bare `bc`: pairing a G1 number with
     /// the G7 drag function is silently wrong rather than an error.
+    ///
+    /// G5 is here because European makers publish against it. Sako quote
+    /// 0.263 for the 150 gr Super Hammerhead in .30-06, and read as G1 that
+    /// misses their own retained-velocity table by 106 m/s at 300 m, as G7
+    /// by 46, and as G5 by one. A field per model is the only way to store
+    /// that without the number quietly meaning the wrong thing.
     #[serde(default)]
     pub bc_g1: Option<f64>,
+    #[serde(default)]
+    pub bc_g5: Option<f64>,
     #[serde(default)]
     pub bc_g7: Option<f64>,
     /// Muzzle energy as the maker states it, where they do.
@@ -85,7 +93,11 @@ fn validate(load: &FactoryLoad) -> Result<(), String> {
         &mut problems,
     );
 
-    for (label, value) in [("bc_g1", load.bc_g1), ("bc_g7", load.bc_g7)] {
+    for (label, value) in [
+        ("bc_g1", load.bc_g1),
+        ("bc_g5", load.bc_g5),
+        ("bc_g7", load.bc_g7),
+    ] {
         if let Some(bc) = value {
             positive(label, bc, &mut problems);
         }
@@ -93,8 +105,8 @@ fn validate(load: &FactoryLoad) -> Result<(), String> {
 
     // A load with no coefficient at all cannot be solved, so it is worse
     // than absent - it would look selectable and then not work.
-    if load.bc_g1.is_none() && load.bc_g7.is_none() {
-        problems.push("at least one of bc_g1 or bc_g7 is required".to_string());
+    if load.bc_g1.is_none() && load.bc_g5.is_none() && load.bc_g7.is_none() {
+        problems.push("at least one of bc_g1, bc_g5 or bc_g7 is required".to_string());
     }
 
     if let Some(barrel) = load.test_barrel_in {
@@ -189,7 +201,7 @@ mod tests {
     /// floats are bit patterns so the tuple can be a map key.
     type BulletKey = (String, u64, u64);
     /// A cartridge that bullet is loaded in, and its coefficients.
-    type LoadedIn = (String, Option<f64>, Option<f64>);
+    type LoadedIn = (String, Option<f64>, Option<f64>, Option<f64>);
 
     fn static_dir() -> std::path::PathBuf {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("static")
@@ -218,7 +230,7 @@ mod tests {
         let loads = load(&static_dir()).expect("bundled loads.json should be valid");
         assert!(!loads.is_empty());
         for entry in &loads {
-            assert!(entry.bc_g1.is_some() || entry.bc_g7.is_some());
+            assert!(entry.bc_g1.is_some() || entry.bc_g5.is_some() || entry.bc_g7.is_some());
             assert!(entry.muzzle_velocity_fps > 0.0);
         }
     }
@@ -250,7 +262,10 @@ mod tests {
                 entry.id,
                 entry.bullet_weight_gr
             );
-            for bc in [entry.bc_g1, entry.bc_g7].into_iter().flatten() {
+            for bc in [entry.bc_g1, entry.bc_g5, entry.bc_g7]
+                .into_iter()
+                .flatten()
+            {
                 assert!(
                     bc > 0.05 && bc < 1.5,
                     "{} has an implausible BC: {bc}",
@@ -330,11 +345,28 @@ mod tests {
         })
     }
 
+    /// How far two published coefficients for the same bullet may differ
+    /// before one of them is suspected of coming from the wrong source.
+    ///
+    /// Not zero, because a *published* G1 figure is not quite a property of
+    /// the projectile. The G1 reference shape is a blunt flat-base form that
+    /// no modern spitzer boat-tail resembles, so its drag curve is the wrong
+    /// shape and a single coefficient cannot fit the whole velocity range.
+    /// Makers therefore fit one at the load's own muzzle velocity, and the
+    /// same bullet picks up slightly different numbers in a fast cartridge
+    /// and a slow one. Federal publish 0.503 for the 180 gr Fusion in .308
+    /// Winchester at 2600 ft/s and 0.498 in .30-06 at 2700 - one percent
+    /// apart, and both correct.
+    ///
+    /// Two percent leaves that alone while still catching the error this
+    /// test was written for, which was eight percent wide.
+    const BC_TOLERANCE: f64 = 0.02;
+
     #[test]
     fn one_bullet_has_one_ballistic_coefficient() {
-        // BC is a property of the projectile, not the cartridge it is loaded
-        // in, so the same bullet at the same weight and bore must carry the
-        // same figure everywhere. Velocity is free to differ; BC is not.
+        // The same bullet at the same weight and bore must carry near enough
+        // the same figure everywhere. Velocity is free to differ; BC is not,
+        // beyond the velocity fit above.
         //
         // This is not hypothetical tidiness. The 285 gr Oryx was entered as
         // 0.330 in 9.3x62 and 0.356 in 9.3x74R, and the mismatch was the
@@ -350,20 +382,45 @@ mod tests {
                 entry.bullet_weight_gr.to_bits(),
                 bore.to_bits(),
             );
-            seen.entry(key)
-                .or_default()
-                .push((entry.cartridge.clone(), entry.bc_g1, entry.bc_g7));
+            seen.entry(key).or_default().push((
+                entry.cartridge.clone(),
+                entry.bc_g1,
+                entry.bc_g5,
+                entry.bc_g7,
+            ));
         }
 
-        for ((line, _, _), group) in seen {
-            let (first_cartridge, g1, g7) = &group[0];
-            for (cartridge, other_g1, other_g7) in &group[1..] {
-                assert_eq!(
-                    (g1, g7),
-                    (other_g1, other_g7),
-                    "{line}: the same bullet has different coefficients in {first_cartridge} \
-                     and {cartridge} - one of them came from the wrong source"
+        // Absent in one and present in the other is a data error, not a
+        // velocity fit, so the two cases are judged separately.
+        let agree = |model: &str, line: &str, a: (&str, Option<f64>), b: (&str, Option<f64>)| match (
+            a.1, b.1,
+        ) {
+            (Some(x), Some(y)) => {
+                let apart = (x - y).abs() / x.max(y);
+                assert!(
+                    apart <= BC_TOLERANCE,
+                    "{line}: the same bullet has {model} {x} in {} and {y} in {} - \
+                     {:.1}% apart, too far to be a velocity fit, so one came from \
+                     the wrong source",
+                    a.0,
+                    b.0,
+                    apart * 100.0
                 );
+            }
+            (None, None) => {}
+            _ => panic!(
+                "{line}: the same bullet has a {model} figure in one of {} and {} \
+                 but not the other",
+                a.0, b.0
+            ),
+        };
+
+        for ((line, _, _), group) in seen {
+            let (first, g1, g5, g7) = &group[0];
+            for (cartridge, other_g1, other_g5, other_g7) in &group[1..] {
+                agree("G1", &line, (first, *g1), (cartridge, *other_g1));
+                agree("G5", &line, (first, *g5), (cartridge, *other_g5));
+                agree("G7", &line, (first, *g7), (cartridge, *other_g7));
             }
         }
     }
@@ -373,7 +430,9 @@ mod tests {
         let mut entry = valid_load();
         entry.bc_g1 = None;
         entry.bc_g7 = None;
-        assert!(validate(&entry).unwrap_err().contains("bc_g1 or bc_g7"));
+        assert!(validate(&entry)
+            .unwrap_err()
+            .contains("bc_g1, bc_g5 or bc_g7"));
 
         // Either one alone is fine.
         entry.bc_g7 = Some(0.241);

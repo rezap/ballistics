@@ -239,13 +239,14 @@ async function loadAmmunition() {
 }
 
 /// A ballistic coefficient only means anything paired with the drag model
-/// it was measured against, so the two are chosen together. G7 is preferred
-/// where the maker publishes it: these are boat-tail hunting bullets and G7
-/// fits them far better than G1.
+/// it was measured against, so the two are chosen together. Preference runs
+/// G7, then G5, then G1: these are boat-tail hunting bullets, and both G7
+/// and G5 are shaped far closer to one than G1's blunt flat-base reference.
+/// The backend picks the same way.
 function dragModelFor(entry) {
-  return entry.bc_g7 != null
-    ? { drag_function: "G7", bc: entry.bc_g7 }
-    : { drag_function: "G1", bc: entry.bc_g1 };
+  if (entry.bc_g7 != null) return { drag_function: "G7", bc: entry.bc_g7 };
+  if (entry.bc_g5 != null) return { drag_function: "G5", bc: entry.bc_g5 };
+  return { drag_function: "G1", bc: entry.bc_g1 };
 }
 
 function applyFactoryLoad(entry) {

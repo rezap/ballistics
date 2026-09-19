@@ -271,11 +271,21 @@ Phase 2:
       Three things the schema enforces rather than hopes for:
 
       - **No bare `bc`.** A ballistic coefficient means nothing without the
-        drag model it was measured against, so there are only `bc_g1` and
-        `bc_g7`, and the app selects the drag function to match whichever
-        it uses (G7 where published - these are boat-tail hunting bullets).
-        A G1 figure used as G7 would not error; it would produce a
-        confident, wrong trajectory.
+        drag model it was measured against, so there are only `bc_g1`,
+        `bc_g5` and `bc_g7`, and the app selects the drag function to match
+        whichever it uses (G7, then G5, then G1 - these are boat-tail
+        hunting bullets, and both G7 and G5 are shaped far closer to one
+        than G1's blunt flat-base reference). A G1 figure used as G7 would
+        not error; it would produce a confident, wrong trajectory.
+
+        `bc_g5` earned its place rather than being designed in. Sako quote
+        0.263 for the 150 gr Super Hammerhead in .30-06, which read as G1
+        misses their own retained-velocity table by 106 m/s at 300 m, and
+        as G7 by 46. Read as G5 it lands within 1 m/s at every range, which
+        is how the model was identified: solve the load against all seven
+        drag functions and see which reproduces the maker's own figures.
+        Worth remembering as a technique - a published downrange table is
+        enough to recover the drag model when the maker does not name it.
       - **Advertised, not measured.** Velocities come from the maker's test
         barrel. A 20in rifle against a 24in test barrel is roughly 100 ft/s
         down, which is inches at 400 yards and moves max ethical range the
@@ -285,7 +295,31 @@ Phase 2:
         get revised, and one with no source cannot be rechecked.
 
       Seeded with 15 loads across 6.5 Creedmoor, .308 Win, .30-06, .300
-      Win Mag and 6.5x55 SE from Hornady, Federal, Barnes and Norma.
+      Win Mag and 6.5x55 SE from Hornady, Federal, Barnes and Norma, since
+      grown to 27 with the Norma Oryx range, Sako Super Hammerhead and
+      Federal Fusion.
+
+      **One entry has weaker provenance than the rest.** The Sako Super
+      Hammerhead 180 gr in .308 Win was assembled from search-engine
+      summaries, because sako.global and every retailer carrying the figures
+      are blocked by this environment's egress policy - no page was read.
+      Its velocity has since been confirmed against the owner's own data, so
+      it stands, but it carries no `stated_muzzle_energy_ft_lb` and so sits
+      outside the cross-check that catches a mistyped velocity.
+
+      A .30-06 Super Hammerhead **180 gr** was briefly added from the same
+      search and **removed**: it does not exist. Sako load the .30-06 in
+      150 gr, which is now in the catalogue instead. Worth recording how it
+      got in, since the same trap is still open: summaries offered 2953,
+      2903 and 2690 ft/s, and reasoning about which was physically possible
+      produced a confident, plausible, entirely fictitious load. Arithmetic
+      can rule a figure out; it cannot conjure a product. The catalogue's
+      guards all check whether numbers are consistent, and none of them asks
+      whether the box is real.
+
+      A tidy postscript: 2953 ft/s is 900 m/s, which is the **150 gr**
+      figure. The bogus entry was the real load's velocity wearing the wrong
+      bullet weight.
 - [x] **What you do not know.** The app judged shots against numbers nobody
       has in the field. The range is a judgement, the wind is a guess, and
       a single confident dot hid both.
@@ -332,19 +366,6 @@ Phase 2:
       thing used, or on a preset marked as the default. Related: "could be
       ±" defaults to zero, which quietly lets the uncertainty feature be
       ignored - worth deciding whether that is right.
-- [ ] **Two loads waiting on data**, dropped for now rather than guessed:
-      - Norma Oryx **8.5x55 Blaser 230 gr** - the product page carried no
-        ballistic coefficient, and without one the load cannot be solved at
-        all. The .338 Win Mag 230 gr Oryx would settle it, being the same
-        projectile.
-      - An unlabelled Norma page, 170 gr Oryx at 2657 ft/s, G1 0.324 - the
-        figures are complete and self-consistent but the cartridge is not
-        known. Almost certainly **7x65R**, the rimmed 7x64: same bullet, same
-        coefficient, 99 ft/s slower, exactly the relationship 8x57 JS and
-        JRS have. The bore table already lists it. Filing a load under the
-        wrong cartridge would put ammunition in someone's hand that does not
-        chamber, which is worse than any of the numeric errors the catalogue
-        guards against - hence waiting rather than inferring.
 - [x] **Audited the wind model against published figures.** Checked against
       Hornady's own for the 6.5 Creedmoor 143 ELD-X at 2700 ft/s:
 

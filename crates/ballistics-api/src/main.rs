@@ -282,17 +282,19 @@ async fn solve_suitability(
 /// Turns a catalogue entry into something the solver can take.
 ///
 /// A ballistic coefficient only means anything paired with the drag model
-/// it was measured against, so the two are chosen together, and G7 wins
-/// where the maker publishes it - these are boat-tail hunting bullets, and
-/// G7 fits them far better than G1. The frontend picks the same way.
+/// it was measured against, so the two are chosen together. Preference runs
+/// G7, then G5, then G1: these are boat-tail hunting bullets, and both G7
+/// and G5 are shaped far closer to one than G1's blunt flat-base reference.
+/// The frontend picks the same way.
 ///
 /// `None` for a load with no coefficient at all. Startup validation rejects
 /// those, so this is belt and braces rather than a live case.
 fn load_from_catalogue(entry: &FactoryLoad) -> Option<Load> {
-    let (drag_function, ballistic_coefficient) = match (entry.bc_g7, entry.bc_g1) {
-        (Some(bc), _) => (DragFunction::G7, bc),
-        (None, Some(bc)) => (DragFunction::G1, bc),
-        (None, None) => return None,
+    let (drag_function, ballistic_coefficient) = match (entry.bc_g7, entry.bc_g5, entry.bc_g1) {
+        (Some(bc), _, _) => (DragFunction::G7, bc),
+        (None, Some(bc), _) => (DragFunction::G5, bc),
+        (None, None, Some(bc)) => (DragFunction::G1, bc),
+        (None, None, None) => return None,
     };
 
     Some(Load {
@@ -556,7 +558,7 @@ mod tests {
         assert_eq!(addr, "0.0.0.0:3000".parse().unwrap());
     }
 
-    fn catalogue_entry(bc_g1: Option<f64>, bc_g7: Option<f64>) -> FactoryLoad {
+    fn catalogue_entry(bc_g1: Option<f64>, bc_g5: Option<f64>, bc_g7: Option<f64>) -> FactoryLoad {
         FactoryLoad {
             id: "test".to_string(),
             manufacturer: "Test".to_string(),
@@ -567,6 +569,7 @@ mod tests {
             muzzle_velocity_fps: 2700.0,
             test_barrel_in: Some(24.0),
             bc_g1,
+            bc_g5,
             bc_g7,
             stated_muzzle_energy_ft_lb: None,
             maker_max_range_yd: None,
@@ -579,15 +582,22 @@ mod tests {
     /// is not an error, just a wrong trajectory, so the two travel together.
     #[test]
     fn a_catalogue_load_keeps_its_coefficient_with_its_drag_model() {
-        let g7 = load_from_catalogue(&catalogue_entry(Some(0.45), Some(0.22))).unwrap();
+        let g7 = load_from_catalogue(&catalogue_entry(Some(0.45), None, Some(0.22))).unwrap();
         assert_eq!(g7.drag_function, DragFunction::G7);
         assert_eq!(g7.ballistic_coefficient, 0.22);
 
-        let g1_only = load_from_catalogue(&catalogue_entry(Some(0.45), None)).unwrap();
+        // G5 outranks G1 but not G7.
+        let g5 = load_from_catalogue(&catalogue_entry(Some(0.45), Some(0.26), None)).unwrap();
+        assert_eq!(g5.drag_function, DragFunction::G5);
+        assert_eq!(g5.ballistic_coefficient, 0.26);
+        let both = load_from_catalogue(&catalogue_entry(None, Some(0.26), Some(0.22))).unwrap();
+        assert_eq!(both.drag_function, DragFunction::G7);
+
+        let g1_only = load_from_catalogue(&catalogue_entry(Some(0.45), None, None)).unwrap();
         assert_eq!(g1_only.drag_function, DragFunction::G1);
         assert_eq!(g1_only.ballistic_coefficient, 0.45);
 
-        assert!(load_from_catalogue(&catalogue_entry(None, None)).is_none());
+        assert!(load_from_catalogue(&catalogue_entry(None, None, None)).is_none());
     }
 
     fn point_at(yards: i64) -> TrajectoryPoint {
