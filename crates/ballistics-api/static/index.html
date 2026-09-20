@@ -67,8 +67,8 @@
           <label class="wide">
             Drag function
             <select name="drag_function">
-              <option value="G1">G1 (flat base)</option>
-              <option value="G7" selected>G7 (boat-tail / VLD)</option>
+              <option value="G1" selected>G1 (flat base)</option>
+              <option value="G7">G7 (boat-tail / VLD)</option>
               <option value="G2">G2</option>
               <option value="G3">G3</option>
               <option value="G5">G5</option>
@@ -78,15 +78,15 @@
           </label>
           <label>
             Ballistic coefficient
-            <input type="number" name="ballistic_coefficient" step="0.001" min="0.001" value="0.243" required />
+            <input type="number" name="ballistic_coefficient" step="0.001" min="0.001" value="0.503" required />
           </label>
           <label>
             Muzzle velocity (ft/s)
-            <input type="number" name="muzzle_velocity" step="1" min="1" max="9999" value="2700" required />
+            <input type="number" name="muzzle_velocity" step="1" min="1" max="9999" value="2600" required />
           </label>
           <label>
             Bullet weight (gr)
-            <input type="number" name="bullet_weight_gr" step="1" min="1" max="19999" value="168" required />
+            <input type="number" name="bullet_weight_gr" step="1" min="1" max="19999" value="180" required />
           </label>
           <label title="Impact velocity below which this bullet may not expand reliably. Roughly 1800 ft/s for cup-and-core, 1600 for bonded; monolithics often need more.">
             Expansion floor (ft/s)

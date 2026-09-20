@@ -360,12 +360,24 @@ Phase 2:
       far-end error exceeds the near-end error and the ideal aim point is
       not the drop at your best guess. The correction is 0.18in at 300 yards
       and 0.95in at 500 - real, and far too small to build anything on.
-- [ ] **Make the defaults personal.** The form opens on 168 gr, G7 0.243, a
-      100 yd zero and a roe deer, which is nobody's actual rifle. With the
-      preset machinery already in place, the app could open on the last
-      thing used, or on a preset marked as the default. Related: "could be
-      ±" defaults to zero, which quietly lets the uncertainty feature be
-      ignored - worth deciding whether that is right.
+- [ ] **Make the defaults personal.** Half done. The form used to open on
+      168 gr, G7 0.243 and whichever species came first in the list, which
+      was nobody's rifle and nobody's quarry. It now opens on **Federal
+      Fusion 180 gr in .308 Winchester against a red deer stag** - a real
+      box off the shelf, which also puts the provenance note on screen from
+      the first paint, and hands the ammunition shortlist a cartridge to
+      filter by.
+
+      A shared link still wins: a load arriving in the URL fragment is left
+      alone. The guard is its own flag rather than the existing
+      `pendingSharedPreset`, because the species and ammunition fetches race
+      and that flag is cleared by whichever finishes first.
+
+      Still open: opening on the *last thing used*, or on a preset marked as
+      the default, which is what would make this genuinely personal rather
+      than merely a better guess. Related: "could be ±" defaults to zero,
+      which quietly lets the uncertainty feature be ignored - worth deciding
+      whether that is right.
 - [x] **Audited the wind model against published figures.** Checked against
       Hornady's own for the 6.5 Creedmoor 143 ELD-X at 2700 ft/s:
 
