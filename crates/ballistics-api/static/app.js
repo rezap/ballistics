@@ -54,6 +54,19 @@ let lastPoints = null;
 // draw against.
 let pendingSharedPreset = false;
 
+// Whether a load arrived in the URL fragment. Distinct from
+// `pendingSharedPreset`, which is cleared as soon as the shared load has been
+// solved once: this one has to outlive that, because `loadAnimals` and
+// `loadAmmunition` race and either may finish first. Without it, whichever
+// lost the race would overwrite someone's shared link with the defaults.
+let sharedPresetApplied = false;
+
+// What the form opens on. The old defaults were a 168 gr G7 0.243 at 2700
+// and whichever species happened to be first in the list, which is nobody's
+// actual rifle and nobody's actual quarry.
+const DEFAULT_FACTORY_LOAD = "federal-fusion-308-180";
+const DEFAULT_SPECIES = "stag";
+
 const UNIT_TO_INCHES = { in: 1, cm: 1 / 2.54, m: 39.3701 };
 const imageCache = new Map();
 
@@ -178,6 +191,13 @@ async function loadAnimals() {
     .map((a) => `<option value="${a.key}">${a.common_name}</option>`)
     .join("");
 
+  // Unguarded by `sharedPresetApplied`: a preset carries the rifle and the
+  // ammunition, never the quarry, so there is nothing here for a shared link
+  // to disagree with.
+  if (animalsList.some((a) => a.key === DEFAULT_SPECIES)) {
+    speciesSelect.value = DEFAULT_SPECIES;
+  }
+
   syncScaleControls();
 
   if (pendingSharedPreset) {
@@ -236,6 +256,21 @@ async function loadAmmunition() {
           `</optgroup>`
       )
       .join("");
+
+  // Opening on a real box off the shelf rather than four typed numbers also
+  // means the provenance note is visible from the first screen, which is the
+  // one thing about this data that should never be easy to miss.
+  //
+  // Skipped when a shared link has already set the load: someone handed a
+  // rifle should see that rifle.
+  if (!sharedPresetApplied) {
+    const preferred = factoryLoads.find((l) => l.id === DEFAULT_FACTORY_LOAD);
+    if (preferred) {
+      factoryLoadSelect.value = preferred.id;
+      applyFactoryLoad(preferred);
+      noteShortlistCartridge(preferred.cartridge);
+    }
+  }
 }
 
 /// A ballistic coefficient only means anything paired with the drag model
@@ -776,6 +811,7 @@ function applySharedPreset() {
   presetNameInput.value = String(payload.name ?? "Shared load").trim().slice(0, 60);
   setPresetStatus("Loaded a shared load. Press Save to keep it.");
   pendingSharedPreset = true;
+  sharedPresetApplied = true;
 
   // Someone has just been handed a load; on a phone those sections are
   // folded by default, and they should be able to see what they got and
