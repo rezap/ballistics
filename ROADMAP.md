@@ -360,24 +360,18 @@ Phase 2:
       far-end error exceeds the near-end error and the ideal aim point is
       not the drop at your best guess. The correction is 0.18in at 300 yards
       and 0.95in at 500 - real, and far too small to build anything on.
-- [ ] **Make the defaults personal.** Half done. The form used to open on
-      168 gr, G7 0.243 and whichever species came first in the list, which
-      was nobody's rifle and nobody's quarry. It now opens on **Federal
-      Fusion 180 gr in .308 Winchester against a red deer stag** - a real
-      box off the shelf, which also puts the provenance note on screen from
-      the first paint, and hands the ammunition shortlist a cartridge to
-      filter by.
+- [x] **Defaults that are somebody's.** The form used to open on 168 gr,
+      G7 0.243 and whichever species came first in the list, which was
+      nobody's rifle and nobody's quarry. It now opens on **Federal Fusion
+      180 gr in .308 Winchester against a red deer stag** - a real box off
+      the shelf, which also puts the provenance note on screen from the
+      first paint, and hands the ammunition shortlist a cartridge to filter
+      by.
 
       A shared link still wins: a load arriving in the URL fragment is left
       alone. The guard is its own flag rather than the existing
       `pendingSharedPreset`, because the species and ammunition fetches race
       and that flag is cleared by whichever finishes first.
-
-      Still open: opening on the *last thing used*, or on a preset marked as
-      the default, which is what would make this genuinely personal rather
-      than merely a better guess. Related: "could be ±" defaults to zero,
-      which quietly lets the uncertainty feature be ignored - worth deciding
-      whether that is right.
 - [x] **Audited the wind model against published figures.** Checked against
       Hornady's own for the 6.5 Creedmoor 143 ELD-X at 2700 ft/s:
 
@@ -403,20 +397,6 @@ Phase 2:
       of its strength. Converted at the point of use. The effect is small -
       0.05 in of drop at 500 yd for 10 mph - because drag depends on the sum
       of a large velocity and a small wind.
-- [ ] **Say what the model cannot fix.** Two errors dominate in the field and
-      neither is in any of the maths:
-
-      - **The wind you feel at the muzzle is not the wind at 300 yards.**
-        The bullet flies through air you cannot sense - across a gully, out
-        of tree shadow into open ground. This is the largest real-world
-        error in the whole calculation and no model touches it.
-      - **A bench group is not a field group.** A 1 MOA rifle off a bipod is
-        not 1 MOA leaning against a tree with your heart rate up, so the
-        group input probably wants relabelling to what you can hold *in this
-        position*.
-
-      Both need saying somewhere the reader will see them. Where, and how
-      loudly, is still to decide.
 - [x] **"Will it cut it?" - the reverse query.** Everything else answers the
       forward question: I have this box of ammunition, where will it hit? The
       one a hunter actually asks is the other way round - I am after a red
