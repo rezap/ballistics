@@ -25,6 +25,7 @@ pub mod energy;
 pub mod profile;
 pub mod trajectory;
 pub mod utils;
+pub mod validation;
 pub mod windage;
 
 pub use animals::{HitAssessment, VitalZone};

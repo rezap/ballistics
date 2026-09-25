@@ -317,96 +317,22 @@ fn sample(points: Vec<TrajectoryPoint>, step: u32) -> Vec<TrajectoryPoint> {
         .collect()
 }
 
-/// Rejects inputs that are non-physical or that could send the point-mass
-/// integrator into pathological behavior (e.g. dividing by a near-zero
-/// velocity, or an unbounded zero range keeping the zero-angle search loop
-/// running far longer than any real rifle setup would need).
+/// The rules themselves live in [`ballistics_core::validation`], shared with
+/// the WebAssembly build so the browser and the server can never disagree
+/// about what a valid shot is. This only turns a failure into a 400.
 fn validate_request(request: &TrajectoryRequest) -> Result<(), ApiError> {
-    validate_load(&request.load)?;
-    validate_conditions(&request.rifle, &request.atmosphere, &request.shot)
+    request.validate().map_err(ApiError::bad_request)
 }
 
-fn validate_load(load: &Load) -> Result<(), ApiError> {
-    let checks: [(bool, &str); 3] = [
-        (
-            load.ballistic_coefficient.is_finite() && load.ballistic_coefficient > 0.0,
-            "load.ballistic_coefficient must be a positive, finite number",
-        ),
-        (
-            load.muzzle_velocity.is_finite()
-                && load.muzzle_velocity > 0.0
-                && load.muzzle_velocity < 10_000.0,
-            "load.muzzle_velocity must be between 0 and 10000 ft/s",
-        ),
-        (
-            load.bullet_weight_gr.is_finite()
-                && load.bullet_weight_gr > 0.0
-                && load.bullet_weight_gr < 20_000.0,
-            "load.bullet_weight_gr must be between 0 and 20000 grains",
-        ),
-    ];
-
-    first_failure(&checks)
-}
-
-/// Everything that is not the ammunition: the rifle it is fired from, the
-/// air it flies through and the shot being taken. Split out because
-/// `/api/suitability` holds these fixed while varying the load, so they are
-/// checked once rather than once per catalogue entry.
+/// As above, for the conditions alone - `/api/suitability` holds these fixed
+/// while varying the load, so they are checked once rather than per entry.
 fn validate_conditions(
     rifle: &Rifle,
     atmosphere: &Atmosphere,
     shot: &Shot,
 ) -> Result<(), ApiError> {
-    let checks: [(bool, &str); 9] = [
-        (
-            rifle.sight_height.is_finite() && rifle.sight_height.abs() < 100.0,
-            "rifle.sight_height must be a plausible number of inches",
-        ),
-        (
-            rifle.zero_range.is_finite() && rifle.zero_range > 0.0 && rifle.zero_range <= 1000.0,
-            "rifle.zero_range must be between 0 and 1000 yards",
-        ),
-        (
-            rifle.zero_y_intercept.is_finite(),
-            "rifle.zero_y_intercept must be finite",
-        ),
-        (
-            atmosphere.pressure.is_finite() && atmosphere.pressure > 0.0,
-            "atmosphere.pressure must be a positive number of in-Hg",
-        ),
-        (
-            atmosphere.temperature.is_finite()
-                && atmosphere.temperature > -100.0
-                && atmosphere.temperature < 150.0,
-            "atmosphere.temperature must be a plausible Fahrenheit value",
-        ),
-        (
-            (0.0..=1.0).contains(&atmosphere.relative_humidity),
-            "atmosphere.relative_humidity must be between 0 and 1",
-        ),
-        (
-            atmosphere.altitude.is_finite() && atmosphere.altitude.abs() < 30_000.0,
-            "atmosphere.altitude must be a plausible number of feet",
-        ),
-        (
-            shot.shooting_angle.is_finite() && shot.shooting_angle.abs() < 89.0,
-            "shot.shooting_angle must be between -89 and 89 degrees",
-        ),
-        (
-            shot.wind_speed.is_finite() && (0.0..200.0).contains(&shot.wind_speed),
-            "shot.wind_speed must be between 0 and 200 mph",
-        ),
-    ];
-
-    first_failure(&checks)
-}
-
-fn first_failure(checks: &[(bool, &str)]) -> Result<(), ApiError> {
-    match checks.iter().find(|(ok, _)| !ok) {
-        Some((_, message)) => Err(ApiError::bad_request(*message)),
-        None => Ok(()),
-    }
+    ballistics_core::validation::validate_conditions(rifle, atmosphere, shot)
+        .map_err(ApiError::bad_request)
 }
 
 struct ApiError {
@@ -470,66 +396,28 @@ mod tests {
         }
     }
 
+    // The rules are tested one by one in `ballistics_core::validation`. What
+    // belongs here is only that the server turns a failure into a 400 that
+    // carries the core's message unchanged - the same text the WebAssembly
+    // build reports, so a person sees one wording whichever way it solved.
+
     #[test]
     fn accepts_a_sane_request() {
         assert!(validate_request(&valid_request()).is_ok());
     }
 
     #[test]
-    fn rejects_non_positive_muzzle_velocity() {
+    fn a_rejected_request_is_a_400_with_the_cores_message() {
         let mut request = valid_request();
         request.load.muzzle_velocity = 0.0;
-        assert!(validate_request(&request).is_err());
 
-        request.load.muzzle_velocity = -100.0;
-        assert!(validate_request(&request).is_err());
-    }
-
-    #[test]
-    fn rejects_implausible_bullet_weight() {
-        let mut request = valid_request();
-        request.load.bullet_weight_gr = 0.0;
-        assert!(validate_request(&request).is_err());
-
-        request.load.bullet_weight_gr = -20.0;
-        assert!(validate_request(&request).is_err());
-
-        request.load.bullet_weight_gr = 1e9;
-        assert!(validate_request(&request).is_err());
-    }
-
-    #[test]
-    fn rejects_non_positive_ballistic_coefficient() {
-        let mut request = valid_request();
-        request.load.ballistic_coefficient = 0.0;
-        assert!(validate_request(&request).is_err());
-    }
-
-    #[test]
-    fn rejects_unbounded_zero_range() {
-        let mut request = valid_request();
-        request.rifle.zero_range = 1e9;
-        assert!(validate_request(&request).is_err());
-
-        request.rifle.zero_range = 0.0;
-        assert!(validate_request(&request).is_err());
-    }
-
-    #[test]
-    fn rejects_out_of_range_humidity_and_nan() {
-        let mut request = valid_request();
-        request.atmosphere.relative_humidity = 1.5;
-        assert!(validate_request(&request).is_err());
-
-        request.atmosphere.relative_humidity = f64::NAN;
-        assert!(validate_request(&request).is_err());
-    }
-
-    #[test]
-    fn rejects_extreme_shooting_angle() {
-        let mut request = valid_request();
-        request.shot.shooting_angle = 90.0;
-        assert!(validate_request(&request).is_err());
+        let error = validate_request(&request).expect_err("should be rejected");
+        assert_eq!(error.status, StatusCode::BAD_REQUEST);
+        assert_eq!(
+            error.message,
+            request.validate().unwrap_err(),
+            "the server must pass the core's wording through verbatim"
+        );
     }
 
     #[test]
