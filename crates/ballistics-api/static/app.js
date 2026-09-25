@@ -1,6 +1,7 @@
 const form = document.getElementById("trajectory-form");
 const resultsSection = document.getElementById("results");
 const errorBox = document.getElementById("error");
+const engineNote = document.getElementById("engine-note");
 const tableBody = document.querySelector("#results-table tbody");
 const canvas = document.getElementById("chart");
 const speciesSelect = document.getElementById("species-select");
@@ -273,21 +274,14 @@ async function loadAmmunition() {
   }
 }
 
-/// A ballistic coefficient only means anything paired with the drag model
-/// it was measured against, so the two are chosen together. Preference runs
-/// G7, then G5, then G1: these are boat-tail hunting bullets, and both G7
-/// and G5 are shaped far closer to one than G1's blunt flat-base reference.
-/// The backend picks the same way.
-function dragModelFor(entry) {
-  if (entry.bc_g7 != null) return { drag_function: "G7", bc: entry.bc_g7 };
-  if (entry.bc_g5 != null) return { drag_function: "G5", bc: entry.bc_g5 };
-  return { drag_function: "G1", bc: entry.bc_g1 };
-}
-
 function applyFactoryLoad(entry) {
-  const { drag_function, bc } = dragModelFor(entry);
-  form.elements.drag_function.value = drag_function;
-  form.elements.ballistic_coefficient.value = bc;
+  // The drag model and coefficient are picked together, by the same rule
+  // the catalogue ranking uses (see solver.js), so a load put in the form
+  // solves exactly as it did in the shortlist.
+  const load = ballisticsSolver.loadFromCatalogue(entry);
+  if (!load) return;
+  form.elements.drag_function.value = load.drag_function;
+  form.elements.ballistic_coefficient.value = load.ballistic_coefficient;
   form.elements.muzzle_velocity.value = entry.muzzle_velocity_fps;
   form.elements.bullet_weight_gr.value = entry.bullet_weight_gr;
 
@@ -298,7 +292,7 @@ function applyFactoryLoad(entry) {
   factoryLoadNote.hidden = false;
   factoryLoadNote.innerHTML =
     `Advertised by ${escapeHtml(entry.manufacturer)} &mdash; ${barrel}, ` +
-    `BC quoted against ${drag_function}. Your rifle will not match the box: ` +
+    `BC quoted against ${load.drag_function}. Your rifle will not match the box: ` +
     `reckon on 20&ndash;30 ft/s per inch of barrel below the test length, and ` +
     `chronograph it if you can. ` +
     `<a href="${escapeHtml(entry.source_url)}" target="_blank" rel="noopener noreferrer">Source</a> ` +
@@ -831,22 +825,15 @@ form.addEventListener("submit", async (event) => {
 
   const payload = buildRequestPayload(new FormData(form));
 
-  let response;
+  // On this device when the solver module is loaded, on the server when it
+  // is not - the answer is the same either way (see solver.js).
+  let body;
   try {
-    response = await fetch("/api/trajectory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    body = await ballisticsSolver.trajectory(payload);
   } catch (err) {
-    showError(`Request failed: ${err.message}`);
-    return;
-  }
-
-  const body = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    showError(body?.error ?? `Request failed with status ${response.status}`);
+    showError(
+      err instanceof ballisticsSolver.SolveError ? err.message : `Request failed: ${err.message}`
+    );
     return;
   }
 
@@ -870,7 +857,21 @@ form.addEventListener("submit", async (event) => {
   applyHold();
   bandPoints = await solveWindBand(payload);
   renderResults(body);
+  // Read after the wind band, the last thing solved: if the module was set
+  // aside partway, the note should say where the answers now come from.
+  showEngine(ballisticsSolver.engine);
 });
+
+/// Says where the answers came from. It matters in the field: on this
+/// device, the page keeps calculating with no signal; on the server, it
+/// stops the moment the signal does.
+function showEngine(engine) {
+  engineNote.hidden = engine == null;
+  engineNote.textContent =
+    engine === "device"
+      ? "Calculated on this device - no signal needed once the page is open."
+      : "Calculated by the server - the on-device solver did not load, so this needs a connection.";
+}
 
 // A different wind band is a different pair of trajectories, so it needs a
 // re-solve rather than a re-render. Picking a force also fills in the speed
@@ -1826,19 +1827,14 @@ async function solveWindBand(payload) {
 
   const at = async (wind) => {
     try {
-      const response = await fetch("/api/trajectory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...payload,
-          shot: {
-            ...payload.shot,
-            wind_speed: wind.wind_speed,
-            wind_angle: wind.wind_angle,
-          },
-        }),
+      return await ballisticsSolver.trajectory({
+        ...payload,
+        shot: {
+          ...payload.shot,
+          wind_speed: wind.wind_speed,
+          wind_angle: wind.wind_angle,
+        },
       });
-      return response.ok ? await response.json() : null;
     } catch {
       return null;
     }
@@ -2073,18 +2069,13 @@ async function runShortlist() {
 
   let entries;
   try {
-    const response = await fetch("/api/suitability", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        rifle: payload.rifle,
-        atmosphere: payload.atmosphere,
-        shot: payload.shot,
-        ...(sameCartridge ? { cartridges: [shortlistCartridge] } : {}),
-      }),
+    entries = await ballisticsSolver.rankCatalogue({
+      loads: factoryLoads,
+      rifle: payload.rifle,
+      atmosphere: payload.atmosphere,
+      shot: payload.shot,
+      cartridges: sameCartridge ? [shortlistCartridge] : undefined,
     });
-    if (!response.ok) throw new Error((await response.json()).error ?? response.statusText);
-    entries = await response.json();
   } catch (err) {
     shortlistStatus(`Could not rank the catalogue: ${err.message}`);
     shortlistRunButton.disabled = false;

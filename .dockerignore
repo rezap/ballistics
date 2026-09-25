@@ -9,3 +9,7 @@ README.md
 # committed alongside it. Shipping it would add ~24MB to the image for
 # files the server never reads.
 **/*.raw.png
+
+# Built from source in the image. A copy left over from a local build could
+# be stale, and the image should never ship one it did not compile itself.
+crates/ballistics-api/static/wasm

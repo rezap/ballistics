@@ -70,3 +70,12 @@ jobs:
           node crates/ballistics-wasm/tests/parity/parity.mjs
           target/parity-golden.json
           target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm
+
+      # The same answers again, this time through the page's own glue
+      # (crates/ballistics-api/static/solver.js), plus every way the module
+      # can fail falling back to the server.
+      - name: Page glue - solver.js
+        run: >
+          BALLISTICS_PARITY_GOLDEN=target/parity-golden.json
+          BALLISTICS_WASM=target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm
+          node --test crates/ballistics-wasm/tests/glue/solver.test.mjs
