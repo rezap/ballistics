@@ -100,6 +100,14 @@ pub struct TrajectoryRequest {
 }
 
 impl TrajectoryRequest {
+    /// Rejects a request the integrator should not be handed. See
+    /// [`crate::validation`]. `solve` does not call this itself: the server
+    /// and the WebAssembly build each check first, and report the failure
+    /// in their own way.
+    pub fn validate(&self) -> Result<(), &'static str> {
+        crate::validation::validate_request(self)
+    }
+
     /// Corrects the ballistic coefficient for `atmosphere`, solves for the
     /// bore angle needed to achieve `rifle`'s zero, then integrates the
     /// full trajectory. Returns one [`TrajectoryPoint`] per yard of travel.

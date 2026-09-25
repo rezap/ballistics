@@ -53,6 +53,10 @@ change.
   presets are kept in the browser rather than on the server, so they work
   with no signal; they can be exported as a JSON file or shared as a
   link.
+- [`crates/ballistics-wasm`](./crates/ballistics-wasm) — the same engine
+  compiled to WebAssembly, so the browser can solve without the server:
+  the first half of working with no signal. Not yet used by the page. Its
+  calling protocol is documented at the top of `src/lib.rs`.
 
 ## Building and testing
 
@@ -60,6 +64,19 @@ change.
 cargo build --workspace
 cargo test --workspace
 cargo run -p ballistics-cli
+```
+
+The WebAssembly build, and the check that it agrees with the native one:
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo build -p ballistics-wasm --target wasm32-unknown-unknown --profile wasm
+
+BALLISTICS_PARITY_GOLDEN=$PWD/target/parity-golden.json \
+  cargo test -p ballistics-wasm -- --ignored write_parity_golden
+node crates/ballistics-wasm/tests/parity/parity.mjs \
+  target/parity-golden.json \
+  target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm
 ```
 
 ## Running the web app

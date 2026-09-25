@@ -1,0 +1,2648 @@
+{
+ "_comment": "Parity fixtures for ballistics-wasm. Generated once from the catalogue and a grid; read by both the native golden writer and the wasm runner, so the two can only ever be fed the same shots. Regenerate by hand if the catalogue changes - a stale file still tests parity correctly, it just stops covering new loads.",
+ "fixtures": [
+  {
+   "name": "catalogue: hornady-precision-hunter-65cm-143-eldx",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.315,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 143
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: hornady-american-whitetail-65cm-129-interlock",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.445,
+     "muzzle_velocity": 2820,
+     "bullet_weight_gr": 129
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: federal-terminal-ascent-65cm-130",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.263,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 130
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: barnes-vortx-lr-65cm-127-lrx",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.468,
+     "muzzle_velocity": 2825,
+     "bullet_weight_gr": 127
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: hornady-precision-hunter-308-178-eldx",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.278,
+     "muzzle_velocity": 2600,
+     "bullet_weight_gr": 178
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: hornady-american-whitetail-308-150-interlock",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.338,
+     "muzzle_velocity": 2820,
+     "bullet_weight_gr": 150
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: barnes-vortx-308-168-ttsx",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.241,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: federal-terminal-ascent-308-175",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.52,
+     "muzzle_velocity": 2600,
+     "bullet_weight_gr": 175
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-308-180",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.354,
+     "muzzle_velocity": 2610,
+     "bullet_weight_gr": 180
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: sako-super-hammerhead-308-180",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.421,
+     "muzzle_velocity": 2493,
+     "bullet_weight_gr": 180
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: federal-fusion-308-180",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.503,
+     "muzzle_velocity": 2600,
+     "bullet_weight_gr": 180
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: hornady-american-whitetail-3006-180-interlock",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.425,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 180
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: federal-terminal-ascent-3006-175",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.52,
+     "muzzle_velocity": 2730,
+     "bullet_weight_gr": 175
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-3006-180",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.354,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 180
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: federal-fusion-3006-180",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.498,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 180
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: sako-super-hammerhead-3006-150",
+   "request": {
+    "load": {
+     "drag_function": "G5",
+     "ballistic_coefficient": 0.263,
+     "muzzle_velocity": 2953,
+     "bullet_weight_gr": 150
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: hornady-precision-hunter-300wm-178-eldx",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.278,
+     "muzzle_velocity": 2960,
+     "bullet_weight_gr": 178
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: barnes-vortx-300wm-180-ttsx",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.499,
+     "muzzle_velocity": 2880,
+     "bullet_weight_gr": 180
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-65x55-156",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.348,
+     "muzzle_velocity": 2559,
+     "bullet_weight_gr": 156
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-odin-93x74r-230",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.472,
+     "muzzle_velocity": 2575,
+     "bullet_weight_gr": 230
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-93x74r-285",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.356,
+     "muzzle_velocity": 2329,
+     "bullet_weight_gr": 285
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-93x62-325",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.383,
+     "muzzle_velocity": 2198,
+     "bullet_weight_gr": 325
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-93x62-285",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.356,
+     "muzzle_velocity": 2362,
+     "bullet_weight_gr": 285
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-93x62-232",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.267,
+     "muzzle_velocity": 2625,
+     "bullet_weight_gr": 232
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-93x57-232",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.267,
+     "muzzle_velocity": 2362,
+     "bullet_weight_gr": 232
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-8x57js-196",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.331,
+     "muzzle_velocity": 2526,
+     "bullet_weight_gr": 196
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-8x57jrs-196",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.331,
+     "muzzle_velocity": 2395,
+     "bullet_weight_gr": 196
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "catalogue: norma-oryx-7x64-170",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.324,
+     "muzzle_velocity": 2756,
+     "bullet_weight_gr": 170
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "G1 calm",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 0,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G1 full value",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "G1 quartering",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 15,
+     "wind_angle": 45
+    }
+   }
+  },
+  {
+   "name": "G1 headwind",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 20,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G1 tailwind",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 180
+    }
+   }
+  },
+  {
+   "name": "G1 from the left",
+   "request": {
+    "load": {
+     "drag_function": "G1",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 12,
+     "wind_angle": 270
+    }
+   }
+  },
+  {
+   "name": "G2 calm",
+   "request": {
+    "load": {
+     "drag_function": "G2",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 0,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G2 full value",
+   "request": {
+    "load": {
+     "drag_function": "G2",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "G2 quartering",
+   "request": {
+    "load": {
+     "drag_function": "G2",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 15,
+     "wind_angle": 45
+    }
+   }
+  },
+  {
+   "name": "G2 headwind",
+   "request": {
+    "load": {
+     "drag_function": "G2",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 20,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G2 tailwind",
+   "request": {
+    "load": {
+     "drag_function": "G2",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 180
+    }
+   }
+  },
+  {
+   "name": "G2 from the left",
+   "request": {
+    "load": {
+     "drag_function": "G2",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 12,
+     "wind_angle": 270
+    }
+   }
+  },
+  {
+   "name": "G3 calm",
+   "request": {
+    "load": {
+     "drag_function": "G3",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 0,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G3 full value",
+   "request": {
+    "load": {
+     "drag_function": "G3",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "G3 quartering",
+   "request": {
+    "load": {
+     "drag_function": "G3",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 15,
+     "wind_angle": 45
+    }
+   }
+  },
+  {
+   "name": "G3 headwind",
+   "request": {
+    "load": {
+     "drag_function": "G3",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 20,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G3 tailwind",
+   "request": {
+    "load": {
+     "drag_function": "G3",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 180
+    }
+   }
+  },
+  {
+   "name": "G3 from the left",
+   "request": {
+    "load": {
+     "drag_function": "G3",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 12,
+     "wind_angle": 270
+    }
+   }
+  },
+  {
+   "name": "G5 calm",
+   "request": {
+    "load": {
+     "drag_function": "G5",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 0,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G5 full value",
+   "request": {
+    "load": {
+     "drag_function": "G5",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "G5 quartering",
+   "request": {
+    "load": {
+     "drag_function": "G5",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 15,
+     "wind_angle": 45
+    }
+   }
+  },
+  {
+   "name": "G5 headwind",
+   "request": {
+    "load": {
+     "drag_function": "G5",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 20,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G5 tailwind",
+   "request": {
+    "load": {
+     "drag_function": "G5",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 180
+    }
+   }
+  },
+  {
+   "name": "G5 from the left",
+   "request": {
+    "load": {
+     "drag_function": "G5",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 12,
+     "wind_angle": 270
+    }
+   }
+  },
+  {
+   "name": "G6 calm",
+   "request": {
+    "load": {
+     "drag_function": "G6",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 0,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G6 full value",
+   "request": {
+    "load": {
+     "drag_function": "G6",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "G6 quartering",
+   "request": {
+    "load": {
+     "drag_function": "G6",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 15,
+     "wind_angle": 45
+    }
+   }
+  },
+  {
+   "name": "G6 headwind",
+   "request": {
+    "load": {
+     "drag_function": "G6",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 20,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G6 tailwind",
+   "request": {
+    "load": {
+     "drag_function": "G6",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 180
+    }
+   }
+  },
+  {
+   "name": "G6 from the left",
+   "request": {
+    "load": {
+     "drag_function": "G6",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 12,
+     "wind_angle": 270
+    }
+   }
+  },
+  {
+   "name": "G7 calm",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 0,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G7 full value",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "G7 quartering",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 15,
+     "wind_angle": 45
+    }
+   }
+  },
+  {
+   "name": "G7 headwind",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 20,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G7 tailwind",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 180
+    }
+   }
+  },
+  {
+   "name": "G7 from the left",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 12,
+     "wind_angle": 270
+    }
+   }
+  },
+  {
+   "name": "G8 calm",
+   "request": {
+    "load": {
+     "drag_function": "G8",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 0,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G8 full value",
+   "request": {
+    "load": {
+     "drag_function": "G8",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "G8 quartering",
+   "request": {
+    "load": {
+     "drag_function": "G8",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 15,
+     "wind_angle": 45
+    }
+   }
+  },
+  {
+   "name": "G8 headwind",
+   "request": {
+    "load": {
+     "drag_function": "G8",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 20,
+     "wind_angle": 0
+    }
+   }
+  },
+  {
+   "name": "G8 tailwind",
+   "request": {
+    "load": {
+     "drag_function": "G8",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 180
+    }
+   }
+  },
+  {
+   "name": "G8 from the left",
+   "request": {
+    "load": {
+     "drag_function": "G8",
+     "ballistic_coefficient": 0.45,
+     "muzzle_velocity": 2800,
+     "bullet_weight_gr": 165
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 12,
+     "wind_angle": 270
+    }
+   }
+  },
+  {
+   "name": "shooting angle -45",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": -45,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "shooting angle -15",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": -15,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "shooting angle 15",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 15,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "shooting angle 45",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 45,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "shooting angle 80",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 80,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "atmosphere high and cold",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 9000,
+     "pressure": 21.5,
+     "temperature": -10,
+     "relative_humidity": 0.1
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "atmosphere hot and humid",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 30.2,
+     "temperature": 105,
+     "relative_humidity": 1.0
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "atmosphere low pressure",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 2000,
+     "pressure": 25.0,
+     "temperature": 40,
+     "relative_humidity": 0.5
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "zero at 50 yd",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 50,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "zero at 200 yd",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 200,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "zero at 300 yd",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 300,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "slow bullet 10 ft/s",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 10,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "slow bullet 50 ft/s",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 50,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "slow bullet 150 ft/s",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 150,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "formerly hung the solver (1 ft/s)",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 1,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "BC near zero",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 1e-300,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: bc zero",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: muzzle velocity zero",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 0,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: weight huge",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 1000000000.0
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: sight height absurd",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 500,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: zero range zero",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 0,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: pressure zero",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 0,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: temperature absurd",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 999,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: humidity over 1",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 1.5
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: altitude absurd",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 99999,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: angle 90",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 90,
+     "wind_speed": 10,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "invalid: wind negative",
+   "request": {
+    "load": {
+     "drag_function": "G7",
+     "ballistic_coefficient": 0.25,
+     "muzzle_velocity": 2700,
+     "bullet_weight_gr": 168
+    },
+    "rifle": {
+     "sight_height": 1.7,
+     "zero_range": 100,
+     "zero_y_intercept": 0
+    },
+    "atmosphere": {
+     "altitude": 0,
+     "pressure": 29.53,
+     "temperature": 59,
+     "relative_humidity": 0.78
+    },
+    "shot": {
+     "shooting_angle": 0,
+     "wind_speed": -1,
+     "wind_angle": 90
+    }
+   }
+  },
+  {
+   "name": "malformed: empty",
+   "raw": ""
+  },
+  {
+   "name": "malformed: truncated",
+   "raw": "{\"load\":"
+  },
+  {
+   "name": "malformed: not an object",
+   "raw": "[1,2,3]"
+  },
+  {
+   "name": "malformed: wrong type",
+   "raw": "{\"load\":\"nonsense\"}"
+  },
+  {
+   "name": "malformed: missing rifle",
+   "raw": "{\"load\":{\"drag_function\":\"G1\",\"ballistic_coefficient\":0.5,\"muzzle_velocity\":2600,\"bullet_weight_gr\":150}}"
+  },
+  {
+   "name": "malformed: unknown drag model",
+   "raw": "{\"load\": {\"drag_function\": \"G9\", \"ballistic_coefficient\": 0.25, \"muzzle_velocity\": 2700, \"bullet_weight_gr\": 168}, \"rifle\": {\"sight_height\": 1.7, \"zero_range\": 100, \"zero_y_intercept\": 0}, \"atmosphere\": {\"altitude\": 0, \"pressure\": 29.53, \"temperature\": 59, \"relative_humidity\": 0.78}, \"shot\": {\"shooting_angle\": 0, \"wind_speed\": 10, \"wind_angle\": 90}}"
+  }
+ ]
+}

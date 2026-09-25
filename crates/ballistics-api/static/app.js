@@ -850,6 +850,20 @@ form.addEventListener("submit", async (event) => {
     return;
   }
 
+  // A valid request can still describe a bullet that never reaches the first
+  // yard - a muzzle velocity of a few feet per second, or a coefficient near
+  // zero. That is a real answer, not a failure, but everything downstream
+  // reads a trajectory by range and has nothing to read. Say so, rather than
+  // letting the chart and the vitals panel throw on an empty list.
+  if (!Array.isArray(body) || body.length === 0) {
+    showError(
+      "This load does not reach the first yard. Check the muzzle velocity " +
+        "and ballistic coefficient - one of them is far outside anything a " +
+        "rifle fires."
+    );
+    return;
+  }
+
   lastPoints = body;
   // Recalculating the shot also solves it from wherever the crosshair has
   // been left, so the button does what it says even mid-drag.
@@ -1831,7 +1845,12 @@ async function solveWindBand(payload) {
   };
 
   const [lo, hi] = await Promise.all([at(lowest), at(highest)]);
-  return lo && hi ? { lo, hi, lowest, highest } : null;
+  // `lo && hi` alone is not enough: an empty array is truthy, and a band
+  // end that never reaches a yard would pass here and throw later, when the
+  // spread is read by range. No band is the honest fallback - the shot is
+  // still drawn, just without its wind spread.
+  const reaches = (points) => Array.isArray(points) && points.length > 0;
+  return reaches(lo) && reaches(hi) ? { lo, hi, lowest, highest } : null;
 }
 
 /// Where the bullet lands for one (range, wind) pair, in inches from the
