@@ -1,0 +1,21 @@
+[package]
+name = "ballistics-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "ballistics-core compiled for the browser: the same solver the server runs, behind a WebAssembly boundary"
+
+# `cdylib` only - the .wasm the browser loads. Adding `rlib` would let other
+# crates call this natively, but measured it grows the shipped module from
+# 37 KB to 52 KB gzipped: symbols kept public for downstream crates cannot
+# be stripped by link-time optimisation. Nothing needs it. The parity check
+# gets its native answers from a test inside this crate, which calls the
+# exact function the exports wrap - so the comparison is still between one
+# piece of Rust compiled two ways, not between two copies of it.
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ballistics-core = { path = "../ballistics-core" }
+serde_json = "1"

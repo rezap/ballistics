@@ -427,9 +427,42 @@ Phase 2:
       ballistic app will never tell you its cartridge is not enough.
 - [ ] Barrel-length correction and a chronographed-velocity override, so a
       user's own measured figure supersedes the advertised one.
-- [ ] Offline-capable (service worker plus a WASM build of `ballistics-core`,
-      so solving does not need the server), making the app usable with no
-      signal rather than merely fast when there is one.
+- [ ] **Offline-capable** - usable with no signal, rather than merely fast
+      when there is one. It takes two halves and neither is enough alone: a
+      service worker so the page *loads* offline, and a WebAssembly build of
+      the solver so it *works* offline. Steps:
+
+      - [x] **The solver compiled for the browser.** `crates/ballistics-wasm`,
+        37 KB gzipped, no imports. Requests cross as the same JSON the
+        server takes, parsed by the same serde derives, so the page's
+        request object works unchanged; trajectories come back as flat
+        `f64`s read in place. Validation moved into `ballistics-core` first,
+        so the browser and the server share one set of rules and one
+        wording for every error.
+
+        CI checks the compiled module against native on 103 fixtures - the
+        whole catalogue, every drag model under six winds, steep angles,
+        extreme air, and every validation rule. Not bit-identical, and on
+        purpose: the two targets' maths libraries may round a final bit
+        differently, and did in 0.7% of values, the worst by 1.4e-14 inches
+        of drop. None of the 391,312 figures the page would display changed.
+        The tolerance was set from that measurement and still catches a
+        value off by one part in a billion.
+
+        Getting it browser-ready also found a real bug: a muzzle velocity
+        of 5 ft/s or less passed validation and looped the solver forever.
+        On the server each such request leaked a spinning thread; in a
+        browser it would have frozen the tab. Fixed in the solver, with a
+        hard step ceiling as a backstop.
+      - [ ] **Swap the page's three solve calls** onto the module, keeping
+        the server as the fallback if the module fails to load or traps.
+      - [ ] **Decide static site or server.** Once solving is local, the
+        server only serves files and two JSON views that could be built
+        ahead of time - which would move catalogue validation from deploy
+        time into CI.
+      - [ ] **Service worker and web app manifest**, with a versioned cache
+        swapped atomically, so an update never mixes a new page with an old
+        module. `abi_version` exists for exactly that check.
 
 ## Non-goals (for now)
 

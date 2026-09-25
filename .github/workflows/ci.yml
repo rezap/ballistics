@@ -23,3 +23,50 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
+
+  # The browser build of the solver. Checked separately from the workspace
+  # tests because the question is different: not "is the Rust correct" but
+  # "does the Rust still give the same answers once compiled for wasm32".
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build the module
+        run: cargo build -p ballistics-wasm --target wasm32-unknown-unknown --profile wasm
+
+      # The module is downloaded on whatever signal a phone has in the field,
+      # so growth should be a decision rather than something that happens.
+      # It is 37 KB gzipped today. The budget leaves room to grow, but not
+      # enough to hide a regression like re-adding the `rlib` crate type,
+      # which measured at 52 KB.
+      - name: Size budget
+        run: |
+          module=target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm
+          size=$(gzip -9c "$module" | wc -c)
+          budget=49152
+          echo "ballistics_wasm.wasm: $(stat -c%s "$module") bytes, $size gzipped (budget $budget)"
+          if [ "$size" -gt "$budget" ]; then
+            echo "::error::the wasm module is $size bytes gzipped, over the $budget byte budget"
+            exit 1
+          fi
+
+      # Native answers first, from the exported functions compiled for the
+      # runner - then the same inputs through the compiled module.
+      - name: Write the native golden file
+        run: >
+          BALLISTICS_PARITY_GOLDEN=$PWD/target/parity-golden.json
+          cargo test -p ballistics-wasm -- --ignored write_parity_golden
+
+      - name: Parity - compiled module against native
+        run: >
+          node crates/ballistics-wasm/tests/parity/parity.mjs
+          target/parity-golden.json
+          target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm

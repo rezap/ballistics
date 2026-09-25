@@ -1,9 +1,35 @@
 [workspace]
 resolver = "2"
-members = ["crates/ballistics-core", "crates/ballistics-cli", "crates/ballistics-api"]
+members = [
+    "crates/ballistics-core",
+    "crates/ballistics-cli",
+    "crates/ballistics-api",
+    "crates/ballistics-wasm",
+]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 repository = "https://github.com/rezap/ballistics"
+
+# The browser build of the solver:
+#
+#   cargo build -p ballistics-wasm --target wasm32-unknown-unknown --profile wasm
+#
+# A profile of its own rather than settings on `release`, because
+# `panic = "abort"` would be wrong for the server: its `spawn_blocking`
+# relies on unwinding to turn a panicking solve into a 500 instead of a dead
+# process. In the browser there is nothing to unwind to either way.
+#
+# `opt-level = "z"` optimises for size, which is what a download over a weak
+# signal pays for. Measured, it costs nothing in speed here - the
+# integrator's arithmetic dominates, and a solve takes 1.23 ms at "z" and
+# 1.24 ms at 3.
+[profile.wasm]
+inherits = "release"
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
