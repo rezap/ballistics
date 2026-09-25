@@ -73,8 +73,14 @@ pub fn zero_angle(
 
         let mut x = 0.0_f64;
         let mut y = -sight_height / 12.0;
+        let mut steps: u32 = 0;
 
-        while x <= zero_range * 3.0 {
+        // Same backstop as `trajectory::solve`: bounded no matter the input.
+        // The outer loop needs none - each pass either halves `da` or climbs
+        // towards the 45 degree give-up - but this one only ends if `x`
+        // advances, and nothing else guarantees that it does.
+        while x <= zero_range * 3.0 && steps < crate::trajectory::MAX_STEPS {
+            steps += 1;
             let vy1 = vy;
             let vx1 = vx;
             let v = (vx.powi(2) + vy.powi(2)).sqrt();

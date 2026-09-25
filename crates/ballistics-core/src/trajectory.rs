@@ -17,6 +17,22 @@ use crate::windage;
 /// the integrator works in feet per second.
 const MPH_TO_FPS: f64 = 5280.0 / 3600.0;
 
+/// A hard ceiling on integration steps, so that no input can keep [`solve`]
+/// running indefinitely.
+///
+/// The loop has real exit conditions and this is not one of them; it is the
+/// backstop for failure modes nobody has thought of yet. It matters because
+/// the solver now runs in a browser tab, where there is no request timeout
+/// to rescue a runaway loop - and on the server the timeout was never a real
+/// rescue either, since it abandons the blocking thread rather than stopping
+/// it.
+///
+/// Set far above anything a real shot needs. Measured against a sweep of
+/// 11,200 normal shots - every drag model, 50 to 3500 ft/s, 45 degrees
+/// downhill to 88 uphill - a ceiling of 10,000 already changed none of
+/// them, so this leaves a hundredfold margin.
+pub(crate) const MAX_STEPS: u32 = 1_000_000;
+
 /// One sampled range along a computed trajectory (one row per yard).
 #[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct TrajectoryPoint {
@@ -119,6 +135,7 @@ pub fn solve(
     let mut x = 0.0_f64;
     let mut t = 0.0_f64;
     let mut n: u32 = 0;
+    let mut steps: u32 = 0;
 
     let mut points = Vec::new();
 
@@ -163,7 +180,20 @@ pub fn solve(
         x += dt * (vx + vx1) / 2.0;
         y += dt * (vy + vy1) / 2.0;
 
-        if vy.abs() > (3.0 * vx).abs() || n >= BALLISTICS_COMPUTATION_MAX_YARDS {
+        // A bullet with no forward velocity left will never reach another
+        // yard, so there is nothing more to integrate. Every normal shot
+        // leaves by the steepness test first; this one catches the shot that
+        // never really left - a muzzle velocity of a few feet per second,
+        // which `zero_angle` answers with a near-vertical launch. Rotated
+        // gravity then drives that bullet backwards, `x` never reaches the
+        // next yard, `vx` outgrows `vy`, and without this the loop never
+        // ended: every value stays finite, so nothing else trips.
+        steps += 1;
+        if vy.abs() > (3.0 * vx).abs()
+            || n >= BALLISTICS_COMPUTATION_MAX_YARDS
+            || vx <= 0.0
+            || steps >= MAX_STEPS
+        {
             break;
         }
 
@@ -350,6 +380,74 @@ mod tests {
                 point.yards
             );
         }
+    }
+
+    /// Runs `f` on its own thread and fails if it has not finished within
+    /// `limit`. A plain call cannot test for a hang: a regression would not
+    /// fail, it would stall the whole test run with no message.
+    fn finishes_within<T: Send + 'static>(
+        limit: std::time::Duration,
+        f: impl FnOnce() -> T + Send + 'static,
+    ) -> T {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let _ = tx.send(f());
+        });
+        rx.recv_timeout(limit)
+            .unwrap_or_else(|_| panic!("did not finish within {limit:?} - the solver looped"))
+    }
+
+    fn crawling_request(muzzle_velocity: f64) -> crate::profile::TrajectoryRequest {
+        use crate::profile::{Atmosphere, Load, Rifle, Shot, TrajectoryRequest};
+        TrajectoryRequest {
+            load: Load {
+                drag_function: DragFunction::G1,
+                ballistic_coefficient: 0.5,
+                muzzle_velocity,
+                bullet_weight_gr: 150.0,
+            },
+            rifle: Rifle {
+                sight_height: 1.7,
+                zero_range: 100.0,
+                zero_y_intercept: 0.0,
+            },
+            atmosphere: Atmosphere::standard(),
+            shot: Shot::default(),
+        }
+    }
+
+    #[test]
+    fn a_crawling_bullet_does_not_hang_the_solver() {
+        // These pass validation - it only asks for a velocity above zero -
+        // and every one of them used to loop forever. `zero_angle` answers a
+        // bullet this slow with a near-vertical launch, rotated gravity then
+        // drives it backwards, and nothing in the loop's exits ever fired.
+        for muzzle_velocity in [0.001, 0.1, 1.0, 5.0] {
+            let request = crawling_request(muzzle_velocity);
+            assert!(
+                request.validate().is_ok(),
+                "precondition: {muzzle_velocity} ft/s must pass validation for this to test anything"
+            );
+            let points =
+                finishes_within(std::time::Duration::from_secs(10), move || request.solve());
+            // It never reaches a single yard, so there is nothing to report.
+            assert!(
+                points.is_empty(),
+                "{muzzle_velocity} ft/s should not reach a yard, got {} points",
+                points.len()
+            );
+        }
+    }
+
+    #[test]
+    fn the_hang_fix_changes_nothing_for_a_normal_shot() {
+        // The guard only fires once forward velocity is gone, which a real
+        // shot never reaches inside the computed range. The regression sweep
+        // checks this across 11,200 shots; this pins one familiar load so a
+        // change here is caught without it.
+        let points = crawling_request(2600.0).solve();
+        assert_eq!(points.len(), 600, "should still run the full range");
+        assert!(points.iter().all(|p| p.path_inches.is_finite()));
     }
 
     #[test]
