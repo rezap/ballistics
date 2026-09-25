@@ -454,8 +454,29 @@ Phase 2:
         On the server each such request leaked a spinning thread; in a
         browser it would have frozen the tab. Fixed in the solver, with a
         hard step ceiling as a backstop.
-      - [ ] **Swap the page's three solve calls** onto the module, keeping
+      - [x] **Swap the page's three solve calls** onto the module, keeping
         the server as the fallback if the module fails to load or traps.
+        `static/solver.js` sits between the page and both engines: the
+        trajectory, the wind band's two extra solves, and the catalogue
+        ranking all try the device first. A refusal (a zero range of 0, say)
+        is an answer and is shown as is; a missing module, a protocol
+        mismatch, a trap or a code only a bug could produce sets the module
+        aside and the server answers instead. The page says under
+        "Trajectory" which one did.
+
+        The page has to read the same whichever answers, so the local
+        ranking thins to ten yards as the server does rather than using its
+        full resolution. Checked in a browser across nine scenarios - holds,
+        both shortlists, a G5 load, a crawling bullet, three refusals -
+        against the page with no module and against `main` before the
+        change: tables, both canvases, the vitals panel and every message
+        identical, and no API call at all once the module has loaded.
+        After loading, with the network cut, it keeps calculating and
+        ranking. The glue itself is tested in CI against the real module
+        and every way the module can fail.
+
+        What this does not do yet: *load* with no signal. Opening the page
+        still needs the server; the service worker below is that half.
       - [ ] **Decide static site or server.** Once solving is local, the
         server only serves files and two JSON views that could be built
         ahead of time - which would move catalogue validation from deploy

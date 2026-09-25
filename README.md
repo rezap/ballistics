@@ -54,9 +54,13 @@ change.
   with no signal; they can be exported as a JSON file or shared as a
   link.
 - [`crates/ballistics-wasm`](./crates/ballistics-wasm) — the same engine
-  compiled to WebAssembly, so the browser can solve without the server:
-  the first half of working with no signal. Not yet used by the page. Its
-  calling protocol is documented at the top of `src/lib.rs`.
+  compiled to WebAssembly, so the browser solves on the device rather than
+  asking the server: once the page is open, it keeps calculating with no
+  signal. The page falls back to the server if the module is missing or
+  misbehaves (`crates/ballistics-api/static/solver.js`), and says under the
+  Trajectory heading which one answered. Loading the page itself with no
+  signal still needs the server - that is the next step on the roadmap.
+  The calling protocol is documented at the top of `src/lib.rs`.
 
 ## Building and testing
 
@@ -77,11 +81,23 @@ BALLISTICS_PARITY_GOLDEN=$PWD/target/parity-golden.json \
 node crates/ballistics-wasm/tests/parity/parity.mjs \
   target/parity-golden.json \
   target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm
+
+# The page's glue (static/solver.js) against the same module and answers
+BALLISTICS_PARITY_GOLDEN=target/parity-golden.json \
+BALLISTICS_WASM=target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm \
+  node --test crates/ballistics-wasm/tests/glue/solver.test.mjs
 ```
 
 ## Running the web app
 
 ```sh
+# The in-browser solver. Optional: without it the page solves on the
+# server instead, and says so. Rebuild it after changing the engine - the
+# page will otherwise run the old code.
+cargo build -p ballistics-wasm --target wasm32-unknown-unknown --profile wasm
+mkdir -p crates/ballistics-api/static/wasm
+cp target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm crates/ballistics-api/static/wasm/
+
 cd crates/ballistics-api
 cargo run
 ```
@@ -123,8 +139,8 @@ nor `PORT` set, it defaults to `0.0.0.0:3000`.
 ## Deploying
 
 The repo includes a `Dockerfile` that builds `ballistics-api` (multi-stage:
-compiles the release binary, then copies it plus its `static/` assets into
-a slim runtime image), plus config for two PaaS providers that both build
+compiles the release binary and the in-browser solver, then copies them
+plus the `static/` assets into a slim runtime image), plus config for two PaaS providers that both build
 that Dockerfile directly from the GitHub repo — pick whichever you already
 have an account on.
 
@@ -167,8 +183,9 @@ docker run --rm -p 3000:3000 ballistics-api
 ### Windows
 
 [`scripts/run.ps1`](./scripts/run.ps1) runs `cargo test --workspace` and,
-only if every test passes, starts `ballistics-api` on
-<http://localhost:3000>:
+only if every test passes, builds the in-browser solver and starts
+`ballistics-api` on <http://localhost:3000>. If the solver cannot be built
+it warns and carries on, and the page solves on the server:
 
 ```powershell
 .\scripts\run.ps1

@@ -250,6 +250,7 @@
 
     <section id="results" hidden>
       <h2>Trajectory</h2>
+      <p id="engine-note" class="hint" hidden></p>
       <div class="table-controls">
         <label>
           Row step (yd)
@@ -333,6 +334,9 @@
     <p id="error" class="error" hidden></p>
   </main>
 
+  <!-- solver.js first: it starts fetching the solver module straight away,
+       and app.js reads it as `ballisticsSolver`. -->
+  <script src="solver.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
