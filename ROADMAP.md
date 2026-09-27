@@ -237,6 +237,9 @@ Phase 2:
 - [ ] Quartering-angle silhouettes (not just broadside) — several fun
       facts already flag that shot placement differs a lot by angle
       (e.g. wild hog's shoulder "shield" mostly matters broadside).
+      **Plan before building.** A quartering animal narrows the vital zone
+      and moves the entry point, and the exit matters as much as the
+      entry; getting the geometry wrong would teach exactly the wrong shot.
 - [x] **Mobile layout.** The app asks for a lot - load, rifle, shot,
       atmosphere, target, calibration - which is one screen side by side on
       a desktop but ran to about three screens stacked into a phone's
@@ -425,8 +428,28 @@ Phase 2:
 
       This is what makes the catalogue worth having: a manufacturer's own
       ballistic app will never tell you its cartridge is not enough.
-- [ ] Barrel-length correction and a chronographed-velocity override, so a
-      user's own measured figure supersedes the advertised one.
+- [ ] **Metric units** - metres, m/s, joules, centimetres, hPa, °C, and
+      grams alongside grains. Most hunters outside the US think in these,
+      and the legal minimums below are written in them. The engine stays
+      imperial; conversion happens only where numbers enter and leave the
+      page, from exact definitions, with tests that every figure shown in
+      metric is the imperial one converted - not a second calculation that
+      could drift.
+- [ ] **Legal minimums by country** - e.g. the Swedish energy classes at
+      100 m - shown beside the ethical judgement. Each figure sourced from
+      the regulation itself, since a wrong one here is worse than none.
+- [ ] **Lead for a moving animal** - how far ahead to hold at a given
+      speed and range, drawn on the animal. Driven hunts are where most
+      wounding happens.
+- [ ] **Printable range card** - drop and wind for your rifle, load and
+      zero on one page. Paper needs no signal and no battery.
+- [ ] Barrel-length correction - to-do, not planned. Most hunters already
+      allow for it, and it is only an estimate: the 20-30 ft/s per inch
+      rule of thumb is swamped by how tight a particular barrel is, which
+      also means a rifle may not match the factory's test barrel even at
+      the same length. Where it would still help is the catalogue
+      ranking, which uses advertised velocities for every load. (A
+      chronographed velocity needs no feature: type it into the form.)
 - [ ] **Offline-capable** - usable with no signal, rather than merely fast
       when there is one. It takes two halves and neither is enough alone: a
       service worker so the page *loads* offline, and a WebAssembly build of
@@ -483,13 +506,25 @@ Phase 2:
 
         What this does not do yet: *load* with no signal. Opening the page
         still needs the server; the service worker below is that half.
+
+      **Parked (2026-09-27)** - the two steps below are on hold while new
+      features take priority. Where that leaves things: the page keeps
+      working with no signal *once it is open*, confirmed in the field. It
+      does not survive being opened, reloaded, or closed by the phone in
+      the background while there is no signal - open it before leaving
+      signal and keep the tab. Nothing already done depends on the parked
+      steps, and they do not depend on each other: the service worker
+      works the same on the current server or a static host.
       - [ ] **Decide static site or server.** Once solving is local, the
         server only serves files and two JSON views that could be built
         ahead of time - which would move catalogue validation from deploy
         time into CI.
       - [ ] **Service worker and web app manifest**, with a versioned cache
         swapped atomically, so an update never mixes a new page with an old
-        module. `abi_version` exists for exactly that check.
+        module. `abi_version` exists for exactly that check. Serve the saved
+        copy first and look for an update in the background, so the page
+        opens instantly and refreshes itself whenever there is signal. The
+        manifest makes it installable to the home screen.
 
 ## Non-goals (for now)
 
