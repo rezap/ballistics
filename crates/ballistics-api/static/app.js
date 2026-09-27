@@ -1597,46 +1597,10 @@ function roundStep(raw) {
   return [1, 2, 5, 10].map((m) => m * power).find((step) => step >= raw);
 }
 
-/// Finds the point whose yardage is closest to `target` (the trajectory is
-/// one point per whole yard, but the shot-range input isn't constrained to
-/// only values that exist, e.g. past the computed max range).
-function nearestPoint(points, target) {
-  return points.reduce((closest, point) =>
-    Math.abs(point.yards - target) < Math.abs(closest.yards - target) ? point : closest
-  );
-}
-
-/// The trajectory at `yards`.
-///
-/// Imperial reads the nearest solved yard, exactly as it always has. A
-/// metric range almost never lands on a whole yard - 200 m is 218.72 yd -
-/// so metric interpolates between the solved points either side instead,
-/// and the figures shown for 200 m are the ones for 200 m, not for 219 yd.
-/// Past either end it holds the end point, as the nearest-yard lookup did.
+/// The trajectory at a range that need not be a solved point - see
+/// `pointAt` in solver.js, shared with the catalogue ranking.
 function pointAt(points, yards) {
-  if (imperial()) return nearestPoint(points, yards);
-
-  const first = points[0];
-  const last = points[points.length - 1];
-  if (yards <= first.yards) return first;
-  if (yards >= last.yards) return last;
-
-  let lo = 0;
-  let hi = points.length - 1;
-  while (hi - lo > 1) {
-    const mid = (lo + hi) >> 1;
-    if (points[mid].yards <= yards) lo = mid;
-    else hi = mid;
-  }
-  const a = points[lo];
-  const b = points[hi];
-  if (a.yards === yards) return a;
-
-  const t = (yards - a.yards) / (b.yards - a.yards);
-  const point = {};
-  for (const key of Object.keys(a)) point[key] = a[key] + (b[key] - a[key]) * t;
-  point.yards = yards;
-  return point;
+  return ballisticsSolver.pointAt(points, yards);
 }
 
 async function renderAnimalPanel(points) {
