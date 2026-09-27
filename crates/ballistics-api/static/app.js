@@ -159,9 +159,11 @@ function typedGroupMoa() {
 
 /// Group diameter in inches at this range. One MOA subtends 1.047 inches
 /// per 100 yards, near enough that the shorthand "one inch at a hundred"
-/// is what most people quote.
+/// is what most people quote - but the exact figure is used, the same true
+/// MOA the solver works in, so a group given in mrad converts without a
+/// rounding of its own.
 function groupDiameterInches(yards) {
-  return groupMoa() * 1.047 * (yards / 100);
+  return ballisticsUnits.moaToInches(groupMoa(), yards);
 }
 
 // Opening index.html directly as a file (e.g. double-clicking it) gives the
@@ -1062,7 +1064,7 @@ function onGroupMoaChanged() {
     groupWarning.hidden = false;
     groupWarning.innerHTML = `
       ${formatInches(typed)} MOA is poor precision for a modern hunting
-      rifle &mdash; about ${formatInches(typed * 1.047 * 3)} in at 300 yd.
+      rifle &mdash; about ${formatInches(ballisticsUnits.moaToInches(typed, 300))} in at 300 yd.
       <button type="button" class="link-button" id="group-confirm">Use ${formatInches(typed)} MOA anyway</button>`;
     groupWarning.querySelector("#group-confirm").addEventListener("click", () => {
       confirmedGroupMoa = typed;
@@ -2279,8 +2281,8 @@ shortlistBody.addEventListener("keydown", (event) => {
 /// Describes an aim offset the way a hunter would say it out loud, in both
 /// inches on the animal and the MOA they would actually dial or hold.
 function describeHold(offset, yards) {
-  const perMoa = 1.047 * (yards / 100);
-  const inMoa = (inches) => (perMoa > 0 ? ` (${formatInches(Math.abs(inches) / perMoa)} MOA)` : "");
+  const inMoa = (inches) =>
+    yards > 0 ? ` (${formatInches(Math.abs(ballisticsUnits.inchesToMoa(inches, yards)))} MOA)` : "";
 
   const parts = [];
   if (Math.abs(offset.y) >= 0.1) {

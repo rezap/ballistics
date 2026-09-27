@@ -357,8 +357,10 @@
     </p>
   </footer>
 
-  <!-- solver.js first: it starts fetching the solver module straight away,
-       and app.js reads it as `ballisticsSolver`. -->
+  <!-- units.js and solver.js before app.js, which reads them as
+       `ballisticsUnits` and `ballisticsSolver`. solver.js starts fetching
+       the solver module straight away. -->
+  <script src="units.js"></script>
   <script src="solver.js"></script>
   <script src="app.js"></script>
 </body>
