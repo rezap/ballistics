@@ -334,6 +334,29 @@
     <p id="error" class="error" hidden></p>
   </main>
 
+  <!--
+    What the page can do, for anyone who arrived at the form without being
+    told - most of it only shows up after a calculation, or not at all
+    until you go looking. No counts ("11 species"): they would go stale the
+    first time the data grows. Links open a new tab so the shot you have
+    set up is still there when you come back.
+  -->
+  <footer class="site-footer">
+    <ul class="features" aria-label="What this does">
+      <li>Drop, drift, velocity and energy from a point-mass solver, G1&ndash;G8</li>
+      <li>The impact drawn on the animal, to scale, against its vital zone</li>
+      <li>Range and wind uncertainty shown as the area the bullet could land in</li>
+      <li>Factory loads ranked by how far each still kills cleanly</li>
+      <li>Keeps calculating with no signal once the page is open</li>
+    </ul>
+    <p>
+      Questions, a load to add, or something wrong?
+      <a href="https://github.com/rezap/ballistics/issues/new" target="_blank" rel="noopener">Open an issue on GitHub</a>
+      &middot;
+      <a href="https://github.com/rezap/ballistics" target="_blank" rel="noopener">Source</a> (MIT)
+    </p>
+  </footer>
+
   <!-- solver.js first: it starts fetching the solver module straight away,
        and app.js reads it as `ballisticsSolver`. -->
   <script src="solver.js"></script>
