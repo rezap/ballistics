@@ -200,6 +200,7 @@ async function loadAnimals() {
   }
 
   syncScaleControls();
+  preloadArtwork();
 
   if (pendingSharedPreset) {
     pendingSharedPreset = false;
@@ -439,11 +440,36 @@ function loadImage(src) {
   const promise = new Promise((resolve) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = () => resolve(null);
+    img.onerror = () => {
+      // Forget the failure, so the next attempt asks again. It is usually
+      // a lost signal, and the drawing should come back with it rather
+      // than stay missing until the page is reloaded.
+      imageCache.delete(src);
+      resolve(null);
+    };
     img.src = src;
   });
   imageCache.set(src, promise);
   return promise;
+}
+
+/// Fetches every species' artwork ahead of need, so switching animal
+/// works with no signal. The page otherwise only asks for a drawing when
+/// the animal is picked, which in the field is exactly when there is no
+/// signal to ask with. Held decoded in `imageCache`, so it does not depend
+/// on the browser's HTTP cache keeping them.
+///
+/// About 480 KB for the lot. Started once the page has finished loading,
+/// so it never competes with the page itself, the solver module, or the
+/// drawing actually on screen.
+function preloadArtwork() {
+  const start = () => {
+    for (const animal of animalsList) {
+      if (animal.image) loadImage(animal.image);
+    }
+  };
+  if (document.readyState === "complete") start();
+  else window.addEventListener("load", start, { once: true });
 }
 
 // Every column the table can show. `visible` is only the default - the

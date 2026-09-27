@@ -475,6 +475,12 @@ Phase 2:
         ranking. The glue itself is tested in CI against the real module
         and every way the module can fail.
 
+        Tried in the field in airplane mode, it calculated but switching
+        animal lost the drawing: artwork was only fetched when an animal
+        was picked, and a failed fetch was remembered. Now every drawing
+        (about 480 KB) is fetched in the background once the page has
+        loaded, and a failure is retried the next time.
+
         What this does not do yet: *load* with no signal. Opening the page
         still needs the server; the service worker below is that half.
       - [ ] **Decide static site or server.** Once solving is local, the
