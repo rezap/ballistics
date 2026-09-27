@@ -1058,7 +1058,7 @@ form.addEventListener("submit", async (event) => {
   // letting the chart and the vitals panel throw on an empty list.
   if (!Array.isArray(body) || body.length === 0) {
     showError(
-      "This load does not reach the first yard. Check the muzzle velocity " +
+      `This load does not reach the first yard${imperial() ? "" : " (0.9 m)"}. Check the muzzle velocity ` +
         "and ballistic coefficient - one of them is far outside anything a " +
         "rifle fires."
     );
