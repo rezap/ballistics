@@ -10,6 +10,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
+import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 
@@ -228,6 +229,47 @@ test("trimmed", () => {
   assert.equal(trimmed(0.5, 0), "1");
   assert.equal(trimmed(15.000000000000002, 1), "15");
   assert.equal(trimmed(NaN, 1), "");
+});
+
+test("the solver's refusals are translated, and every key is still the solver's wording", () => {
+  const source = readFileSync(path.join(here, "../../../ballistics-core/src/validation.rs"), "utf8");
+  const keys = Object.keys(units.METRIC_MESSAGES);
+  assert.ok(keys.length >= 7);
+  for (const key of keys) {
+    assert.ok(source.includes(`"${key}"`), `no longer in validation.rs: ${key}`);
+  }
+  // Every message in validation.rs that names an imperial unit has a
+  // translation, so a new rule cannot arrive on a metric page in yards.
+  const imperialWords = /\b(ft\/s|inches|yards|in-Hg|Fahrenheit|feet|mph)\b/;
+  const messages = [...source.matchAll(/"([a-z_]+\.[a-z_]+ must [^"]+)"/g)].map((m) => m[1]);
+  // The pattern has to find them for this to check anything.
+  assert.ok(new Set(messages).size >= 12, `only ${new Set(messages).size} messages found`);
+  for (const message of new Set(messages)) {
+    if (imperialWords.test(message)) {
+      assert.ok(message in units.METRIC_MESSAGES, `untranslated: ${message}`);
+    }
+  }
+  // The translated bounds are the imperial ones, converted.
+  const M = units.METRIC_MESSAGES;
+  const number = (text) => Number(text.match(/and (-?[\d.]+)/)?.[1] ?? text.match(/under ([\d.]+)/)[1]);
+  close(number(M["load.muzzle_velocity must be between 0 and 10000 ft/s"]), toDisplay("velocity", 10000, METRIC));
+  close(number(M["rifle.zero_range must be between 0 and 1000 yards"]), toDisplay("distance", 1000, METRIC));
+  close(number(M["rifle.sight_height must be a plausible number of inches"]), toDisplay("length", 100, METRIC));
+  close(number(M["atmosphere.altitude must be a plausible number of feet"]), toDisplay("altitude", 30000, METRIC));
+  close(number(M["shot.wind_speed must be between 0 and 200 mph"]), toDisplay("windSpeed", 200, METRIC), { rel: 1e-3 });
+  // -100 to 150 °F, exclusive, is -73.3 to 65.6 °C; the message rounds inward.
+  assert.match(M["atmosphere.temperature must be a plausible Fahrenheit value"], /-73 and 65/);
+  assert.ok(toDisplay("temperature", -100, METRIC) < -73 && toDisplay("temperature", 150, METRIC) > 65);
+
+  // Imperial pages, and messages with no unit, pass through untouched.
+  assert.equal(
+    units.translateMessage("rifle.zero_range must be between 0 and 1000 yards", IMPERIAL),
+    "rifle.zero_range must be between 0 and 1000 yards"
+  );
+  assert.equal(
+    units.translateMessage("load.ballistic_coefficient must be a positive, finite number", METRIC),
+    "load.ballistic_coefficient must be a positive, finite number"
+  );
 });
 
 test("the first-visit default follows the browser", () => {

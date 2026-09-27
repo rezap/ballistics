@@ -170,7 +170,39 @@
     return defaultSystem(languages) === "imperial" ? "moa" : "mrad";
   }
 
+  // ---------------------------------------------------------------------
+  // The solver's refusals, which are worded in its own units.
+  //
+  // Keyed on the exact text in ballistics_core::validation; a test reads
+  // that file and fails if a key stops matching, so a reworded rule cannot
+  // quietly fall back to imperial on a metric page. Messages with no unit
+  // in them pass through as they are.
+  // ---------------------------------------------------------------------
+
+  const METRIC_MESSAGES = {
+    "load.muzzle_velocity must be between 0 and 10000 ft/s":
+      "load.muzzle_velocity must be between 0 and 3048 m/s",
+    "rifle.sight_height must be a plausible number of inches":
+      "rifle.sight_height must be a plausible number of centimetres (under 254)",
+    "rifle.zero_range must be between 0 and 1000 yards":
+      "rifle.zero_range must be between 0 and 914.4 metres",
+    "atmosphere.pressure must be a positive number of in-Hg":
+      "atmosphere.pressure must be a positive number of hPa",
+    "atmosphere.temperature must be a plausible Fahrenheit value":
+      "atmosphere.temperature must be between -73 and 65 °C",
+    "atmosphere.altitude must be a plausible number of feet":
+      "atmosphere.altitude must be a plausible number of metres (under 9144)",
+    "shot.wind_speed must be between 0 and 200 mph":
+      "shot.wind_speed must be between 0 and 89.4 m/s",
+  };
+
+  function translateMessage(message, units) {
+    return units.system === "metric" ? METRIC_MESSAGES[message] ?? message : message;
+  }
+
   const api = {
+    translateMessage,
+    METRIC_MESSAGES,
     toDisplay,
     toCanonical,
     unitLabel,
