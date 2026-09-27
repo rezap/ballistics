@@ -483,13 +483,25 @@ Phase 2:
 
         What this does not do yet: *load* with no signal. Opening the page
         still needs the server; the service worker below is that half.
+
+      **Parked (2026-09-27)** - the two steps below are on hold while new
+      features take priority. Where that leaves things: the page keeps
+      working with no signal *once it is open*, confirmed in the field. It
+      does not survive being opened, reloaded, or closed by the phone in
+      the background while there is no signal - open it before leaving
+      signal and keep the tab. Nothing already done depends on the parked
+      steps, and they do not depend on each other: the service worker
+      works the same on the current server or a static host.
       - [ ] **Decide static site or server.** Once solving is local, the
         server only serves files and two JSON views that could be built
         ahead of time - which would move catalogue validation from deploy
         time into CI.
       - [ ] **Service worker and web app manifest**, with a versioned cache
         swapped atomically, so an update never mixes a new page with an old
-        module. `abi_version` exists for exactly that check.
+        module. `abi_version` exists for exactly that check. Serve the saved
+        copy first and look for an update in the background, so the page
+        opens instantly and refreshes itself whenever there is signal. The
+        manifest makes it installable to the home screen.
 
 ## Non-goals (for now)
 
