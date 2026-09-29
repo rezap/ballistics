@@ -7,7 +7,8 @@ use std::time::Duration;
 use std::sync::Arc;
 
 use axum::extract::{Json, State};
-use axum::http::StatusCode;
+use axum::http::header::CACHE_CONTROL;
+use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::Router;
@@ -17,6 +18,7 @@ use ballistics_core::{
 use serde::Serialize;
 use tower_http::compression::CompressionLayer;
 use tower_http::services::ServeDir;
+use tower_http::set_header::SetResponseHeader;
 
 mod ammunition;
 mod species;
@@ -80,7 +82,7 @@ async fn main() {
         .route("/api/ammunition", get(ammunition_handler))
         .route("/api/trajectory", post(solve_trajectory))
         .route("/api/suitability", post(solve_suitability))
-        .fallback_service(ServeDir::new(static_dir))
+        .fallback_service(static_files(&static_dir))
         .with_state(AppState {
             animals,
             ammunition,
@@ -101,6 +103,23 @@ async fn main() {
     axum::serve(listener, app)
         .await
         .expect("server error while serving requests");
+}
+
+/// The browser UI: the page, its scripts, its data and its artwork.
+///
+/// Every response says `no-cache`, which does not mean "do not cache": the
+/// browser keeps its copy but checks it is still current before using it,
+/// and an unchanged file costs a 304 with no body. Without it, a browser
+/// guesses how long a file stays fresh - for hours, going by its age - and
+/// after a deploy can run the new page with the old scripts, which is how
+/// the first metric release reached a browser as a units switch wired to
+/// nothing.
+fn static_files(dir: &str) -> SetResponseHeader<ServeDir, HeaderValue> {
+    SetResponseHeader::overriding(
+        ServeDir::new(dir),
+        CACHE_CONTROL,
+        HeaderValue::from_static("no-cache"),
+    )
 }
 
 /// `ServeDir` fails requests one at a time instead of erroring at startup,
@@ -376,6 +395,49 @@ impl IntoResponse for ApiError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A browser must check every page file is current before reusing it,
+    /// or a deploy reaches it half-applied - see `static_files`.
+    #[tokio::test]
+    async fn static_files_are_checked_before_every_reuse() {
+        use axum::body::Body;
+        use axum::http::Request;
+        use tower::ServiceExt;
+
+        let dir = std::env::temp_dir().join(format!("ballistics-static-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("app.js"), "// page script").unwrap();
+        let dir = dir.to_str().unwrap().to_string();
+
+        for path in ["/app.js", "/missing.js"] {
+            let response = static_files(&dir)
+                .oneshot(Request::get(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(
+                response
+                    .headers()
+                    .get(CACHE_CONTROL)
+                    .map(|v| v.to_str().unwrap()),
+                Some("no-cache"),
+                "{path} ({})",
+                response.status()
+            );
+        }
+
+        // And a file that exists is still served, with what the browser
+        // needs to revalidate it cheaply.
+        let response = static_files(&dir)
+            .oneshot(Request::get("/app.js").body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert!(response
+            .headers()
+            .contains_key(axum::http::header::LAST_MODIFIED));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
     use ballistics_core::{Atmosphere, Load, Rifle, Shot};
 
     fn valid_request() -> TrajectoryRequest {
