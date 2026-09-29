@@ -160,7 +160,10 @@ for (const [input, quantity] of UNIT_FIELDS) {
   // A converted value is rarely a whole number, and a fixed step would
   // make the browser refuse to submit it.
   input.step = "any";
-  if (input.value !== "") writeCanonical(input, Number(input.value));
+  // From the markup's default, not the current value: after a reload a
+  // browser may put back what was on screen, and on a metric page that is
+  // not in the solver's units. Chromium does not, Firefox does.
+  if (input.defaultValue !== "") writeCanonical(input, Number(input.defaultValue));
 }
 
 // A zero and a first shot at a round 100 in either system, rather than

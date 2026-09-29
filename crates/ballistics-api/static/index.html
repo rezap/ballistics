@@ -4,7 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ballistics Trajectory Calculator</title>
-  <link rel="stylesheet" href="styles.css" />
+  <!--
+    The ?v=2 on the stylesheet and the scripts is a one-off. Before the
+    server sent Cache-Control: no-cache, browsers kept these files for hours
+    on a guess, and one holding a copy from then would pair it with this
+    page. A new address cannot be answered from that copy. With no-cache in
+    place the tag never needs changing again - a deploy is picked up on the
+    next load regardless.
+  -->
+  <link rel="stylesheet" href="styles.css?v=2" />
 </head>
 <body>
   <header>
@@ -380,8 +388,8 @@
   <!-- units.js and solver.js before app.js, which reads them as
        `ballisticsUnits` and `ballisticsSolver`. solver.js starts fetching
        the solver module straight away. -->
-  <script src="units.js"></script>
-  <script src="solver.js"></script>
-  <script src="app.js"></script>
+  <script src="units.js?v=2"></script>
+  <script src="solver.js?v=2"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
