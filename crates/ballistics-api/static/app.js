@@ -45,6 +45,156 @@ const shortlistBody = document.querySelector("#shortlist tbody");
 const windScaleSelect = document.getElementById("wind-scale");
 const rangeUncertaintyInput = document.getElementById("range-uncertainty");
 const windAngleUncertaintyInput = document.getElementById("wind-angle-uncertainty");
+const unitSystemSelect = document.getElementById("unit-system");
+const angleUnitSelect = document.getElementById("angle-unit");
+
+// ---------------------------------------------------------------------------
+// Units.
+//
+// Everything the page holds is in the solver's own units - yards, inches,
+// ft/s, mph, inHg, °F, ft·lb and MOA - whatever is on screen. Metric and
+// mrad are a view: units.js converts on the way into an input and on the
+// way out to the screen, and nowhere else. Presets and share links are in
+// the one set of units too, so a load saved on a metric page opens
+// correctly on an imperial one.
+//
+// Each input with a unit keeps its exact value alongside what it shows, so
+// switching back and forth never drifts: a 100 m zero shows as 109.36 yd
+// and comes back as 100 m, not 99.99.
+// ---------------------------------------------------------------------------
+
+const UNITS_STORAGE_KEY = "ballistics.units";
+
+function loadUnitChoice() {
+  const languages = navigator.languages?.length ? navigator.languages : [navigator.language];
+  const fallback = {
+    system: ballisticsUnits.defaultSystem(languages),
+    angle: ballisticsUnits.defaultAngle(languages),
+  };
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(UNITS_STORAGE_KEY) ?? "null");
+    return {
+      system: ballisticsUnits.SYSTEMS.includes(saved?.system) ? saved.system : fallback.system,
+      angle: ballisticsUnits.ANGLE_UNITS.includes(saved?.angle) ? saved.angle : fallback.angle,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function saveUnitChoice() {
+  try {
+    window.localStorage.setItem(UNITS_STORAGE_KEY, JSON.stringify(units));
+  } catch {
+    // Remembered for this visit only, then.
+  }
+}
+
+let units = loadUnitChoice();
+
+const imperial = () => units.system === "imperial";
+
+/// A value in the solver's units, converted to what is shown.
+const shown = (quantity, value) => ballisticsUnits.toDisplay(quantity, value, units);
+
+/// The unit a quantity is shown in, e.g. "yd" or "m".
+const unitOf = (quantity) => ballisticsUnits.unitLabel(quantity, units);
+
+// Every input whose number carries a unit, and which unit it is.
+const UNIT_FIELDS = [
+  [form.elements.muzzle_velocity, "velocity"],
+  [expansionVelocityInput, "velocity"],
+  [form.elements.sight_height, "length"],
+  [form.elements.zero_range, "distance"],
+  [form.elements.wind_speed, "windSpeed"],
+  [form.elements.altitude, "altitude"],
+  [form.elements.pressure, "pressure"],
+  [form.elements.temperature, "temperature"],
+  [shotRangeInput, "distance"],
+  [rangeUncertaintyInput, "distance"],
+  [groupMoaInput, "angle"],
+  [vitalsWidthInput, "length"],
+  [vitalsHeightInput, "length"],
+  [minEnergyInput, "energy"],
+];
+
+/// An input's value in the solver's units.
+///
+/// The exact value it was last given, while it still shows what it was
+/// given; otherwise whatever has been typed, converted. Blank reads as 0,
+/// exactly as `Number("")` did before units existed, so every caller's
+/// handling of an empty box is unchanged.
+function readCanonical(input) {
+  if (input.dataset.canonical !== undefined && input.dataset.shown === input.value) {
+    return Number(input.dataset.canonical);
+  }
+  return ballisticsUnits.toCanonical(input.dataset.quantity, Number(input.value), units);
+}
+
+/// Puts a value, in the solver's units, into an input - shown in the
+/// current units, and kept exactly. Blank or null empties the input.
+function writeCanonical(input, value) {
+  if (value === "" || value == null || !Number.isFinite(Number(value))) {
+    input.value = "";
+    delete input.dataset.canonical;
+    delete input.dataset.shown;
+    return;
+  }
+  const quantity = input.dataset.quantity;
+  const number = Number(value);
+  input.value = ballisticsUnits.trimmed(
+    shown(quantity, number),
+    ballisticsUnits.inputDecimals(quantity, units)
+  );
+  input.dataset.canonical = String(number);
+  input.dataset.shown = input.value;
+}
+
+for (const [input, quantity] of UNIT_FIELDS) {
+  input.dataset.quantity = quantity;
+  // The markup's limits are in the solver's units; they are converted
+  // along with everything else.
+  for (const attr of ["min", "max"]) {
+    if (input.hasAttribute(attr)) input.dataset[`${attr}Canonical`] = input.getAttribute(attr);
+  }
+  // A converted value is rarely a whole number, and a fixed step would
+  // make the browser refuse to submit it.
+  input.step = "any";
+  // From the markup's default, not the current value: after a reload a
+  // browser may put back what was on screen, and on a metric page that is
+  // not in the solver's units. Chromium does not, Firefox does.
+  if (input.defaultValue !== "") writeCanonical(input, Number(input.defaultValue));
+}
+
+// A zero and a first shot at a round 100 in either system, rather than
+// the 91.44 m a converted 100 yd would show. Only the page's own defaults
+// get this - anything the user or a preset sets is converted exactly.
+if (!imperial()) {
+  writeCanonical(form.elements.zero_range, ballisticsUnits.toCanonical("distance", 100, units));
+  writeCanonical(shotRangeInput, ballisticsUnits.toCanonical("distance", 100, units));
+}
+
+/// A distance, for display without its unit. Imperial prints yards as
+/// they are, as it always has; metric rounds to the metre.
+///
+/// `rounded` rounds imperial too, where the page always did. `atMost` is
+/// for a limit - the furthest a load stays ethical - which is rounded down
+/// in metric, never up past what was actually solved.
+function distanceText(yards, { rounded = false, atMost = false } = {}) {
+  if (imperial()) return String(rounded ? Math.round(yards) : yards);
+  const metres = shown("distance", yards);
+  return String(atMost ? Math.floor(metres + 1e-6) : Math.round(metres));
+}
+
+/// A length on the target, to one decimal.
+const lengthText = (inches) => formatInches(shown("length", inches));
+
+/// An angle, to one decimal - a quarter-MOA or tenth-mrad click either way.
+const angleText = (moa) => formatInches(shown("angle", moa));
+
+/// A wind speed from the Beaufort table, which is whole mph.
+const bandSpeedText = (mph) =>
+  imperial() ? String(mph) : ballisticsUnits.trimmed(shown("windSpeed", mph), 1);
 
 let animalsList = [];
 let factoryLoads = [];
@@ -68,7 +218,9 @@ let sharedPresetApplied = false;
 const DEFAULT_FACTORY_LOAD = "federal-fusion-308-180";
 const DEFAULT_SPECIES = "stag";
 
-const UNIT_TO_INCHES = { in: 1, cm: 1 / 2.54, m: 39.3701 };
+// The calibration box has its own unit picker, since a body length might
+// be read off anything. Exact factors: an inch is 2.54 cm by definition.
+const UNIT_TO_INCHES = { in: 1, cm: 1 / 2.54, m: 100 / 2.54 };
 const imageCache = new Map();
 
 // Set by the last render so pointer events can map canvas coordinates back
@@ -153,15 +305,17 @@ function groupMoa() {
 /// The number as typed, normalised. Anything blank, negative or unparseable
 /// means "treat the rifle as perfect", which is the default.
 function typedGroupMoa() {
-  const value = Number(groupMoaInput.value);
+  const value = readCanonical(groupMoaInput);
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 /// Group diameter in inches at this range. One MOA subtends 1.047 inches
 /// per 100 yards, near enough that the shorthand "one inch at a hundred"
-/// is what most people quote.
+/// is what most people quote - but the exact figure is used, the same true
+/// MOA the solver works in, so a group given in mrad converts without a
+/// rounding of its own.
 function groupDiameterInches(yards) {
-  return groupMoa() * 1.047 * (yards / 100);
+  return ballisticsUnits.moaToInches(groupMoa(), yards);
 }
 
 // Opening index.html directly as a file (e.g. double-clicking it) gives the
@@ -283,18 +437,28 @@ function applyFactoryLoad(entry) {
   if (!load) return;
   form.elements.drag_function.value = load.drag_function;
   form.elements.ballistic_coefficient.value = load.ballistic_coefficient;
-  form.elements.muzzle_velocity.value = entry.muzzle_velocity_fps;
+  writeCanonical(form.elements.muzzle_velocity, entry.muzzle_velocity_fps);
   form.elements.bullet_weight_gr.value = entry.bullet_weight_gr;
+  renderFactoryLoadNote(entry, load);
+}
 
+/// Where the load's figures come from. Barrels are measured in inches the
+/// world over, so a metric page gives the centimetres alongside rather
+/// than instead.
+function renderFactoryLoadNote(entry, load = ballisticsSolver.loadFromCatalogue(entry)) {
   const barrel =
-    entry.test_barrel_in != null
-      ? `${entry.test_barrel_in}in test barrel`
-      : "test barrel length not stated";
+    entry.test_barrel_in == null
+      ? "test barrel length not stated"
+      : imperial()
+        ? `${entry.test_barrel_in}in test barrel`
+        : `${entry.test_barrel_in} in (${Math.round(shown("length", entry.test_barrel_in))} cm) test barrel`;
+  // 20-30 ft/s is 6.1-9.1 m/s.
+  const perInch = imperial() ? "20&ndash;30 ft/s" : "6&ndash;9 m/s";
   factoryLoadNote.hidden = false;
   factoryLoadNote.innerHTML =
     `Advertised by ${escapeHtml(entry.manufacturer)} &mdash; ${barrel}, ` +
-    `BC quoted against ${load.drag_function}. Your rifle will not match the box: ` +
-    `reckon on 20&ndash;30 ft/s per inch of barrel below the test length, and ` +
+    `BC quoted against ${load?.drag_function}. Your rifle will not match the box: ` +
+    `reckon on ${perInch} per inch of barrel below the test length, and ` +
     `chronograph it if you can. ` +
     `<a href="${escapeHtml(entry.source_url)}" target="_blank" rel="noopener noreferrer">Source</a> ` +
     `(retrieved ${escapeHtml(entry.retrieved)}).`;
@@ -398,16 +562,23 @@ function syncScaleControls() {
     scaleUnitSelect.value = override.unit;
     scaleValueInput.value = override.value;
   } else {
-    scaleUnitSelect.value = "in";
-    scaleValueInput.value = round1(referenceInches(profile, basis));
+    showReferenceScale(profile, basis);
   }
 
   const vitals = effectiveVitals(profile);
-  vitalsWidthInput.value = round1(vitals.width_in);
-  vitalsHeightInput.value = round1(vitals.height_in);
+  writeCanonical(vitalsWidthInput, round1(vitals.width_in));
+  writeCanonical(vitalsHeightInput, round1(vitals.height_in));
 
   const minEnergy = effectiveMinEnergy(profile);
-  minEnergyInput.value = minEnergy == null ? "" : Math.round(minEnergy);
+  writeCanonical(minEnergyInput, minEnergy == null ? "" : Math.round(minEnergy));
+}
+
+/// The species' own reference size, in inches or centimetres to match
+/// the rest of the page.
+function showReferenceScale(profile, basis) {
+  const unit = imperial() ? "in" : "cm";
+  scaleUnitSelect.value = unit;
+  scaleValueInput.value = round1(referenceInches(profile, basis) / UNIT_TO_INCHES[unit]);
 }
 
 /// Inches per pixel of the artwork, honouring any user override.
@@ -475,15 +646,21 @@ function preloadArtwork() {
 // Every column the table can show. `visible` is only the default - the
 // picker persists whatever the reader chooses, which also keeps the table
 // narrow enough to be usable on a phone.
+//
+// Labels are functions because they follow the units. A drop is to the
+// hundredth of an inch, or the millimetre (a tenth of a centimetre).
+const tableLength = (inches) =>
+  imperial() ? inches.toFixed(2) : shown("length", inches).toFixed(1);
+
 const COLUMNS = [
-  { key: "yards", label: "Yards", visible: true, format: (p) => p.yards },
-  { key: "drop", label: "Drop (in)", visible: true, format: (p) => p.impact_in.toFixed(2) },
-  { key: "path", label: "Path (in)", visible: false, format: (p) => p.path_inches.toFixed(2) },
-  { key: "wind", label: "Wind drift (in)", visible: true, format: (p) => p.windage_in.toFixed(2) },
-  { key: "moa", label: "MOA", visible: true, format: (p) => p.moa_correction.toFixed(2) },
-  { key: "velocity", label: "Velocity (ft/s)", visible: true, format: (p) => Math.round(p.velocity_fps) },
-  { key: "energy", label: "Energy (ft\u00b7lb)", visible: true, format: (p) => Math.round(p.energy_ft_lb) },
-  { key: "time", label: "Time (s)", visible: false, format: (p) => p.seconds.toFixed(3) },
+  { key: "yards", label: () => (imperial() ? "Yards" : "Metres"), visible: true, format: (p) => distanceText(p.yards) },
+  { key: "drop", label: () => `Drop (${unitOf("length")})`, visible: true, format: (p) => tableLength(p.impact_in) },
+  { key: "path", label: () => `Path (${unitOf("length")})`, visible: false, format: (p) => tableLength(p.path_inches) },
+  { key: "wind", label: () => `Wind drift (${unitOf("length")})`, visible: true, format: (p) => tableLength(p.windage_in) },
+  { key: "moa", label: () => unitOf("angle"), visible: true, format: (p) => shown("angle", p.moa_correction).toFixed(2) },
+  { key: "velocity", label: () => `Velocity (${unitOf("velocity")})`, visible: true, format: (p) => Math.round(shown("velocity", p.velocity_fps)) },
+  { key: "energy", label: () => `Energy (${unitOf("energy")})`, visible: true, format: (p) => Math.round(shown("energy", p.energy_ft_lb)) },
+  { key: "time", label: () => "Time (s)", visible: false, format: (p) => p.seconds.toFixed(3) },
 ];
 
 const COLUMN_STORAGE_KEY = "ballistics.columns";
@@ -595,18 +772,30 @@ function sanitisePresetCollection(raw) {
   return clean;
 }
 
+/// Always in the solver's units, whatever is on screen, so a preset - or a
+/// share link - means the same on a metric page and an imperial one.
 function currentPreset() {
   const preset = {};
   for (const field of PRESET_FIELDS) {
     const input = field.input();
-    preset[field.key] = field.kind === "choice" ? input.value : Number(input.value);
+    preset[field.key] =
+      field.kind === "choice"
+        ? input.value
+        : input.dataset.quantity
+          ? readCanonical(input)
+          : Number(input.value);
   }
   return preset;
 }
 
 function applyPreset(preset) {
   for (const field of PRESET_FIELDS) {
-    field.input().value = preset[field.key];
+    const input = field.input();
+    if (field.kind !== "choice" && input.dataset.quantity) {
+      writeCanonical(input, preset[field.key]);
+    } else {
+      input.value = preset[field.key];
+    }
   }
 }
 
@@ -637,7 +826,7 @@ function buildColumnToggles() {
   columnToggles.innerHTML = COLUMNS.map(
     (c) => `<label class="column-toggle"><input type="checkbox" data-column="${c.key}"${
       chosen.has(c.key) ? " checked" : ""
-    } />${c.label}</label>`
+    } />${c.label()}</label>`
   ).join("");
 
   columnToggles.querySelectorAll("input[data-column]").forEach((box) => {
@@ -849,7 +1038,7 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   hideError();
 
-  const payload = buildRequestPayload(new FormData(form));
+  const payload = buildRequestPayload();
 
   // On this device when the solver module is loaded, on the server when it
   // is not - the answer is the same either way (see solver.js).
@@ -858,7 +1047,9 @@ form.addEventListener("submit", async (event) => {
     body = await ballisticsSolver.trajectory(payload);
   } catch (err) {
     showError(
-      err instanceof ballisticsSolver.SolveError ? err.message : `Request failed: ${err.message}`
+      err instanceof ballisticsSolver.SolveError
+        ? ballisticsUnits.translateMessage(err.message, units)
+        : `Request failed: ${err.message}`
     );
     return;
   }
@@ -870,7 +1061,7 @@ form.addEventListener("submit", async (event) => {
   // letting the chart and the vitals panel throw on an empty list.
   if (!Array.isArray(body) || body.length === 0) {
     showError(
-      "This load does not reach the first yard. Check the muzzle velocity " +
+      `This load does not reach the first yard${imperial() ? "" : " (0.9 m)"}. Check the muzzle velocity ` +
         "and ballistic coefficient - one of them is far outside anything a " +
         "rifle fires."
     );
@@ -905,7 +1096,7 @@ function showEngine(engine) {
 windScaleSelect.addEventListener("change", () => {
   const band = windBand();
   if (band.force) {
-    form.elements.wind_speed.value = Math.round((band.lo + band.hi) / 2);
+    writeCanonical(form.elements.wind_speed, Math.round((band.lo + band.hi) / 2));
   }
   if (lastPoints) form.requestSubmit();
 });
@@ -977,8 +1168,7 @@ scaleBasisSelect.addEventListener("change", () => {
   const profile = currentProfile();
   if (profile) {
     // Show the reference figure for the newly chosen basis.
-    scaleUnitSelect.value = "in";
-    scaleValueInput.value = round1(referenceInches(profile, scaleBasisSelect.value));
+    showReferenceScale(profile, scaleBasisSelect.value);
   }
   onScaleChanged();
 });
@@ -995,8 +1185,8 @@ function onVitalsSizeChanged() {
   const profile = currentProfile();
   if (!profile) return;
 
-  const width = Number(vitalsWidthInput.value);
-  const height = Number(vitalsHeightInput.value);
+  const width = readCanonical(vitalsWidthInput);
+  const height = readCanonical(vitalsHeightInput);
   if (!(width > 0) || !(height > 0)) return;
 
   updateOverride(profile, { vitals: { width_in: width, height_in: height } });
@@ -1011,7 +1201,7 @@ minEnergyInput.addEventListener("input", () => {
   if (!profile) return;
   const typed = minEnergyInput.value.trim();
   // Blank is a real choice: it means energy is not the limiting factor.
-  updateOverride(profile, { minEnergy: typed === "" ? null : Number(typed) });
+  updateOverride(profile, { minEnergy: typed === "" ? null : readCanonical(minEnergyInput) });
   if (lastPoints) renderAnimalPanel(lastPoints);
 });
 
@@ -1037,7 +1227,7 @@ windModeSelect.addEventListener("change", onCompensationModeChanged);
 // goes up and left, and the impact lands on the vitals.
 solveHoldButton.addEventListener("click", () => {
   if (!lastPoints) return;
-  const point = nearestPoint(lastPoints, Number(shotRangeInput.value));
+  const point = pointAt(lastPoints, readCanonical(shotRangeInput));
   const axes = heldAxes();
   // Only the axes actually being held move. A dialled axis is already
   // corrected at the turret, so putting a hold on it too would double the
@@ -1059,14 +1249,16 @@ function onGroupMoaChanged() {
   const typed = typedGroupMoa();
 
   if (typed > IMPLAUSIBLE_GROUP_MOA) {
+    // What that group covers at 300 of whatever the page is showing.
+    const reference = ballisticsUnits.toCanonical("distance", 300, units);
     groupWarning.hidden = false;
     groupWarning.innerHTML = `
-      ${formatInches(typed)} MOA is poor precision for a modern hunting
-      rifle &mdash; about ${formatInches(typed * 1.047 * 3)} in at 300 yd.
-      <button type="button" class="link-button" id="group-confirm">Use ${formatInches(typed)} MOA anyway</button>`;
+      ${angleText(typed)} ${unitOf("angle")} is poor precision for a modern hunting
+      rifle &mdash; about ${lengthText(ballisticsUnits.moaToInches(typed, reference))} ${unitOf("length")} at 300 ${unitOf("distance")}.
+      <button type="button" class="link-button" id="group-confirm">Use ${angleText(typed)} ${unitOf("angle")} anyway</button>`;
     groupWarning.querySelector("#group-confirm").addEventListener("click", () => {
       confirmedGroupMoa = typed;
-      groupWarning.textContent = `Using ${formatInches(typed)} MOA.`;
+      showGroupConfirmed();
       if (lastPoints) renderAnimalPanel(lastPoints);
     });
     return;
@@ -1079,6 +1271,19 @@ function onGroupMoaChanged() {
 }
 
 groupMoaInput.addEventListener("input", onGroupMoaChanged);
+
+function showGroupConfirmed() {
+  groupWarning.textContent = `Using ${angleText(confirmedGroupMoa)} ${unitOf("angle")}.`;
+}
+
+/// Re-words the warning, or the confirmation, in the current units without
+/// forgetting a confirmation already given.
+function refreshGroupWarning() {
+  const typed = typedGroupMoa();
+  if (typed <= IMPLAUSIBLE_GROUP_MOA) return;
+  if (confirmedGroupMoa === typed) showGroupConfirmed();
+  else onGroupMoaChanged();
+}
 
 // Dragging the vital zone is calibration against the drawing, not a
 // preference: the anchor is positioned by eye per species, and only the
@@ -1194,30 +1399,34 @@ function endDrag(event) {
 vitalsCanvas.addEventListener("pointerup", endDrag);
 vitalsCanvas.addEventListener("pointercancel", endDrag);
 
-function buildRequestPayload(formData) {
-  const num = (name) => Number(formData.get(name));
+/// The request the solver takes, always in its own units whatever the
+/// page is showing.
+function buildRequestPayload() {
+  const fields = form.elements;
+  const num = (name) => Number(fields[name].value);
+  const measured = (name) => readCanonical(fields[name]);
 
   return {
     load: {
-      drag_function: formData.get("drag_function"),
+      drag_function: fields.drag_function.value,
       ballistic_coefficient: num("ballistic_coefficient"),
-      muzzle_velocity: num("muzzle_velocity"),
+      muzzle_velocity: measured("muzzle_velocity"),
       bullet_weight_gr: num("bullet_weight_gr"),
     },
     rifle: {
-      sight_height: num("sight_height"),
-      zero_range: num("zero_range"),
+      sight_height: measured("sight_height"),
+      zero_range: measured("zero_range"),
       zero_y_intercept: 0,
     },
     atmosphere: {
-      altitude: num("altitude"),
-      pressure: num("pressure"),
-      temperature: num("temperature"),
+      altitude: measured("altitude"),
+      pressure: measured("pressure"),
+      temperature: measured("temperature"),
       relative_humidity: num("relative_humidity"),
     },
     shot: {
       shooting_angle: num("shooting_angle"),
-      wind_speed: num("wind_speed"),
+      wind_speed: measured("wind_speed"),
       wind_angle: num("wind_angle"),
     },
   };
@@ -1236,15 +1445,19 @@ function renderResults(points) {
 function renderTable(points) {
   tableBody.innerHTML = "";
 
+  // Step and limit are in whatever the page shows: every 25 yd, or every
+  // 25 m. Metric rows fall between solved yards, so they are interpolated.
   const step = Math.max(1, Math.round(Number(tableStepInput.value) || 25));
   const maxRange = Math.max(step, Number(tableMaxInput.value) || 500);
-  const rows = points.filter((p) => p.yards % step === 0 && p.yards <= maxRange);
+  const rows = imperial()
+    ? points.filter((p) => p.yards % step === 0 && p.yards <= maxRange)
+    : metricRows(points, step, maxRange);
 
   const chosen = new Set(visibleColumnKeys());
   const columns = COLUMNS.filter((c) => chosen.has(c.key));
 
   document.querySelector("#results-table thead tr").innerHTML = columns
-    .map((c) => `<th>${c.label}</th>`)
+    .map((c) => `<th>${c.label()}</th>`)
     .join("");
 
   for (const point of rows) {
@@ -1252,6 +1465,20 @@ function renderTable(points) {
     tr.innerHTML = columns.map((c) => `<td>${c.format(point)}</td>`).join("");
     tableBody.appendChild(tr);
   }
+}
+
+/// Rows every `step` metres up to `max`, over the distance actually solved.
+function metricRows(points, step, max) {
+  const first = points[0].yards;
+  const last = points[points.length - 1].yards;
+  const rows = [];
+  for (let metres = 0; metres <= max; metres += step) {
+    const yards = ballisticsUnits.toCanonical("distance", metres, units);
+    if (yards > last + 1e-9) break;
+    if (yards < first - 1e-9) continue;
+    rows.push(pointAt(points, yards));
+  }
+  return rows;
 }
 
 // Re-rendering the table is a local filter over data we already have.
@@ -1298,15 +1525,27 @@ function renderChart(points) {
   ctx.font = "12px sans-serif";
   ctx.lineWidth = 1;
 
-  const xTicks = 6;
-  for (let i = 0; i <= xTicks; i++) {
-    const yards = xMin + ((xMax - xMin) * i) / xTicks;
+  // Six even divisions of the range solved - which in yards falls on round
+  // numbers, and in metres would not (91, 183, 274...), so metric picks a
+  // round step instead.
+  const xTickYards = [];
+  if (imperial()) {
+    const xTicks = 6;
+    for (let i = 0; i <= xTicks; i++) xTickYards.push(xMin + ((xMax - xMin) * i) / xTicks);
+  } else {
+    const maxMetres = shown("distance", xMax);
+    const step = roundStep(maxMetres / 6);
+    for (let metres = 0; metres <= maxMetres + 1e-9; metres += step) {
+      xTickYards.push(ballisticsUnits.toCanonical("distance", metres, units));
+    }
+  }
+  for (const yards of xTickYards) {
     const x = toX(yards);
     ctx.beginPath();
     ctx.moveTo(x, padding.top);
     ctx.lineTo(x, height - padding.bottom);
     ctx.stroke();
-    ctx.fillText(Math.round(yards).toString(), x - 10, height - padding.bottom + 16);
+    ctx.fillText(distanceText(yards, { rounded: true }), x - 10, height - padding.bottom + 16);
   }
 
   const yTicks = 5;
@@ -1317,7 +1556,7 @@ function renderChart(points) {
     ctx.moveTo(padding.left, y);
     ctx.lineTo(width - padding.right, y);
     ctx.stroke();
-    ctx.fillText(inches.toFixed(0), 26, y + 4);
+    ctx.fillText(shown("length", inches).toFixed(0), 26, y + 4);
   }
 
   // Zero line (line of sight).
@@ -1346,21 +1585,25 @@ function renderChart(points) {
 
   // Axis titles.
   ctx.fillStyle = textColor;
-  ctx.fillText("Range (yards)", width / 2 - 40, height - 6);
+  ctx.fillText(imperial() ? "Range (yards)" : "Range (metres)", width / 2 - 40, height - 6);
   ctx.save();
   ctx.translate(14, height / 2 + 30);
   ctx.rotate(-Math.PI / 2);
-  ctx.fillText("Bullet path (inches)", 0, 0);
+  ctx.fillText(imperial() ? "Bullet path (inches)" : "Bullet path (cm)", 0, 0);
   ctx.restore();
 }
 
-/// Finds the point whose yardage is closest to `target` (the trajectory is
-/// one point per whole yard, but the shot-range input isn't constrained to
-/// only values that exist, e.g. past the computed max range).
-function nearestPoint(points, target) {
-  return points.reduce((closest, point) =>
-    Math.abs(point.yards - target) < Math.abs(closest.yards - target) ? point : closest
-  );
+/// 1, 2 or 5 times a power of ten, at least `raw`.
+function roundStep(raw) {
+  if (!(raw > 0)) return 1;
+  const power = 10 ** Math.floor(Math.log10(raw));
+  return [1, 2, 5, 10].map((m) => m * power).find((step) => step >= raw);
+}
+
+/// The trajectory at a range that need not be a solved point - see
+/// `pointAt` in solver.js, shared with the catalogue ranking.
+function pointAt(points, yards) {
+  return ballisticsSolver.pointAt(points, yards);
 }
 
 async function renderAnimalPanel(points) {
@@ -1371,8 +1614,8 @@ async function renderAnimalPanel(points) {
     return;
   }
 
-  const requestedRange = Number(shotRangeInput.value);
-  const point = nearestPoint(points, requestedRange);
+  const requestedRange = readCanonical(shotRangeInput);
+  const point = pointAt(points, requestedRange);
 
   // A species with no prepared artwork still gets the overlay and the
   // info panel, just without a silhouette behind them.
@@ -1543,7 +1786,10 @@ function renderVitalsOverlay(profile, point, image) {
         const [ex, ey] = toPx(toArtX(end.x), toArtY(end.y));
         ctx.fillStyle = textColor;
         ctx.textAlign = align;
-        ctx.fillText(`${Math.round(wind.wind_speed)} mph`, ex + (align === "right" ? -6 : 6), ey - 8);
+        const speed = imperial()
+          ? String(Math.round(wind.wind_speed))
+          : ballisticsUnits.trimmed(shown("windSpeed", wind.wind_speed), 1);
+        ctx.fillText(`${speed} ${unitOf("windSpeed")}`, ex + (align === "right" ? -6 : 6), ey - 8);
       }
       ctx.textAlign = "left";
     }
@@ -1723,7 +1969,8 @@ function drawTinted(ctx, image, [x, y], w, h, color) {
 }
 
 function drawScaleBar(ctx, width, height, pxPerInch, textColor) {
-  const barPx = pxPerInch * 12;
+  const [barInches, label] = imperial() ? [12, "1 ft"] : [30 / 2.54, "30 cm"];
+  const barPx = pxPerInch * barInches;
   if (!Number.isFinite(barPx) || barPx < 8 || barPx > width - 40) return;
 
   const x = 16;
@@ -1740,7 +1987,7 @@ function drawScaleBar(ctx, width, height, pxPerInch, textColor) {
   ctx.stroke();
   ctx.fillStyle = textColor;
   ctx.font = "11px sans-serif";
-  ctx.fillText("1 ft", x + barPx + 6, y + 4);
+  ctx.fillText(label, x + barPx + 6, y + 4);
 }
 
 // ---------------------------------------------------------------------------
@@ -1782,20 +2029,22 @@ let bandPoints = null;
 
 function buildWindScaleOptions() {
   // Keyed by the force itself rather than by position in the array, so the
-  // value means something on its own.
+  // value means something on its own - and survives a rebuild in other units.
+  const selected = windScaleSelect.value;
   windScaleSelect.innerHTML =
     `<option value="">Measured &mdash; use the exact figure</option>` +
     BEAUFORT.map(
       (b) =>
-        `<option value="${b.force}">Force ${b.force} (${b.lo}-${b.hi} mph) &mdash; ${escapeHtml(b.seen)}</option>`
+        `<option value="${b.force}">Force ${b.force} (${bandSpeedText(b.lo)}-${bandSpeedText(b.hi)} ${unitOf("windSpeed")}) &mdash; ${escapeHtml(b.seen)}</option>`
     ).join("");
+  windScaleSelect.value = selected;
 }
 
 /// The range of wind speeds the shot might actually be taken in.
 function windBand() {
   const chosen = BEAUFORT.find((b) => b.force === windScaleSelect.value);
   if (!chosen) {
-    const exact = Number(form.elements.wind_speed.value) || 0;
+    const exact = readCanonical(form.elements.wind_speed) || 0;
     return { lo: exact, hi: exact, force: null };
   }
   return { lo: chosen.lo, hi: chosen.hi, force: chosen };
@@ -1803,7 +2052,7 @@ function windBand() {
 
 /// The range of distances the animal might actually be at.
 function rangeBand(yards) {
-  const slop = Math.max(0, Number(rangeUncertaintyInput.value) || 0);
+  const slop = Math.max(0, readCanonical(rangeUncertaintyInput) || 0);
   return { lo: Math.max(1, yards - slop), hi: yards + slop, slop };
 }
 
@@ -1909,7 +2158,7 @@ function bandRanges(band, steps = 8) {
 function uncertaintyRegion(nominalPoint) {
   const ranges = bandRanges(rangeBand(nominalPoint.yards));
   const edge = (points, list) =>
-    list.map((r) => impactOffset(nearestPoint(points, r), nominalPoint));
+    list.map((r) => impactOffset(pointAt(points, r), nominalPoint));
 
   if (!bandPoints) return edge(lastPoints, ranges);
   return [...edge(bandPoints.lo, ranges), ...edge(bandPoints.hi, [...ranges].reverse())];
@@ -1924,11 +2173,11 @@ function uncertaintyRegion(nominalPoint) {
 /// catalogue. A load with no wind band solved for it gets the range band
 /// alone, which is the honest answer for what has been computed.
 function centredSpreadAt(yards, points = lastPoints, band = bandPoints) {
-  const nominal = nearestPoint(points, yards);
+  const nominal = pointAt(points, yards);
   const ranges = bandRanges(rangeBand(yards));
   const edge = (from) =>
     ranges.map((r) => {
-      const p = nearestPoint(from, r);
+      const p = pointAt(from, r);
       return {
         x: p.windage_in - nominal.windage_in,
         y: p.path_inches - nominal.path_inches,
@@ -1944,8 +2193,8 @@ function centredSpreadAt(yards, points = lastPoints, band = bandPoints) {
 function windBandEnds(nominalPoint) {
   if (!bandPoints) return null;
   return {
-    lo: impactOffset(nearestPoint(bandPoints.lo, nominalPoint.yards), nominalPoint),
-    hi: impactOffset(nearestPoint(bandPoints.hi, nominalPoint.yards), nominalPoint),
+    lo: impactOffset(pointAt(bandPoints.lo, nominalPoint.yards), nominalPoint),
+    hi: impactOffset(pointAt(bandPoints.hi, nominalPoint.yards), nominalPoint),
   };
 }
 
@@ -1996,7 +2245,7 @@ function shotGeometry(point) {
 /// energy and velocity fall off much faster than the group opens up.
 function assessTerminal(profile, point) {
   const minEnergy = effectiveMinEnergy(profile);
-  const expansionFloor = Number(expansionVelocityInput.value);
+  const expansionFloor = readCanonical(expansionVelocityInput);
 
   const energyOk = minEnergy == null || point.energy_ft_lb >= minEnergy;
   const expansionOk =
@@ -2022,7 +2271,7 @@ function maxEthicalRange(profile, points, band = bandPoints) {
     // Terminal performance is judged at the *far* end of the range band,
     // where the bullet has least left. Believing 300 and shooting at 325 is
     // the case that has to hold, not the one you hoped for.
-    const worst = nearestPoint(points, rangeBand(point.yards).hi);
+    const worst = pointAt(points, rangeBand(point.yards).hi);
     const energyOk = minEnergy == null || worst.energy_ft_lb >= minEnergy;
     const expansionOk = !(expansionFloor > 0) || worst.velocity_fps >= expansionFloor;
 
@@ -2064,6 +2313,10 @@ function maxEthicalRange(profile, points, band = bandPoints) {
 
 let shortlistCartridge = null;
 
+/// The last ranking, so a change of units can re-show it without solving
+/// the catalogue again.
+let lastShortlist = null;
+
 /// Notes what cartridge the form is currently set up for, so the shortlist
 /// can offer to stay inside it. Only a catalogue pick establishes this - a
 /// hand-typed BC and velocity say nothing about what the rifle chambers.
@@ -2087,7 +2340,7 @@ async function runShortlist() {
     return;
   }
 
-  const payload = buildRequestPayload(new FormData(form));
+  const payload = buildRequestPayload();
   const sameCartridge = shortlistCartridge != null && shortlistSameCartridge.checked;
 
   shortlistRunButton.disabled = true;
@@ -2103,20 +2356,21 @@ async function runShortlist() {
       cartridges: sameCartridge ? [shortlistCartridge] : undefined,
     });
   } catch (err) {
-    shortlistStatus(`Could not rank the catalogue: ${err.message}`);
+    shortlistStatus(`Could not rank the catalogue: ${ballisticsUnits.translateMessage(err.message, units)}`);
     shortlistRunButton.disabled = false;
     return;
   }
   shortlistRunButton.disabled = false;
 
+  lastShortlist = { entries };
   renderShortlist(profile, entries);
 }
 
 /// Judges one catalogue load the way the panel judges the one in the form.
 function assessLoad(profile, points) {
-  const range = Number(shotRangeInput.value);
-  const point = nearestPoint(points, range);
-  const worst = nearestPoint(points, rangeBand(range).hi);
+  const range = readCanonical(shotRangeInput);
+  const point = pointAt(points, range);
+  const worst = pointAt(points, rangeBand(range).hi);
 
   // No wind band solved for these, so the spread is the range band alone.
   const terminal = assessTerminal(profile, worst);
@@ -2142,7 +2396,7 @@ function assessLoad(profile, points) {
 
 function renderShortlist(profile, entries) {
   const byId = new Map(factoryLoads.map((l) => [l.id, l]));
-  const range = Number(shotRangeInput.value);
+  const range = readCanonical(shotRangeInput);
 
   const rows = entries
     .map((entry) => {
@@ -2169,7 +2423,7 @@ function renderShortlist(profile, entries) {
   const passing = rows.filter((r) => r.ok).length;
   shortlistStatus(
     `${passing} of ${rows.length} will do it on ${profile.common_name.toLowerCase()} at ` +
-      `${range} yd${band.slop > 0 ? ` (±${band.slop})` : ""}. ` +
+      `${distanceText(range)} ${unitOf("distance")}${band.slop > 0 ? ` (±${distanceText(band.slop)})` : ""}. ` +
       `Wind uncertainty is not folded in here - pick a load and read the panel above for that.`
   );
 
@@ -2180,10 +2434,10 @@ function renderShortlist(profile, entries) {
   document.querySelector("#shortlist thead tr").innerHTML = [
     "Load",
     "Carries to",
-    `Energy at ${band.hi} yd`,
-    `Velocity at ${band.hi} yd`,
-    `Drift at ${range} yd`,
-    `Drop at ${range} yd`,
+    `Energy at ${distanceText(band.hi)} ${unitOf("distance")}`,
+    `Velocity at ${distanceText(band.hi)} ${unitOf("distance")}`,
+    `Drift at ${distanceText(range)} ${unitOf("distance")}`,
+    `Drop at ${distanceText(range)} ${unitOf("distance")}`,
   ]
     .map((h) => `<th>${h}</th>`)
     .join("");
@@ -2199,8 +2453,8 @@ function renderShortlist(profile, entries) {
         row.furthest == null
           ? "not at any range"
           : row.furthest >= row.solvedTo
-            ? `${row.furthest}+ yd`
-            : `${row.furthest} yd`;
+            ? `${distanceText(row.furthest, { atMost: true })}+ ${unitOf("distance")}`
+            : `${distanceText(row.furthest, { atMost: true })} ${unitOf("distance")}`;
 
       return `
         <tr class="shortlist-row ${row.ok ? "ok" : "bad"}" data-load-id="${escapeHtml(row.load.id)}" tabindex="0" role="button">
@@ -2212,10 +2466,10 @@ function renderShortlist(profile, entries) {
             )}${why.length ? ` · <span class="shortlist-why">${escapeHtml(why.join(", "))}</span>` : ""}</span>
           </td>
           <td class="${row.ok ? "ok" : "bad"}">${carries}</td>
-          <td class="${row.terminal.energyOk ? "ok" : "bad"}">${Math.round(row.worst.energy_ft_lb)}</td>
-          <td class="${row.terminal.expansionOk ? "ok" : "bad"}">${Math.round(row.worst.velocity_fps)}</td>
-          <td>${formatInches(Math.abs(row.point.windage_in))}</td>
-          <td>${formatInches(Math.abs(row.point.path_inches))}</td>
+          <td class="${row.terminal.energyOk ? "ok" : "bad"}">${Math.round(shown("energy", row.worst.energy_ft_lb))}</td>
+          <td class="${row.terminal.expansionOk ? "ok" : "bad"}">${Math.round(shown("velocity", row.worst.velocity_fps))}</td>
+          <td>${lengthText(Math.abs(row.point.windage_in))}</td>
+          <td>${lengthText(Math.abs(row.point.path_inches))}</td>
         </tr>`;
     })
     .join("");
@@ -2279,18 +2533,20 @@ shortlistBody.addEventListener("keydown", (event) => {
 /// Describes an aim offset the way a hunter would say it out loud, in both
 /// inches on the animal and the MOA they would actually dial or hold.
 function describeHold(offset, yards) {
-  const perMoa = 1.047 * (yards / 100);
-  const inMoa = (inches) => (perMoa > 0 ? ` (${formatInches(Math.abs(inches) / perMoa)} MOA)` : "");
+  const inMoa = (inches) =>
+    yards > 0
+      ? ` (${angleText(Math.abs(ballisticsUnits.inchesToMoa(inches, yards)))} ${unitOf("angle")})`
+      : "";
 
   const parts = [];
   if (Math.abs(offset.y) >= 0.1) {
     parts.push(
-      `${formatInches(Math.abs(offset.y))} in ${offset.y > 0 ? "high" : "low"}${inMoa(offset.y)}`
+      `${lengthText(Math.abs(offset.y))} ${unitOf("length")} ${offset.y > 0 ? "high" : "low"}${inMoa(offset.y)}`
     );
   }
   if (Math.abs(offset.x) >= 0.1) {
     parts.push(
-      `${formatInches(Math.abs(offset.x))} in ${offset.x > 0 ? "right" : "left"}${inMoa(offset.x)}`
+      `${lengthText(Math.abs(offset.x))} ${unitOf("length")} ${offset.x > 0 ? "right" : "left"}${inMoa(offset.x)}`
     );
   }
   return parts.length ? parts.join(", ") : "dead on";
@@ -2307,13 +2563,13 @@ function describeHold(offset, yards) {
 function describeWindPush(point) {
   const drift = point.windage_in;
   const side = drift >= 0 ? "right" : "left";
-  const offset = `${formatInches(Math.abs(drift))} in ${side} at ${point.yards} yd`;
+  const offset = `${lengthText(Math.abs(drift))} ${unitOf("length")} ${side} at ${distanceText(point.yards)} ${unitOf("distance")}`;
 
   const ends = windBandEnds(point);
   if (!ends) return offset;
 
   const spread = Math.abs(ends.hi.x - ends.lo.x);
-  return `${offset}, and you are unsure of ${formatInches(spread)} in of that`;
+  return `${offset}, and you are unsure of ${lengthText(spread)} ${unitOf("length")} of that`;
 }
 
 /// Names the unknown that is costing the most, and what to do about it.
@@ -2339,7 +2595,7 @@ function describeDominantUncertainty(spread, groupInches, range, wind) {
 
   parts.sort((a, b) => b.size - a.size);
   const worst = parts[0];
-  const lead = `the ${worst.source}, ${formatInches(worst.size)} in of it &mdash; ${worst.advice}`;
+  const lead = `the ${worst.source}, ${lengthText(worst.size)} ${unitOf("length")} of it &mdash; ${worst.advice}`;
 
   if (worst.source !== "range" || range.slop <= 0) return lead;
   return `${lead}. Being short throws the shot low into the brisket; being long throws it high. Take the long end of your estimate.`;
@@ -2354,7 +2610,7 @@ function renderAnimalInfo(profile, assessment, point) {
   // Terminal performance is read at the far end of the range band. If the
   // animal might be at 325 and you believe 300, 325 is the shot you are
   // actually taking.
-  const worstPoint = nearestPoint(lastPoints ?? [point], range.hi);
+  const worstPoint = pointAt(lastPoints ?? [point], range.hi);
   const terminal = assessTerminal(profile, worstPoint);
   const furthest = maxEthicalRange(profile, lastPoints ?? [point]);
   const vitals = effectiveVitals(profile);
@@ -2392,16 +2648,16 @@ function renderAnimalInfo(profile, assessment, point) {
   const uncertaintyRows = uncertain
     ? `
       <dt>Range could be</dt>
-      <dd>${Math.round(range.lo)}&ndash;${Math.round(range.hi)} yd${
+      <dd>${distanceText(range.lo, { rounded: true })}&ndash;${distanceText(range.hi, { rounded: true })} ${unitOf("distance")}${
         range.slop > 0 ? "" : " (ranged)"
       }</dd>
       <dt>Wind could be</dt>
       <dd>${
         wind.force
-          ? `Beaufort ${wind.force.force}, ${wind.lo}&ndash;${wind.hi} mph &mdash; ${escapeHtml(
+          ? `Beaufort ${wind.force.force}, ${bandSpeedText(wind.lo)}&ndash;${bandSpeedText(wind.hi)} ${unitOf("windSpeed")} &mdash; ${escapeHtml(
               wind.force.seen.toLowerCase()
             )}`
-          : `${formatInches(wind.lo)} mph, taken as measured`
+          : `${formatInches(shown("windSpeed", wind.lo))} ${unitOf("windSpeed")}, taken as measured`
       }${
         angle.slop > 0
           ? `, from ${Math.round(angle.lo)}&ndash;${Math.round(angle.hi)}&deg;`
@@ -2413,11 +2669,11 @@ function renderAnimalInfo(profile, assessment, point) {
       </dd>
       <dt>That spreads the shot</dt>
       <dd class="${assessment.groupFullyInside ? "ok" : "bad"}">
-        ${formatInches(spread.height + groupHere)} in tall &times;
-        ${formatInches(spread.width + groupHere)} in wide,
-        against a ${formatInches(vitals.width_in)}&times;${formatInches(
+        ${lengthText(spread.height + groupHere)} ${unitOf("length")} tall &times;
+        ${lengthText(spread.width + groupHere)} ${unitOf("length")} wide,
+        against a ${lengthText(vitals.width_in)}&times;${lengthText(
           vitals.height_in
-        )} in vital zone
+        )} ${unitOf("length")} vital zone
       </dd>
       <dt>Worst of it is</dt>
       <dd>${describeDominantUncertainty(spread, groupHere, range, wind)}</dd>`
@@ -2428,9 +2684,9 @@ function renderAnimalInfo(profile, assessment, point) {
       ? `
       <dt>Group here</dt>
       <dd class="${assessment.groupFullyInside ? "ok" : "bad"}">
-        ${formatInches(groupDiameterInches(point.yards))} in across
-        (${formatInches(groupMoa())} MOA) vs a
-        ${formatInches(vitals.width_in)}&times;${formatInches(vitals.height_in)} in vital zone
+        ${lengthText(groupDiameterInches(point.yards))} ${unitOf("length")} across
+        (${angleText(groupMoa())} ${unitOf("angle")}) vs a
+        ${lengthText(vitals.width_in)}&times;${lengthText(vitals.height_in)} ${unitOf("length")} vital zone
       </dd>`
       : "";
 
@@ -2459,19 +2715,19 @@ function renderAnimalInfo(profile, assessment, point) {
       }`;
 
   const terminalRows = `
-      <dt>Energy${uncertain ? ` at ${Math.round(range.hi)} yd` : " here"}</dt>
+      <dt>Energy${uncertain ? ` at ${distanceText(range.hi, { rounded: true })} ${unitOf("distance")}` : " here"}</dt>
       <dd class="${terminal.energyOk ? "ok" : "bad"}">
-        ${Math.round(worstPoint.energy_ft_lb)} ft&middot;lb${
+        ${Math.round(shown("energy", worstPoint.energy_ft_lb))} ${unitOf("energy")}${
           terminal.minEnergy == null
             ? " (no minimum set for this species)"
-            : ` vs ${Math.round(terminal.minEnergy)} minimum`
+            : ` vs ${Math.round(shown("energy", terminal.minEnergy))} minimum`
         }
       </dd>
-      <dt>Velocity${uncertain ? ` at ${Math.round(range.hi)} yd` : " here"}</dt>
+      <dt>Velocity${uncertain ? ` at ${distanceText(range.hi, { rounded: true })} ${unitOf("distance")}` : " here"}</dt>
       <dd class="${terminal.expansionOk ? "ok" : "bad"}">
-        ${Math.round(worstPoint.velocity_fps)} ft/s${
+        ${Math.round(shown("velocity", worstPoint.velocity_fps))} ${unitOf("velocity")}${
           terminal.expansionFloor > 0
-            ? ` vs ${Math.round(terminal.expansionFloor)} expansion floor`
+            ? ` vs ${Math.round(shown("velocity", terminal.expansionFloor))} expansion floor`
             : " (no expansion floor set)"
         }
       </dd>
@@ -2479,19 +2735,23 @@ function renderAnimalInfo(profile, assessment, point) {
       <dd>${
         furthest == null
           ? "under this range even at the muzzle"
-          : `about ${furthest} yd for this load, rifle and species`
+          : `about ${distanceText(furthest, { atMost: true })} ${unitOf("distance")} for this load, rifle and species`
       }</dd>`;
 
   animalInfo.innerHTML = `
     <h3>${profile.common_name} <span class="scientific-name">${profile.scientific_name}</span></h3>
-    <span class="hit-badge ${badgeClass}">${badgeText} at ${point.yards} yd</span>
+    <span class="hit-badge ${badgeClass}">${badgeText} at ${distanceText(point.yards)} ${unitOf("distance")}</span>
     <dl>
       <dt>${profile.male_label}</dt>
-      <dd>${formatRange(profile.male.shoulder_height_in)} in shoulder height, ${formatRange(profile.male.weight_lb)} lb</dd>
+      <dd>${sizeRange("length", profile.male.shoulder_height_in)} ${unitOf("length")} shoulder height, ${sizeRange("mass", profile.male.weight_lb)} ${unitOf("mass")}</dd>
       <dt>${profile.female_label}</dt>
-      <dd>${formatRange(profile.female.shoulder_height_in)} in shoulder height, ${formatRange(profile.female.weight_lb)} lb</dd>
+      <dd>${sizeRange("length", profile.female.shoulder_height_in)} ${unitOf("length")} shoulder height, ${sizeRange("mass", profile.female.weight_lb)} ${unitOf("mass")}</dd>
       <dt>Vitals</dt>
-      <dd>~${profile.vitals.width_in}in x ${profile.vitals.height_in}in behind the shoulder</dd>
+      <dd>~${
+        imperial()
+          ? `${profile.vitals.width_in}in x ${profile.vitals.height_in}in`
+          : `${Math.round(shown("length", profile.vitals.width_in))} cm x ${Math.round(shown("length", profile.vitals.height_in))} cm`
+      } behind the shoulder</dd>
       ${uncertaintyRows}
       ${holdRows}
       ${groupRow}
@@ -2510,6 +2770,12 @@ function formatRange([min, max]) {
   return `${min}-${max}`;
 }
 
+/// A species' size range, as authored in imperial, or rounded to the
+/// whole centimetre or kilogram - the figures are typical, not measured.
+function sizeRange(quantity, range) {
+  return formatRange(imperial() ? range : range.map((v) => Math.round(shown(quantity, v))));
+}
+
 function showError(message) {
   errorBox.textContent = message;
   errorBox.hidden = false;
@@ -2519,3 +2785,78 @@ function hideError() {
   errorBox.hidden = true;
   errorBox.textContent = "";
 }
+
+// ---------------------------------------------------------------------------
+// Switching units.
+//
+// At the very end of the file because it touches nearly everything above,
+// some of it const tables that do not exist until their line has run.
+// ---------------------------------------------------------------------------
+
+/// Re-labels and re-shows everything for the units now chosen. The values
+/// themselves are not touched here - see `setUnits`.
+function applyUnitsToPage() {
+  unitSystemSelect.value = units.system;
+  angleUnitSelect.value = units.angle;
+
+  for (const [input, quantity] of UNIT_FIELDS) {
+    for (const attr of ["min", "max"]) {
+      const limit = input.dataset[`${attr}Canonical`];
+      if (limit !== undefined) input.setAttribute(attr, String(shown(quantity, Number(limit))));
+    }
+  }
+  // A whole caption per label, filled from a template, rather than a unit
+  // span inside the text: labels are flex columns, and a span would land
+  // on a line of its own.
+  for (const caption of document.querySelectorAll("[data-label]")) {
+    caption.textContent = caption.dataset.label.replace(/\{(\w+)\}/g, (_, quantity) => unitOf(quantity));
+  }
+  for (const span of document.querySelectorAll("[data-unit]")) {
+    span.textContent = unitOf(span.dataset.unit);
+  }
+  for (const element of document.querySelectorAll("[data-title-metric]")) {
+    element.dataset.titleImperial ??= element.title;
+    element.title = imperial() ? element.dataset.titleImperial : element.dataset.titleMetric;
+  }
+
+  buildWindScaleOptions();
+  buildColumnToggles();
+  const entry = factoryLoads.find((l) => l.id === factoryLoadSelect.value);
+  if (entry) renderFactoryLoadNote(entry);
+  syncScaleControls();
+  refreshGroupWarning();
+
+  if (lastPoints) {
+    renderTable(lastPoints);
+    renderChart(lastPoints);
+    renderAnimalPanel(lastPoints);
+  }
+
+  // A ranking still true for the current conditions is shown again in the
+  // new units. One already marked stale is not: re-showing it would mix
+  // the old trajectories with the new range and thresholds.
+  if (lastShortlist && !shortlistWrap.hidden) {
+    if (shortlistWrap.classList.contains("stale")) {
+      shortlistWrap.hidden = true;
+    } else {
+      const profile = currentProfile();
+      if (profile) renderShortlist(profile, lastShortlist.entries);
+    }
+  }
+}
+
+/// Changes the units shown. Every value is read in the old units first and
+/// written back in the new, so nothing is reinterpreted - 100 m becomes
+/// 109.36 yd, never 100 yd.
+function setUnits(next) {
+  const held = UNIT_FIELDS.map(([input]) => [input, input.value === "" ? "" : readCanonical(input)]);
+  units = next;
+  saveUnitChoice();
+  for (const [input, value] of held) writeCanonical(input, value);
+  applyUnitsToPage();
+}
+
+unitSystemSelect.addEventListener("change", () => setUnits({ ...units, system: unitSystemSelect.value }));
+angleUnitSelect.addEventListener("change", () => setUnits({ ...units, angle: angleUnitSelect.value }));
+
+applyUnitsToPage();
