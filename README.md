@@ -18,7 +18,7 @@ bug in cant/incline compensation has been fixed.
 
 **Phase 2 complete:** a web app (`ballistics-api`) serves the engine over
 HTTP with a browser UI, and is deployed and live at
-<https://ballistics-production-2c51.up.railway.app>.
+<https://ballistics-production-d799.up.railway.app/>.
 
 **Phase 3 in progress:** the ethical-shot assistant. Eleven game species
 (roe deer, fallow deer, red deer stag, whitetail deer, elk, moose, wild
