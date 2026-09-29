@@ -24,19 +24,6 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-  # The page's own logic that can be tested without a browser: unit
-  # conversions, where a wrong factor would put every metric figure out by
-  # the same proportion without anything looking broken.
-  page:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Page tests
-        run: node --test crates/ballistics-api/tests/page/*.test.mjs
-
   # The browser build of the solver. Checked separately from the workspace
   # tests because the question is different: not "is the Rust correct" but
   # "does the Rust still give the same answers once compiled for wasm32".

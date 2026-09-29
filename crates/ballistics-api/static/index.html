@@ -10,26 +10,6 @@
   <header>
     <h1>Ballistics Trajectory Calculator</h1>
     <p class="subtitle">Bullet drop and wind drift for a given rifle, load, atmosphere and shot.</p>
-    <!--
-      Outside the form on purpose: changing how numbers are shown changes no
-      condition of the shot, so it must not mark the catalogue ranking stale.
-    -->
-    <div class="unit-switch">
-      <label>
-        Units
-        <select id="unit-system">
-          <option value="metric">Metric</option>
-          <option value="imperial">Imperial</option>
-        </select>
-      </label>
-      <label title="Match your scope's turrets. Separate from metric and imperial: plenty of metric shooters have MOA scopes, and the other way round.">
-        Angles
-        <select id="angle-unit">
-          <option value="moa">MOA</option>
-          <option value="mrad">mrad</option>
-        </select>
-      </label>
-    </div>
   </header>
 
   <main>
@@ -101,15 +81,15 @@
             <input type="number" name="ballistic_coefficient" step="0.001" min="0.001" value="0.503" required />
           </label>
           <label>
-            <span data-label="Muzzle velocity ({velocity})">Muzzle velocity (ft/s)</span>
+            Muzzle velocity (ft/s)
             <input type="number" name="muzzle_velocity" step="1" min="1" max="9999" value="2600" required />
           </label>
           <label>
             Bullet weight (gr)
             <input type="number" name="bullet_weight_gr" step="1" min="1" max="19999" value="180" required />
           </label>
-          <label title="Impact velocity below which this bullet may not expand reliably. Roughly 1800 ft/s for cup-and-core, 1600 for bonded; monolithics often need more." data-title-metric="Impact velocity below which this bullet may not expand reliably. Roughly 550 m/s for cup-and-core, 490 for bonded; monolithics often need more.">
-            <span data-label="Expansion floor ({velocity})">Expansion floor (ft/s)</span>
+          <label title="Impact velocity below which this bullet may not expand reliably. Roughly 1800 ft/s for cup-and-core, 1600 for bonded; monolithics often need more.">
+            Expansion floor (ft/s)
             <input type="number" id="expansion-velocity" step="10" min="0" max="5000" value="1800" />
           </label>
         </div>
@@ -119,11 +99,11 @@
         <summary>Rifle</summary>
         <div class="fields">
           <label>
-            <span data-label="Sight height ({length})">Sight height (in)</span>
+            Sight height (in)
             <input type="number" name="sight_height" step="0.1" value="1.7" required />
           </label>
           <label>
-            <span data-label="Zero range ({distance})">Zero range (yd)</span>
+            Zero range (yd)
             <input type="number" name="zero_range" step="1" min="1" max="1000" value="100" required />
           </label>
         </div>
@@ -137,7 +117,7 @@
             <input type="number" name="shooting_angle" step="1" min="-88" max="88" value="0" required />
           </label>
           <label>
-            <span data-label="Wind speed ({windSpeed})">Wind speed (mph)</span>
+            Wind speed (mph)
             <input type="number" name="wind_speed" step="1" min="0" max="199" value="10" required />
           </label>
           <label class="wide" title="Nobody estimates wind speed to the mile per hour. The Beaufort scale was written in 1805 for exactly that problem: pick what you can see, and each force is a range rather than a number.">
@@ -161,15 +141,15 @@
         <summary>Atmosphere</summary>
         <div class="fields">
           <label>
-            <span data-label="Altitude ({altitude})">Altitude (ft)</span>
+            Altitude (ft)
             <input type="number" name="altitude" step="1" value="0" required />
           </label>
           <label>
-            <span data-label="Pressure ({pressure})">Pressure (in-Hg)</span>
+            Pressure (in-Hg)
             <input type="number" name="pressure" step="0.01" min="0.01" value="29.53" required />
           </label>
           <label>
-            <span data-label="Temperature ({temperature})">Temperature (F)</span>
+            Temperature (F)
             <input type="number" name="temperature" step="1" value="59" required />
           </label>
           <label>
@@ -189,15 +169,15 @@
             </select>
           </label>
           <label>
-            <span data-label="Shot range ({distance})">Shot range (yd)</span>
+            Shot range (yd)
             <input type="number" name="shot_range" id="shot-range" step="1" min="1" max="1000" value="100" required />
           </label>
           <label title="How far out your range estimate could be. Zero if you have ranged it and the animal has not moved; 25 or more if you are judging it by eye.">
-            <span data-label="Could be &plusmn; ({distance})">Could be &plusmn; (yd)</span>
+            Could be &plusmn; (yd)
             <input type="number" id="range-uncertainty" step="5" min="0" max="300" value="0" />
           </label>
-          <label title="Your rifle-and-load group size, as an angle - MOA or mrad, as chosen at the top of the page. 0 treats the rifle as perfect and shows the aim point alone.">
-            <span data-label="Group size ({angle})">Group size (MOA)</span>
+          <label title="Your rifle-and-load group size in minutes of angle. 0 treats the rifle as perfect and shows the aim point alone.">
+            Group size (MOA)
             <input type="number" id="group-moa" step="0.25" min="0" max="20" value="0" />
           </label>
           <p id="group-warning" class="inline-warning wide" hidden></p>
@@ -252,13 +232,13 @@
           <label class="wide">
             Vital zone (w &times; h)
             <span class="size-row">
-              <input type="number" id="vitals-width" step="0.5" min="0.5" title="Vital zone width" />
-              <input type="number" id="vitals-height" step="0.5" min="0.5" title="Vital zone height" />
-              <span class="unit-suffix" data-unit="length">in</span>
+              <input type="number" id="vitals-width" step="0.5" min="0.5" title="Vital zone width, inches" />
+              <input type="number" id="vitals-height" step="0.5" min="0.5" title="Vital zone height, inches" />
+              <span class="unit-suffix">in</span>
             </span>
           </label>
           <label class="wide" title="Minimum retained energy considered enough for a clean kill. Left blank for small game, where placement matters more than energy.">
-            <span data-label="Min. energy ({energy})">Min. energy (ft&middot;lb)</span>
+            Min. energy (ft&middot;lb)
             <input type="number" id="min-energy" step="50" min="0" placeholder="not applicable" />
           </label>
           <button type="button" id="scale-reset" class="link-button wide">Reset calibration</button>
@@ -273,11 +253,11 @@
       <p id="engine-note" class="hint" hidden></p>
       <div class="table-controls">
         <label>
-          <span data-label="Row step ({distance})">Row step (yd)</span>
+          Row step (yd)
           <input type="number" id="table-step" step="1" min="1" max="200" value="25" />
         </label>
         <label>
-          <span data-label="Show out to ({distance})">Show out to (yd)</span>
+          Show out to (yd)
           <input type="number" id="table-max" step="10" min="10" max="1000" value="500" />
         </label>
         <fieldset class="column-picker">
@@ -377,10 +357,8 @@
     </p>
   </footer>
 
-  <!-- units.js and solver.js before app.js, which reads them as
-       `ballisticsUnits` and `ballisticsSolver`. solver.js starts fetching
-       the solver module straight away. -->
-  <script src="units.js"></script>
+  <!-- solver.js first: it starts fetching the solver module straight away,
+       and app.js reads it as `ballisticsSolver`. -->
   <script src="solver.js"></script>
   <script src="app.js"></script>
 </body>

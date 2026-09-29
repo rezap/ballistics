@@ -52,9 +52,7 @@ change.
   species-vs-vitals overlay with an animal info panel). Rifle and load
   presets are kept in the browser rather than on the server, so they work
   with no signal; they can be exported as a JSON file or shared as a
-  link. Metric or imperial, and MOA or mrad, are chosen at the top
-  of the page; the engine and the API stay imperial, and the page
-  converts (`static/units.js`).
+  link.
 - [`crates/ballistics-wasm`](./crates/ballistics-wasm) — the same engine
   compiled to WebAssembly, so the browser solves on the device rather than
   asking the server: once the page is open, it keeps calculating with no
@@ -88,13 +86,6 @@ node crates/ballistics-wasm/tests/parity/parity.mjs \
 BALLISTICS_PARITY_GOLDEN=target/parity-golden.json \
 BALLISTICS_WASM=target/wasm32-unknown-unknown/wasm/ballistics_wasm.wasm \
   node --test crates/ballistics-wasm/tests/glue/solver.test.mjs
-```
-
-The page's own logic that needs no browser - unit conversions, and reading
-a trajectory between solved points:
-
-```sh
-node --test crates/ballistics-api/tests/page/*.test.mjs
 ```
 
 ## Running the web app

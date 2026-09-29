@@ -428,23 +428,13 @@ Phase 2:
 
       This is what makes the catalogue worth having: a manufacturer's own
       ballistic app will never tell you its cartridge is not enough.
-- [x] **Metric units** - metres, m/s, joules, centimetres, hPa, °C and
-      kg, with MOA or mrad as a separate choice (it follows the scope, not
-      the country). Bullet weight stays in grains. A first visit follows
-      the browser; the choice is remembered. The engine, the server,
-      presets and share links stay imperial: `static/units.js` converts
-      where numbers enter and leave the page, each factor its legal
-      definition, and each input keeps its exact value so switching never
-      drifts. Checked in a browser that metric is the imperial page
-      converted - the solver asked the identical question, every figure
-      the converted one - and that imperial did not change.
-
-      Building it turned up two things. The page used 1.047 in per MOA
-      where the solver uses true MOA; now exact. And the catalogue
-      ranking read its ten-yard points by the nearest one, which with a
-      range band misjudged 2 of 28 loads at 250 +/- 25 yd on a stag -
-      both as "will do it" when they would not. It now interpolates, and
-      against each load's full trajectory gets every verdict right.
+- [ ] **Metric units** - metres, m/s, joules, centimetres, hPa, °C, and
+      grams alongside grains. Most hunters outside the US think in these,
+      and the legal minimums below are written in them. The engine stays
+      imperial; conversion happens only where numbers enter and leave the
+      page, from exact definitions, with tests that every figure shown in
+      metric is the imperial one converted - not a second calculation that
+      could drift.
 - [ ] **Legal minimums by country** - e.g. the Swedish energy classes at
       100 m - shown beside the ethical judgement. Each figure sourced from
       the regulation itself, since a wrong one here is worse than none.
