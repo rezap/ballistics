@@ -182,8 +182,10 @@ Phase 2:
       dialled or held off for, so they do not cap range the way terminal
       performance does.
 - [x] **Configurable table columns**, persisted, so the table can be cut
-      down to what fits a phone screen. Drop, path, wind drift, MOA,
-      velocity, energy and time of flight are all optional.
+      down to what fits a phone screen. Drop, wind drift, MOA, velocity,
+      energy and time of flight are all optional. (Drop and path were once
+      separate columns; they were the same figure with opposite signs, so
+      only Drop remains, positive below the line of sight.)
 - [x] **How elevation is dealt with is a choice, not an assumption.**
       Dead-on hold shows the raw drop, which is what makes the size of the
       problem obvious. Dialled elevation puts the impact back on the aim

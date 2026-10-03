@@ -661,8 +661,14 @@ const tableLength = (inches) =>
 
 const COLUMNS = [
   { key: "yards", label: () => (imperial() ? "Yards" : "Metres"), visible: true, format: (p) => distanceText(p.yards) },
-  { key: "drop", label: () => `Drop (${unitOf("length")})`, visible: true, format: (p) => tableLength(p.impact_in) },
-  { key: "path", label: () => `Path (${unitOf("length")})`, visible: false, format: (p) => tableLength(p.path_inches) },
+  // Below the line of sight is positive: the amount to hold or dial up, the
+  // same correction the MOA/mrad column gives as an angle. Taken from the
+  // bullet's position itself rather than the solver's `impact_in`, which
+  // reaches the same figure through an angle and back and drifts from it
+  // on very steep drops - and so that the table always agrees with the
+  // drawing, which reads the position too. (There used to be a Path column
+  // as well: the same number with the sign the other way.)
+  { key: "drop", label: () => `Drop (${unitOf("length")})`, visible: true, format: (p) => tableLength(-p.path_inches) },
   { key: "wind", label: () => `Wind drift (${unitOf("length")})`, visible: true, format: (p) => tableLength(p.windage_in) },
   { key: "moa", label: () => unitOf("angle"), visible: true, format: (p) => shown("angle", p.moa_correction).toFixed(2) },
   { key: "velocity", label: () => `Velocity (${unitOf("velocity")})`, visible: true, format: (p) => Math.round(shown("velocity", p.velocity_fps)) },
@@ -676,8 +682,12 @@ function visibleColumnKeys() {
   try {
     const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
     if (raw) {
+      // Only columns that still exist: a choice saved when there was a Path
+      // column must not leave the table with nothing in it.
+      const known = new Set(COLUMNS.map((c) => c.key));
       const chosen = JSON.parse(raw);
-      if (Array.isArray(chosen) && chosen.length) return chosen;
+      const kept = Array.isArray(chosen) ? chosen.filter((key) => known.has(key)) : [];
+      if (kept.length) return kept;
     }
   } catch {
     // Fall through to the defaults.
