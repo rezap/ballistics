@@ -162,6 +162,40 @@
             Could be &plusmn; (deg)
             <input type="number" id="wind-angle-uncertainty" step="5" min="0" max="90" value="0" />
           </label>
+          <!--
+            A moving animal. The lead is how far it travels across the line of
+            fire while the bullet is in the air, so the crosshair goes that far
+            ahead of the vitals - and the speed, a guess like the wind, widens
+            the spread the verdict is judged on.
+          -->
+          <label class="wide" title="How fast the animal is moving across your line of fire. Nobody judges a running animal's speed exactly, so each gait is a range, and the range is part of the verdict.">
+            Animal moving?
+            <select id="motion-gait">
+              <option value="">Standing still</option>
+            </select>
+          </label>
+          <label id="motion-speed-label" hidden>
+            <span data-label="Speed ({animalSpeed})">Speed (mph)</span>
+            <input type="number" id="motion-speed" min="0" max="80" value="10" />
+          </label>
+          <label id="motion-slop-label" hidden title="How far out your estimate of its speed could be.">
+            <span data-label="Could be &plusmn; ({animalSpeed})">Could be &plusmn; (mph)</span>
+            <input type="number" id="motion-slop" min="0" max="40" value="0" />
+          </label>
+          <label id="motion-direction-label" hidden>
+            Direction
+            <select id="motion-direction">
+              <option value="right">Left to right</option>
+              <option value="left">Right to left</option>
+            </select>
+          </label>
+          <label id="motion-angle-label" hidden title="Crossing straight across takes the full lead; angling towards or away from you at about 45 degrees takes about 0.71 of it.">
+            Angle
+            <select id="motion-angle">
+              <option value="crossing">Crossing</option>
+              <option value="quartering">Quartering</option>
+            </select>
+          </label>
         </div>
       </details>
 
@@ -389,6 +423,7 @@
        `ballisticsUnits` and `ballisticsSolver`. solver.js starts fetching
        the solver module straight away. -->
   <script src="units.js?v=2"></script>
+  <script src="motion.js"></script>
   <script src="solver.js?v=2"></script>
   <script src="app.js?v=2"></script>
 </body>

@@ -45,8 +45,11 @@ test("lengths are the 1959 international definitions", () => {
   close(1760 * F.METRES_PER_YARD, 1609.344);
 });
 
-test("the mile per hour is exactly 0.44704 m/s", () => {
+test("the mile per hour is exactly 0.44704 m/s, and 1.609344 km/h", () => {
   assert.equal(F.MPS_PER_MPH, 0.44704);
+  assert.equal(F.KMH_PER_MPH, 1.609344);
+  // The two have to agree: 3.6 km/h to the m/s.
+  close(F.MPS_PER_MPH * 3.6, F.KMH_PER_MPH);
 });
 
 test("the pound, and the grain the bullets are weighed in", () => {
@@ -123,6 +126,8 @@ test("recognisable figures", () => {
   close(toCanonical("distance", 100, METRIC), 109.36132983377078);
   // 2600 ft/s is 792.48 m/s.
   close(toDisplay("velocity", 2600, METRIC), 792.48);
+  // A running deer at 30 mph is 48.3 km/h.
+  close(toDisplay("animalSpeed", 30, METRIC), 48.28032);
   // 10 mph is 4.47 m/s.
   close(toDisplay("windSpeed", 10, METRIC), 4.4704);
   // 1500 ft·lb is 2034 J.
@@ -167,7 +172,7 @@ test("every quantity converts in the right direction", () => {
   // A metric figure is bigger or smaller than the imperial one by a known
   // ratio; a factor applied upside down would pass a round trip, so this
   // pins which way each one goes.
-  const bigger = ["length", "energy"]; // cm > in, J > ft·lb
+  const bigger = ["length", "energy", "animalSpeed"]; // cm > in, J > ft·lb, km/h > mph
   const smaller = ["distance", "velocity", "windSpeed", "altitude", "mass"]; // m < yd, ...
   for (const name of bigger) assert.ok(toDisplay(name, 10, METRIC) > 10, name);
   for (const name of smaller) assert.ok(toDisplay(name, 10, METRIC) < 10, name);
@@ -192,6 +197,7 @@ test("labels", () => {
     length: ["in", "cm"],
     velocity: ["ft/s", "m/s"],
     windSpeed: ["mph", "m/s"],
+    animalSpeed: ["mph", "km/h"],
     altitude: ["ft", "m"],
     pressure: ["inHg", "hPa"],
     temperature: ["°F", "°C"],
