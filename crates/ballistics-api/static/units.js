@@ -34,6 +34,7 @@
   // floating point lands one bit off; the tests check it against the product.
   const JOULES_PER_FOOT_POUND = 1.3558179483314004;
   const MPS_PER_MPH = 1609.344 / 3600;
+  const KMH_PER_MPH = 1.609344;
   const HPA_PER_INHG = 33.86389;
   const MRAD_PER_MOA = (Math.PI / 10800) * 1000;
 
@@ -50,6 +51,9 @@
     length: { imperial: "in", metric: "cm", decimals: { imperial: 3, metric: 1 }, ...scale(CM_PER_INCH) },
     velocity: { imperial: "ft/s", metric: "m/s", decimals: { imperial: 1, metric: 1 }, ...scale(METRES_PER_FOOT) },
     windSpeed: { imperial: "mph", metric: "m/s", decimals: { imperial: 1, metric: 1 }, ...scale(MPS_PER_MPH) },
+    // An animal's speed: km/h, as anyone outside the US would say it,
+    // rather than the m/s used for wind.
+    animalSpeed: { imperial: "mph", metric: "km/h", decimals: { imperial: 1, metric: 1 }, ...scale(KMH_PER_MPH) },
     altitude: { imperial: "ft", metric: "m", decimals: { imperial: 0, metric: 0 }, ...scale(METRES_PER_FOOT) },
     pressure: { imperial: "inHg", metric: "hPa", decimals: { imperial: 2, metric: 1 }, ...scale(HPA_PER_INHG) },
     temperature: {
@@ -223,6 +227,7 @@
       KG_PER_POUND,
       JOULES_PER_FOOT_POUND,
       MPS_PER_MPH,
+      KMH_PER_MPH,
       HPA_PER_INHG,
       MRAD_PER_MOA,
       STANDARD_GRAVITY: 9.80665,

@@ -182,8 +182,10 @@ Phase 2:
       dialled or held off for, so they do not cap range the way terminal
       performance does.
 - [x] **Configurable table columns**, persisted, so the table can be cut
-      down to what fits a phone screen. Drop, path, wind drift, MOA,
-      velocity, energy and time of flight are all optional.
+      down to what fits a phone screen. Drop, wind drift, MOA, velocity,
+      energy and time of flight are all optional. (Drop and path were once
+      separate columns; they were the same figure with opposite signs, so
+      only Drop remains, positive below the line of sight.)
 - [x] **How elevation is dealt with is a choice, not an assumption.**
       Dead-on hold shows the raw drop, which is what makes the size of the
       problem obvious. Dialled elevation puts the impact back on the aim
@@ -448,9 +450,23 @@ Phase 2:
 - [ ] **Legal minimums by country** - e.g. the Swedish energy classes at
       100 m - shown beside the ethical judgement. Each figure sourced from
       the regulation itself, since a wrong one here is worse than none.
-- [ ] **Lead for a moving animal** - how far ahead to hold at a given
+- [x] **Lead for a moving animal** - how far ahead to hold at a given
       speed and range, drawn on the animal. Driven hunts are where most
-      wounding happens.
+      wounding happens. The lead is the animal's speed across the line of
+      fire times the bullet's time of flight, which the solver already
+      gives at every yard; crossing takes all of the speed, quartering
+      0.71. Speed is entered as a gait (walking, trotting, running, each a
+      band) or an exact figure with a "could be +/-", and the band widens
+      the spread exactly as an uncertain wind does - into the verdict, the
+      worst-of-it advice, the maximum ethical range and the catalogue
+      ranking, where a fast bullet now earns its keep. The drawing faces
+      the way the animal runs, with the crosshair held ahead by the lead.
+
+      What it shows is sobering, and meant to be: a running stag at 100 yd
+      with a 1 MOA rifle has a maximum ethical range of 44 yd, because a
+      13 mph band of speed is a 27 in band of impact. Not modelled: the
+      shooter's swing, lock time and reaction - this is the sustained-lead
+      answer, where the rifle is pointed at the lead when it fires.
 - [ ] **Printable range card** - drop and wind for your rifle, load and
       zero on one page. Paper needs no signal and no battery.
 - [ ] Barrel-length correction - to-do, not planned. Most hunters already

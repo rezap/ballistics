@@ -45,6 +45,11 @@ const shortlistBody = document.querySelector("#shortlist tbody");
 const windScaleSelect = document.getElementById("wind-scale");
 const rangeUncertaintyInput = document.getElementById("range-uncertainty");
 const windAngleUncertaintyInput = document.getElementById("wind-angle-uncertainty");
+const motionGaitSelect = document.getElementById("motion-gait");
+const motionSpeedInput = document.getElementById("motion-speed");
+const motionSlopInput = document.getElementById("motion-slop");
+const motionDirectionSelect = document.getElementById("motion-direction");
+const motionAngleSelect = document.getElementById("motion-angle");
 const unitSystemSelect = document.getElementById("unit-system");
 const angleUnitSelect = document.getElementById("angle-unit");
 
@@ -116,6 +121,8 @@ const UNIT_FIELDS = [
   [vitalsWidthInput, "length"],
   [vitalsHeightInput, "length"],
   [minEnergyInput, "energy"],
+  [motionSpeedInput, "animalSpeed"],
+  [motionSlopInput, "animalSpeed"],
 ];
 
 /// An input's value in the solver's units.
@@ -654,8 +661,14 @@ const tableLength = (inches) =>
 
 const COLUMNS = [
   { key: "yards", label: () => (imperial() ? "Yards" : "Metres"), visible: true, format: (p) => distanceText(p.yards) },
-  { key: "drop", label: () => `Drop (${unitOf("length")})`, visible: true, format: (p) => tableLength(p.impact_in) },
-  { key: "path", label: () => `Path (${unitOf("length")})`, visible: false, format: (p) => tableLength(p.path_inches) },
+  // Below the line of sight is positive: the amount to hold or dial up, the
+  // same correction the MOA/mrad column gives as an angle. Taken from the
+  // bullet's position itself rather than the solver's `impact_in`, which
+  // reaches the same figure through an angle and back and drifts from it
+  // on very steep drops - and so that the table always agrees with the
+  // drawing, which reads the position too. (There used to be a Path column
+  // as well: the same number with the sign the other way.)
+  { key: "drop", label: () => `Drop (${unitOf("length")})`, visible: true, format: (p) => tableLength(-p.path_inches) },
   { key: "wind", label: () => `Wind drift (${unitOf("length")})`, visible: true, format: (p) => tableLength(p.windage_in) },
   { key: "moa", label: () => unitOf("angle"), visible: true, format: (p) => shown("angle", p.moa_correction).toFixed(2) },
   { key: "velocity", label: () => `Velocity (${unitOf("velocity")})`, visible: true, format: (p) => Math.round(shown("velocity", p.velocity_fps)) },
@@ -669,8 +682,12 @@ function visibleColumnKeys() {
   try {
     const raw = window.localStorage.getItem(COLUMN_STORAGE_KEY);
     if (raw) {
+      // Only columns that still exist: a choice saved when there was a Path
+      // column must not leave the table with nothing in it.
+      const known = new Set(COLUMNS.map((c) => c.key));
       const chosen = JSON.parse(raw);
-      if (Array.isArray(chosen) && chosen.length) return chosen;
+      const kept = Array.isArray(chosen) ? chosen.filter((key) => known.has(key)) : [];
+      if (kept.length) return kept;
     }
   } catch {
     // Fall through to the defaults.
@@ -1329,11 +1346,13 @@ function moveAnchorTo(point) {
   const profile = currentProfile();
   if (!profile || !lastTransform) return;
 
-  const { offsetX, offsetY, fit, artW, artH } = lastTransform;
+  const { offsetX, offsetY, fit, artW, artH, mirrored } = lastTransform;
   const clamp = (v) => Math.max(0, Math.min(1, v));
+  // Stored as for the drawing facing right, however it is shown now.
+  const across = clamp((point.x - offsetX) / fit / artW);
   updateOverride(profile, {
     anchor: {
-      x: clamp((point.x - offsetX) / fit / artW),
+      x: mirrored ? 1 - across : across,
       y: clamp((point.y - offsetY) / fit / artH),
     },
   });
@@ -1349,10 +1368,12 @@ function moveAnchorTo(point) {
 /// nudged off it, which is both the honest geometry and a steadier drag.
 function moveHoldTo(point) {
   if (!lastTransform) return;
-  const { offsetX, offsetY, fit, centreX, centreY, inPerPx } = lastTransform;
+  const { offsetX, offsetY, fit, centreX, centreY, inPerPx, leadIn = 0 } = lastTransform;
   const axes = heldAxes();
+  // The crosshair sits ahead of a moving animal by the lead; what is
+  // dragged is the hold on top of it.
   holdOffsetIn = {
-    x: axes.x ? ((point.x - offsetX) / fit - centreX) * inPerPx : 0,
+    x: axes.x ? ((point.x - offsetX) / fit - centreX) * inPerPx - leadIn : 0,
     y: axes.y ? -((point.y - offsetY) / fit - centreY) * inPerPx : 0,
   };
   if (lastPoints) renderAnimalPanel(lastPoints);
@@ -1635,13 +1656,19 @@ function renderVitalsOverlay(profile, point, image) {
   const anchor = effectiveAnchor(profile);
   const inPerPx = inchesPerPixel(profile);
   const { aim, impact } = shotGeometry(point);
+  const movement = motion();
   const groupRadiusIn = groupDiameterInches(point.yards) / 2;
   const region = uncertaintyRegion(point);
   const windEnds = windBandEnds(point);
 
   const artW = profile.image_width_px ?? 400;
   const artH = profile.image_height_px ?? 300;
-  const centreX = anchor.x * artW;
+  // Every drawing faces right (see animals/README.md), so an animal running
+  // right to left is mirrored to face the way it is going - and its vital
+  // zone with it. Only the silhouette flips: left and right on the drawing
+  // stay the shooter's, for the wind, the hold and the lead alike.
+  const mirrored = movement != null && movement.sign < 0;
+  const centreX = (mirrored ? 1 - anchor.x : anchor.x) * artW;
   const centreY = anchor.y * artH;
 
   // Artwork pixels per inch, so real dimensions can be laid out against
@@ -1687,6 +1714,8 @@ function renderVitalsOverlay(profile, point, image) {
     halfH: (vitals.height_in / 2 / inPerPx) * fit,
     aimPx: toPx(centreX, centreY),
     crosshairPx: toPx(aimX, aimY),
+    leadIn: movement ? heldLead(point, movement) : 0,
+    mirrored,
   };
 
   const style = getComputedStyle(document.documentElement);
@@ -1694,7 +1723,7 @@ function renderVitalsOverlay(profile, point, image) {
   const textColor = style.getPropertyValue("--muted").trim();
 
   if (image) {
-    drawTinted(ctx, image, toPx(0, 0), artW * fit, artH * fit, inkColor);
+    drawTinted(ctx, image, toPx(0, 0), artW * fit, artH * fit, inkColor, mirrored);
   }
 
   // Vital zone.
@@ -1868,6 +1897,16 @@ function renderVitalsOverlay(profile, point, image) {
     ctx.fillText("impact", impactPxX + 9, impactPxY + 16);
   }
 
+  if (movement) {
+    drawMotion(ctx, movement, {
+      vitals: [vitalsPxX, vitalsPxY],
+      crosshair: [crossPxX, crossPxY],
+      halfH: (vitals.height_in / 2 / inPerPx) * fit,
+      lead: heldLead(point, movement),
+      color: style.getPropertyValue("--accent").trim() || "#b3441e",
+    });
+  }
+
   drawScaleBar(ctx, width, height, fit / inPerPx, textColor);
 
   return assessment;
@@ -1956,16 +1995,49 @@ function assessRegion(vitals, region, groupRadiusIn) {
 /// Draws the silhouette recoloured to `color`. The prepared artwork is a
 /// pure alpha mask, so it has to be tinted rather than drawn directly -
 /// the source is black, which would be invisible in dark mode.
-function drawTinted(ctx, image, [x, y], w, h, color) {
+function drawTinted(ctx, image, [x, y], w, h, color, mirrored = false) {
   const buffer = document.createElement("canvas");
   buffer.width = Math.max(1, Math.round(w));
   buffer.height = Math.max(1, Math.round(h));
   const bctx = buffer.getContext("2d");
+  if (mirrored) {
+    bctx.translate(buffer.width, 0);
+    bctx.scale(-1, 1);
+  }
   bctx.drawImage(image, 0, 0, buffer.width, buffer.height);
+  bctx.setTransform(1, 0, 0, 1, 0, 0);
   bctx.globalCompositeOperation = "source-in";
   bctx.fillStyle = color;
   bctx.fillRect(0, 0, buffer.width, buffer.height);
   ctx.drawImage(buffer, x, y);
+}
+
+/// Which way the animal is going, and how far ahead the crosshair is: an
+/// arrow over the vitals, and the lead written by the crosshair.
+function drawMotion(ctx, m, { vitals: [vx, vy], crosshair: [cx, cy], halfH, lead, color }) {
+  const y = vy - halfH - 14;
+  const length = 34;
+  const x0 = vx - (m.sign * length) / 2;
+  const x1 = vx + (m.sign * length) / 2;
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x0, y);
+  ctx.lineTo(x1, y);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x1, y);
+  ctx.lineTo(x1 - m.sign * 8, y - 5);
+  ctx.lineTo(x1 - m.sign * 8, y + 5);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.font = "11px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`lead ${lengthText(Math.abs(lead))} ${unitOf("length")}`, cx, cy - 18);
+  ctx.restore();
 }
 
 function drawScaleBar(ctx, width, height, pxPerInch, textColor) {
@@ -2132,16 +2204,75 @@ async function solveWindBand(payload) {
 /// leaves the difference between believed and actual - which is why this
 /// takes the nominal point's figure off rather than zeroing the axis
 /// outright. A hold is a fixed offset and does not track the range at all.
-function impactOffset(point, nominalPoint) {
+///
+/// A moving animal adds the lead: the crosshair is held ahead by the lead
+/// for the nominal range and speed, and the animal actually moves by the
+/// lead for this range and `speed`. Guess both right and the two cancel.
+function impactOffset(point, nominalPoint, speed) {
   const axes = heldAxes();
   const elevationHold = axes.y ? appliedHoldIn.y : 0;
   const elevationDialled = aimMode() === "dialled" ? nominalPoint.path_inches : 0;
   const windHold = axes.x ? appliedHoldIn.x : 0;
   const windDialled = windMode() === "dialled" ? nominalPoint.windage_in : 0;
-  return {
+  const offset = {
     x: windHold + point.windage_in - windDialled,
     y: elevationHold + point.path_inches - elevationDialled,
   };
+  const m = motion();
+  if (m) offset.x += heldLead(nominalPoint, m) - leadAt(point, speed ?? m.band.nominal, m);
+  return offset;
+}
+
+// ---------------------------------------------------------------------------
+// A moving animal.
+//
+// The lead is how far it travels across the line of fire while the bullet
+// is in the air. The crosshair is held that far ahead of the vitals, for the
+// speed and range you believe; the speed you do not know for sure widens the
+// spread, sideways, exactly as an uncertain wind does - and like the wind it
+// is folded into the verdict and the maximum ethical range.
+// ---------------------------------------------------------------------------
+
+/// The animal's movement, or null when it is standing still.
+function motion() {
+  const band = ballisticsMotion.speedBand({
+    gait: motionGaitSelect.value,
+    speed: readCanonical(motionSpeedInput),
+    slop: readCanonical(motionSlopInput),
+  });
+  if (!band) return null;
+  return {
+    band,
+    gait: motionGaitSelect.value,
+    across: ballisticsMotion.acrossFactor(motionAngleSelect.value),
+    angle: motionAngleSelect.value,
+    // Moving right is the direction of positive x on the drawing.
+    sign: motionDirectionSelect.value === "left" ? -1 : 1,
+    direction: motionDirectionSelect.value,
+  };
+}
+
+/// How far the animal moves, in inches and signed, in the time the bullet
+/// takes to reach `point`.
+function leadAt(point, speed, m) {
+  return m.sign * ballisticsMotion.leadInches(speed, m.across, point.seconds);
+}
+
+/// The lead the crosshair is held at: for the range and speed you believe.
+function heldLead(nominalPoint, m) {
+  return leadAt(nominalPoint, m.band.nominal, m);
+}
+
+/// The speeds at the two sides of the spread: the one that throws the shot
+/// furthest left, then the one that throws it furthest right. A faster
+/// animal than you held for leaves the shot behind it.
+function speedExtremes(m) {
+  return m.sign > 0 ? [m.band.hi, m.band.lo] : [m.band.lo, m.band.hi];
+}
+
+/// How much of the sideways spread at this range is the speed alone.
+function speedSpreadAt(point, m) {
+  return Math.abs(leadAt(point, m.band.hi, m) - leadAt(point, m.band.lo, m));
 }
 
 function bandRanges(band, steps = 8) {
@@ -2155,13 +2286,22 @@ function bandRanges(band, steps = 8) {
 /// the other walks back at the high wind. Because drop and drift are both
 /// monotonic in range, and drift is monotonic in wind, everything the shot
 /// could do lies between those two edges.
+///
+/// A moving animal's speed band rides on the same two edges: the speed that
+/// throws the shot furthest left with the wind that does, and likewise right.
 function uncertaintyRegion(nominalPoint) {
   const ranges = bandRanges(rangeBand(nominalPoint.yards));
-  const edge = (points, list) =>
-    list.map((r) => impactOffset(pointAt(points, r), nominalPoint));
+  const m = motion();
+  const edge = (points, list, speed) =>
+    list.map((r) => impactOffset(pointAt(points, r), nominalPoint, speed));
 
-  if (!bandPoints) return edge(lastPoints, ranges);
-  return [...edge(bandPoints.lo, ranges), ...edge(bandPoints.hi, [...ranges].reverse())];
+  const speedSpread = m != null && m.band.hi > m.band.lo;
+  if (!bandPoints && !speedSpread) return edge(lastPoints, ranges);
+  const [leftSpeed, rightSpeed] = m ? speedExtremes(m) : [undefined, undefined];
+  return [
+    ...edge(bandPoints?.lo ?? lastPoints, ranges, leftSpeed),
+    ...edge(bandPoints?.hi ?? lastPoints, [...ranges].reverse(), rightSpeed),
+  ];
 }
 
 /// The same spread, but with the aim assumed correct for the nominal range.
@@ -2172,20 +2312,29 @@ function uncertaintyRegion(nominalPoint) {
 /// the ammunition shortlist can ask the same question of every load in the
 /// catalogue. A load with no wind band solved for it gets the range band
 /// alone, which is the honest answer for what has been computed.
+///
+/// A moving animal's speed band is part of it: a slow bullet gives the
+/// animal longer to be somewhere other than where you led it, which is a
+/// real difference between loads, so the shortlist counts it too.
 function centredSpreadAt(yards, points = lastPoints, band = bandPoints) {
   const nominal = pointAt(points, yards);
   const ranges = bandRanges(rangeBand(yards));
-  const edge = (from) =>
+  const m = motion();
+  const edge = (from, speed) =>
     ranges.map((r) => {
       const p = pointAt(from, r);
-      return {
+      const offset = {
         x: p.windage_in - nominal.windage_in,
         y: p.path_inches - nominal.path_inches,
       };
+      if (m) offset.x += heldLead(nominal, m) - leadAt(p, speed, m);
+      return offset;
     });
 
-  if (!band) return edge(points);
-  return [...edge(band.lo), ...edge(band.hi).reverse()];
+  const speedSpread = m != null && m.band.hi > m.band.lo;
+  if (!band && !speedSpread) return edge(points, m?.band.nominal);
+  const [leftSpeed, rightSpeed] = m ? speedExtremes(m) : [undefined, undefined];
+  return [...edge(band?.lo ?? points, leftSpeed), ...edge(band?.hi ?? points, rightSpeed).reverse()];
 }
 
 /// Where the shot lands at each end of the wind band, at the nominal range.
@@ -2212,6 +2361,41 @@ function regionBounds(region) {
 // before that binding is initialised.
 buildWindScaleOptions();
 
+/// The gaits, labelled with their speeds in the units on screen.
+function buildMotionOptions() {
+  const selected = motionGaitSelect.value;
+  const speed = (v) =>
+    imperial() ? String(v) : ballisticsUnits.trimmed(shown("animalSpeed", v), 0);
+  motionGaitSelect.innerHTML =
+    `<option value="">Standing still</option>` +
+    ballisticsMotion.GAITS.map(
+      (g) => `<option value="${g.key}">${g.label} (${speed(g.lo)}&ndash;${speed(g.hi)} ${unitOf("animalSpeed")})</option>`
+    ).join("") +
+    `<option value="exact">Exact speed</option>`;
+  motionGaitSelect.value = selected;
+}
+
+/// Shows only the controls the chosen gait needs.
+function syncMotionControls() {
+  const gait = motionGaitSelect.value;
+  document.getElementById("motion-speed-label").hidden = gait !== "exact";
+  document.getElementById("motion-slop-label").hidden = gait !== "exact";
+  document.getElementById("motion-direction-label").hidden = !gait;
+  document.getElementById("motion-angle-label").hidden = !gait;
+}
+
+buildMotionOptions();
+syncMotionControls();
+
+// None of it needs a new trajectory - the lead is the animal's speed times
+// a time of flight the trajectory already holds - so it is a re-render.
+for (const control of [motionGaitSelect, motionSpeedInput, motionSlopInput, motionDirectionSelect, motionAngleSelect]) {
+  control.addEventListener(control.tagName === "SELECT" ? "change" : "input", () => {
+    syncMotionControls();
+    if (lastPoints) renderAnimalPanel(lastPoints);
+  });
+}
+
 /// Where the crosshair is held and where the bullet lands, both as offsets
 /// in inches from the vitals centre.
 ///
@@ -2227,9 +2411,14 @@ buildWindScaleOptions();
 /// stays put instead of sliding along with the crosshair.
 function shotGeometry(point) {
   const axes = heldAxes();
+  // Held ahead of a moving animal by the lead. The impact needs no term of
+  // its own: the hold ahead and the animal's travel cancel at the speed and
+  // range you believe, and the region is where the doubt about them shows.
+  const m = motion();
+  const lead = m ? heldLead(point, m) : 0;
   return {
     aim: {
-      x: axes.x ? holdOffsetIn.x : 0,
+      x: (axes.x ? holdOffsetIn.x : 0) + lead,
       y: axes.y ? holdOffsetIn.y : 0,
     },
     impact: {
@@ -2424,7 +2613,7 @@ function renderShortlist(profile, entries) {
   shortlistStatus(
     `${passing} of ${rows.length} will do it on ${profile.common_name.toLowerCase()} at ` +
       `${distanceText(range)} ${unitOf("distance")}${band.slop > 0 ? ` (±${distanceText(band.slop)})` : ""}. ` +
-      `Wind uncertainty is not folded in here - pick a load and read the panel above for that.`
+      `Wind uncertainty is not folded in here${motion() ? ", though the animal's movement is" : ""} - pick a load and read the panel above for that.`
   );
 
   // Terminal performance is read at the far end of the range band and
@@ -2584,10 +2773,14 @@ function describeWindPush(point) {
 /// throws the shot low, into brisket and leg, while getting it long throws
 /// it high, into spine or clean over the back. A miss beats a gut shot, so
 /// when the estimate is a band, take the long end of it.
-function describeDominantUncertainty(spread, groupInches, range, wind) {
+///
+/// Both the wind and a moving animal's speed spread the shot sideways, and
+/// add; `speedSpread` is the speed's share, so each is named for its own.
+function describeDominantUncertainty(spread, groupInches, range, wind, speedSpread = 0) {
   const parts = [
     { source: "range", size: spread.height, advice: "range it if you can - a rangefinder collapses this to nothing" },
-    { source: "wind", size: spread.width, advice: "wait for it to drop, or close the distance" },
+    { source: "wind", size: spread.width - speedSpread, advice: "wait for it to drop, or close the distance" },
+    { source: "animal's speed", size: speedSpread, advice: "wait for it to stop or slow down, or let it go" },
     { source: "group", size: groupInches, advice: "that is the rifle and your position, and neither improves in the next minute" },
   ].filter((p) => p.size > 0.05);
 
@@ -2605,7 +2798,10 @@ function renderAnimalInfo(profile, assessment, point) {
   const range = rangeBand(point.yards);
   const wind = windBand();
   const angle = windAngleBand();
-  const uncertain = range.slop > 0 || wind.force != null || angle.slop > 0;
+  const movement = motion();
+  const speedSpread = movement ? speedSpreadAt(point, movement) : 0;
+  const uncertain =
+    range.slop > 0 || wind.force != null || angle.slop > 0 || speedSpread > 0;
 
   // Terminal performance is read at the far end of the range band. If the
   // animal might be at 325 and you believe 300, 325 is the shot you are
@@ -2676,7 +2872,13 @@ function renderAnimalInfo(profile, assessment, point) {
         )} ${unitOf("length")} vital zone
       </dd>
       <dt>Worst of it is</dt>
-      <dd>${describeDominantUncertainty(spread, groupHere, range, wind)}</dd>`
+      <dd>${describeDominantUncertainty(spread, groupHere, range, wind, speedSpread)}</dd>`
+    : "";
+
+  const motionRow = movement
+    ? `
+      <dt>Animal moving</dt>
+      <dd>${describeMotion(movement)} &mdash; the crosshair is held ahead of it by the lead, as drawn</dd>`
     : "";
 
   const groupRow =
@@ -2752,6 +2954,7 @@ function renderAnimalInfo(profile, assessment, point) {
           ? `${profile.vitals.width_in}in x ${profile.vitals.height_in}in`
           : `${Math.round(shown("length", profile.vitals.width_in))} cm x ${Math.round(shown("length", profile.vitals.height_in))} cm`
       } behind the shoulder</dd>
+      ${motionRow}
       ${uncertaintyRows}
       ${holdRows}
       ${groupRow}
@@ -2764,6 +2967,20 @@ function renderAnimalInfo(profile, assessment, point) {
     <h4>Fun facts</h4>
     <ul>${profile.fun_facts.map((fact) => `<li>${fact}</li>`).join("")}</ul>
   `;
+}
+
+/// "running, 24-45 km/h, left to right, crossing", or "at 30 km/h, ..."
+/// for an exact speed.
+function describeMotion(m) {
+  const gait = ballisticsMotion.GAITS.find((g) => g.key === m.gait);
+  const speed = (v) => ballisticsUnits.trimmed(shown("animalSpeed", v), gait ? 0 : 1);
+  const speeds =
+    m.band.hi > m.band.lo ? `${speed(m.band.lo)}&ndash;${speed(m.band.hi)}` : speed(m.band.nominal);
+  return [
+    gait ? `${gait.label.toLowerCase()}, ${speeds} ${unitOf("animalSpeed")}` : `at ${speeds} ${unitOf("animalSpeed")}`,
+    m.direction === "left" ? "right to left" : "left to right",
+    m.angle,
+  ].join(", ");
 }
 
 function formatRange([min, max]) {
@@ -2820,6 +3037,7 @@ function applyUnitsToPage() {
   }
 
   buildWindScaleOptions();
+  buildMotionOptions();
   buildColumnToggles();
   const entry = factoryLoads.find((l) => l.id === factoryLoadSelect.value);
   if (entry) renderFactoryLoadNote(entry);
