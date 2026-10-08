@@ -273,14 +273,14 @@
       <details class="section" open data-section="calibration">
         <summary>Sizing &amp; calibration</summary>
         <div class="fields">
-          <label class="wide">
+          <label class="wide" data-animal-only>
             Scale drawing by
             <select id="scale-basis">
               <option value="length">Body length (nose to tail)</option>
               <option value="height">Overall height (as drawn)</option>
             </select>
           </label>
-          <label class="wide">
+          <label class="wide" data-animal-only>
             Measured size
             <span class="size-row">
               <input type="number" id="scale-value" step="0.1" min="0.1" />
@@ -291,7 +291,7 @@
               </select>
             </span>
           </label>
-          <label class="wide">
+          <label class="wide" data-animal-only>
             Vital zone (w &times; h)
             <span class="size-row">
               <input type="number" id="vitals-width" step="0.5" min="0.5" title="Vital zone width" />
@@ -424,6 +424,7 @@
        the solver module straight away. -->
   <script src="units.js?v=2"></script>
   <script src="motion.js"></script>
+  <script src="target.js"></script>
   <script src="solver.js?v=2"></script>
   <script src="app.js?v=2"></script>
 </body>

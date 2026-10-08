@@ -447,9 +447,16 @@ Phase 2:
       range band misjudged 2 of 28 loads at 250 +/- 25 yd on a stag -
       both as "will do it" when they would not. It now interpolates, and
       against each load's full trajectory gets every verdict right.
-- [ ] **Legal minimums by country** - e.g. the Swedish energy classes at
-      100 m - shown beside the ethical judgement. Each figure sourced from
-      the regulation itself, since a wrong one here is worse than none.
+- [x] **Range target** - concentric rings at the top of the species
+      list, for practice: 10 in across with rings every 2 in, or 25 cm
+      with rings every 5 cm on a metric page. The 4 in (10 cm) ring counts
+      as the hit, about the size of a deer's heart and lungs, so a group
+      that holds it on paper would hold it on game. Drawn from its
+      dimensions rather than shipped as artwork, so every ring is exactly
+      the size printed on it; the verdict, group, wind, lead and maximum
+      range all work on it as on an animal. The two are real targets
+      rather than conversions of each other, so switching units swaps the
+      paper: the 10 cm ring is 1.6% smaller than the 4 in one.
 - [x] **Lead for a moving animal** - how far ahead to hold at a given
       speed and range, drawn on the animal. Driven hunts are where most
       wounding happens. The lead is the animal's speed across the line of
@@ -469,6 +476,10 @@ Phase 2:
       answer, where the rifle is pointed at the lead when it fires.
 - [ ] **Printable range card** - drop and wind for your rifle, load and
       zero on one page. Paper needs no signal and no battery.
+- Legal minimums by country (e.g. the Swedish energy classes) - dropped.
+  Hard to get right everywhere, and the laws change without notice, so
+  the figures could not be kept trustworthy. The energy floor stays a
+  number the hunter sets.
 - [ ] Barrel-length correction - to-do, not planned. Most hunters already
       allow for it, and it is only an estimate: the 20-30 ft/s per inch
       rule of thumb is swamped by how tight a particular barrel is, which
