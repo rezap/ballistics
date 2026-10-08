@@ -17,6 +17,8 @@
 
 No Rust or JavaScript changes are needed - the species dropdown, the
 silhouette overlay and the info panel are all driven by these files.
+(The Range Target at the top of the list is the exception: it is drawn
+from its dimensions in `static/target.js`, not loaded from here.)
 
 ## Why the artwork is preprocessed
 

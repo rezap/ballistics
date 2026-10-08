@@ -33,7 +33,9 @@ that region says which unknown is costing you. The shot can be aimed
 dead-on, with elevation dialled, or by
 dragging a hold-over crosshair onto the drawing, and the rifle's group
 size in MOA is drawn as a dispersion circle so the impact is judged as a
-group rather than a single perfect point. Species data is data-driven:
+group rather than a single perfect point. A range target - concentric
+rings, the 4 in ring counting as the hit - sits above the animals for
+practice. Species data is data-driven:
 adding an animal is a PNG plus a `species.json` entry, with no code
 change.
 

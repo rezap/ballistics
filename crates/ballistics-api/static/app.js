@@ -225,6 +225,14 @@ let sharedPresetApplied = false;
 const DEFAULT_FACTORY_LOAD = "federal-fusion-308-180";
 const DEFAULT_SPECIES = "stag";
 
+// The range target sits in the species list but is not a species: it is
+// drawn from its dimensions (see target.js) rather than loaded with the
+// animals, and has nothing to calibrate - its rings are the size they say.
+const RANGE_TARGET_KEY = "range-target";
+// The drawing's notional size in pixels. Only the ratio to the target's
+// inches matters, so any figure would do.
+const TARGET_ART_PX = 400;
+
 // The calibration box has its own unit picker, since a body length might
 // be read off anything. Exact factors: an inch is 2.54 cm by definition.
 const UNIT_TO_INCHES = { in: 1, cm: 1 / 2.54, m: 100 / 2.54 };
@@ -349,9 +357,15 @@ async function loadAnimals() {
     animalsList = [];
   }
 
-  speciesSelect.innerHTML = animalsList
-    .map((a) => `<option value="${a.key}">${a.common_name}</option>`)
-    .join("");
+  // The target first and on its own, as the practice option; the animals
+  // after it.
+  speciesSelect.innerHTML =
+    `<optgroup label="Practice"><option value="${RANGE_TARGET_KEY}">Range Target</option></optgroup>` +
+    (animalsList.length
+      ? `<optgroup label="Game">${animalsList
+          .map((a) => `<option value="${a.key}">${a.common_name}</option>`)
+          .join("")}</optgroup>`
+      : "");
 
   // Unguarded by `sharedPresetApplied`: a preset carries the rifle and the
   // ammunition, never the quarry, so there is nothing here for a shared link
@@ -370,7 +384,38 @@ async function loadAnimals() {
 }
 
 function currentProfile() {
+  if (speciesSelect.value === RANGE_TARGET_KEY) return rangeTargetProfile();
   return animalsList.find((a) => a.key === speciesSelect.value) ?? null;
+}
+
+/// The range target, shaped like a species so the drawing, the verdict and
+/// the ranking need no second path: the hit ring stands in for the vital
+/// zone, centred on the target. Built afresh each time because it follows
+/// the unit system - a metric page gets the metric target.
+function rangeTargetProfile() {
+  const target = ballisticsTarget.rangeTarget(units.system);
+  return {
+    key: RANGE_TARGET_KEY,
+    kind: "target",
+    common_name: "Range Target",
+    target,
+    image: null,
+    image_width_px: TARGET_ART_PX,
+    image_height_px: TARGET_ART_PX,
+    body_length_in: target.diameterIn,
+    vitals: { width_in: target.hitDiameterIn, height_in: target.hitDiameterIn },
+    vitals_anchor: { x: 0.5, y: 0.5 },
+    min_energy_ft_lb: null,
+  };
+}
+
+const isTarget = (profile) => profile?.kind === "target";
+
+/// What a hit has to land in, for the panel and the ranking: "the 4 in
+/// ring" on the target, the vital zone on an animal.
+function hitZoneText(profile, vitals) {
+  if (isTarget(profile)) return `the ${lengthText(vitals.width_in)} ${unitOf("length")} ring`;
+  return `a ${lengthText(vitals.width_in)}&times;${lengthText(vitals.height_in)} ${unitOf("length")} vital zone`;
 }
 
 // ---------------------------------------------------------------------------
@@ -527,11 +572,13 @@ function saveOverride(profile, override) {
 /// The vitals anchor in use: the calibrated position if the user has
 /// dragged it, otherwise the value shipped in species.json.
 function effectiveAnchor(profile) {
+  if (isTarget(profile)) return profile.vitals_anchor;
   return loadOverride(profile)?.anchor ?? profile.vitals_anchor;
 }
 
 /// The vital zone in use, in inches.
 function effectiveVitals(profile) {
+  if (isTarget(profile)) return profile.vitals;
   return loadOverride(profile)?.vitals ?? profile.vitals;
 }
 
@@ -560,6 +607,12 @@ function updateOverride(profile, patch) {
 function syncScaleControls() {
   const profile = currentProfile();
   if (!profile) return;
+
+  // A target's rings are the size printed on them, so there is no drawing
+  // to scale and no vital zone to resize - only the energy floor applies.
+  for (const field of document.querySelectorAll("[data-animal-only]")) {
+    field.hidden = isTarget(profile);
+  }
 
   const override = loadOverride(profile);
   const basis = override?.basis ?? "length";
@@ -590,6 +643,7 @@ function showReferenceScale(profile, basis) {
 
 /// Inches per pixel of the artwork, honouring any user override.
 function inchesPerPixel(profile) {
+  if (isTarget(profile)) return profile.target.diameterIn / profile.image_width_px;
   const basis = scaleBasisSelect.value;
   const pixels = basis === "height" ? profile.image_height_px : profile.image_width_px;
 
@@ -1314,7 +1368,8 @@ function canvasPoint(event) {
 }
 
 function withinVitals(point) {
-  if (!lastTransform?.aimPx) return false;
+  // The target's centre is its centre; there is nothing to place by eye.
+  if (!lastTransform?.aimPx || isTarget(currentProfile())) return false;
   const [ax, ay] = lastTransform.aimPx;
   const grab = 12;
   return (
@@ -1725,6 +1780,9 @@ function renderVitalsOverlay(profile, point, image) {
   if (image) {
     drawTinted(ctx, image, toPx(0, 0), artW * fit, artH * fit, inkColor, mirrored);
   }
+  if (isTarget(profile)) {
+    drawRangeTarget(ctx, profile.target, toPx(centreX, centreY), fit / inPerPx, inkColor);
+  }
 
   // Vital zone.
   const [vitalsPxX, vitalsPxY] = toPx(centreX, centreY);
@@ -1990,6 +2048,33 @@ function assessRegion(vitals, region, groupRadiusIn) {
 
   const verdict = allInside ? "hit" : centreInside || anyInside ? "marginal" : "miss";
   return { verdict, centreInside, groupFullyInside: allInside };
+}
+
+/// The range target: a faint disc with every ring drawn on it and the
+/// bullseye solid, in the silhouette's colour so it reads in either theme.
+/// The hit ring is drawn over it in green with the vital zone, like any
+/// other.
+function drawRangeTarget(ctx, target, [cx, cy], pxPerInch, color) {
+  const radius = (diameterIn) => (diameterIn / 2) * pxPerInch;
+  const rings = target.ringDiametersIn;
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = 0.25;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius(target.diameterIn), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius(rings[0]), 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  for (const d of rings) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius(d), 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /// Draws the silhouette recoloured to `color`. The prepared artwork is a
@@ -2611,9 +2696,9 @@ function renderShortlist(profile, entries) {
   const band = rangeBand(range);
   const passing = rows.filter((r) => r.ok).length;
   shortlistStatus(
-    `${passing} of ${rows.length} will do it on ${profile.common_name.toLowerCase()} at ` +
+    `${passing} of ${rows.length} will do it on ${isTarget(profile) ? "the range target" : profile.common_name.toLowerCase()} at ` +
       `${distanceText(range)} ${unitOf("distance")}${band.slop > 0 ? ` (±${distanceText(band.slop)})` : ""}. ` +
-      `Wind uncertainty is not folded in here${motion() ? ", though the animal's movement is" : ""} - pick a load and read the panel above for that.`
+      `Wind uncertainty is not folded in here${motion() ? ", though the movement is" : ""} - pick a load and read the panel above for that.`
   );
 
   // Terminal performance is read at the far end of the range band and
@@ -2636,7 +2721,7 @@ function renderShortlist(profile, entries) {
       const why = [];
       if (!row.terminal.energyOk) why.push("not enough energy");
       if (!row.terminal.expansionOk) why.push("below expansion velocity");
-      if (row.placement.verdict !== "hit") why.push("spread wider than the vitals");
+      if (row.placement.verdict !== "hit") why.push(`spread wider than ${isTarget(profile) ? "the ring" : "the vitals"}`);
 
       const carries =
         row.furthest == null
@@ -2811,13 +2896,18 @@ function renderAnimalInfo(profile, assessment, point) {
   const furthest = maxEthicalRange(profile, lastPoints ?? [point]);
   const vitals = effectiveVitals(profile);
   const terminalOk = terminal.energyOk && terminal.expansionOk;
+  const target = isTarget(profile);
+  // What the shot has to land in, in the badge's words.
+  const zone = target ? "the ring" : "the vitals";
 
   // Placement is judged first: a round that still performs is no help if
   // the shot is not in the vitals to begin with.
   let badgeClass = "hit";
   let badgeText = uncertain
     ? "Safe across everything you are unsure of"
-    : "Vitals hit, round still performing";
+    : target
+      ? "In the ring, round still performing"
+      : "Vitals hit, round still performing";
   // Placement is tested before terminal performance, and "in the vitals" is
   // only ever claimed when the verdict is actually a hit. A marginal spread
   // with failing energy used to report "in the vitals, but past its limits",
@@ -2825,18 +2915,18 @@ function renderAnimalInfo(profile, assessment, point) {
   // the problem that matters most.
   if (assessment.verdict === "miss") {
     badgeClass = "miss";
-    badgeText = "Impact outside the vitals - reconsider this shot";
+    badgeText = `Impact outside ${zone} - reconsider this shot`;
   } else if (assessment.verdict === "marginal" && !terminalOk) {
     badgeClass = "miss";
-    badgeText = "Spread reaches past the vitals, and the round is past its limits";
+    badgeText = `Spread reaches past ${zone}, and the round is past its limits`;
   } else if (assessment.verdict === "marginal") {
     badgeClass = "marginal";
     badgeText = uncertain
       ? "Only safe if every estimate is right - do not take it"
-      : "Group overlaps the edge of the vitals";
+      : `Group overlaps the edge of ${zone}`;
   } else if (!terminalOk) {
     badgeClass = "miss";
-    badgeText = "In the vitals, but the round is past its limits";
+    badgeText = `In ${zone}, but the round is past its limits`;
   }
 
   const spread = regionBounds(uncertaintyRegion(point));
@@ -2867,9 +2957,7 @@ function renderAnimalInfo(profile, assessment, point) {
       <dd class="${assessment.groupFullyInside ? "ok" : "bad"}">
         ${lengthText(spread.height + groupHere)} ${unitOf("length")} tall &times;
         ${lengthText(spread.width + groupHere)} ${unitOf("length")} wide,
-        against a ${lengthText(vitals.width_in)}&times;${lengthText(
-          vitals.height_in
-        )} ${unitOf("length")} vital zone
+        against ${hitZoneText(profile, vitals)}
       </dd>
       <dt>Worst of it is</dt>
       <dd>${describeDominantUncertainty(spread, groupHere, range, wind, speedSpread)}</dd>`
@@ -2877,7 +2965,7 @@ function renderAnimalInfo(profile, assessment, point) {
 
   const motionRow = movement
     ? `
-      <dt>Animal moving</dt>
+      <dt>${target ? "Target" : "Animal"} moving</dt>
       <dd>${describeMotion(movement)} &mdash; the crosshair is held ahead of it by the lead, as drawn</dd>`
     : "";
 
@@ -2887,8 +2975,8 @@ function renderAnimalInfo(profile, assessment, point) {
       <dt>Group here</dt>
       <dd class="${assessment.groupFullyInside ? "ok" : "bad"}">
         ${lengthText(groupDiameterInches(point.yards))} ${unitOf("length")} across
-        (${angleText(groupMoa())} ${unitOf("angle")}) vs a
-        ${lengthText(vitals.width_in)}&times;${lengthText(vitals.height_in)} ${unitOf("length")} vital zone
+        (${angleText(groupMoa())} ${unitOf("angle")}) vs
+        ${hitZoneText(profile, vitals)}
       </dd>`
       : "";
 
@@ -2921,7 +3009,7 @@ function renderAnimalInfo(profile, assessment, point) {
       <dd class="${terminal.energyOk ? "ok" : "bad"}">
         ${Math.round(shown("energy", worstPoint.energy_ft_lb))} ${unitOf("energy")}${
           terminal.minEnergy == null
-            ? " (no minimum set for this species)"
+            ? ` (no minimum set for this ${target ? "target" : "species"})`
             : ` vs ${Math.round(shown("energy", terminal.minEnergy))} minimum`
         }
       </dd>
@@ -2937,13 +3025,15 @@ function renderAnimalInfo(profile, assessment, point) {
       <dd>${
         furthest == null
           ? "under this range even at the muzzle"
-          : `about ${distanceText(furthest, { atMost: true })} ${unitOf("distance")} for this load, rifle and species`
+          : `about ${distanceText(furthest, { atMost: true })} ${unitOf("distance")} for this load, rifle and ${target ? "target" : "species"}`
       }</dd>`;
 
-  animalInfo.innerHTML = `
-    <h3>${profile.common_name} <span class="scientific-name">${profile.scientific_name}</span></h3>
-    <span class="hit-badge ${badgeClass}">${badgeText} at ${distanceText(point.yards)} ${unitOf("distance")}</span>
-    <dl>
+  const aboutRows = target
+    ? `
+      <dt>Target</dt>
+      <dd>${profile.target.printedDiameter} ${profile.target.unit} across, rings every ${profile.target.step} ${profile.target.unit}.
+        The ${profile.target.printedHitDiameter} ${profile.target.unit} ring counts as the hit &mdash; about the size of a deer's heart and lungs.</dd>`
+    : `
       <dt>${profile.male_label}</dt>
       <dd>${sizeRange("length", profile.male.shoulder_height_in)} ${unitOf("length")} shoulder height, ${sizeRange("mass", profile.male.weight_lb)} ${unitOf("mass")}</dd>
       <dt>${profile.female_label}</dt>
@@ -2953,19 +3043,34 @@ function renderAnimalInfo(profile, assessment, point) {
         imperial()
           ? `${profile.vitals.width_in}in x ${profile.vitals.height_in}in`
           : `${Math.round(shown("length", profile.vitals.width_in))} cm x ${Math.round(shown("length", profile.vitals.height_in))} cm`
-      } behind the shoulder</dd>
+      } behind the shoulder</dd>`;
+  const natureRows = target
+    ? ""
+    : `
+      <dt>Habitat</dt>
+      <dd>${profile.habitat}</dd>
+      <dt>Diet</dt>
+      <dd>${profile.diet}</dd>`;
+  const facts = target
+    ? ""
+    : `
+    <h4>Fun facts</h4>
+    <ul>${profile.fun_facts.map((fact) => `<li>${fact}</li>`).join("")}</ul>`;
+
+  animalInfo.innerHTML = `
+    <h3>${profile.common_name}${
+      target ? "" : ` <span class="scientific-name">${profile.scientific_name}</span>`
+    }</h3>
+    <span class="hit-badge ${badgeClass}">${badgeText} at ${distanceText(point.yards)} ${unitOf("distance")}</span>
+    <dl>
+      ${aboutRows}
       ${motionRow}
       ${uncertaintyRows}
       ${holdRows}
       ${groupRow}
       ${terminalRows}
-      <dt>Habitat</dt>
-      <dd>${profile.habitat}</dd>
-      <dt>Diet</dt>
-      <dd>${profile.diet}</dd>
-    </dl>
-    <h4>Fun facts</h4>
-    <ul>${profile.fun_facts.map((fact) => `<li>${fact}</li>`).join("")}</ul>
+      ${natureRows}
+    </dl>${facts}
   `;
 }
 
