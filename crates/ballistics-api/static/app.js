@@ -469,9 +469,12 @@ async function loadAmmunition() {
   // means the provenance note is visible from the first screen, which is the
   // one thing about this data that should never be easy to miss.
   //
-  // Skipped when a shared link has already set the load: someone handed a
-  // rifle should see that rifle.
-  if (!sharedPresetApplied) {
+  // Skipped when a shared link or a preset has already set the load:
+  // someone handed a rifle, or who picked their own, should see that rifle.
+  // The picker is matched to it instead - the box it came from, if any.
+  if (sharedPresetApplied || presetSelect.value) {
+    syncFactoryLoadToForm();
+  } else {
     const preferred = factoryLoads.find((l) => l.id === DEFAULT_FACTORY_LOAD);
     if (preferred) {
       factoryLoadSelect.value = preferred.id;
@@ -516,17 +519,72 @@ function renderFactoryLoadNote(entry, load = ballisticsSolver.loadFromCatalogue(
     `(retrieved ${escapeHtml(entry.retrieved)}).`;
 }
 
+/// The catalogue load whose figures are the ones now in the form, or null.
+/// The one already picked wins if it still fits, since two boxes can share
+/// a bullet and a velocity.
+function factoryLoadInForm() {
+  const inForm = {
+    drag_function: form.elements.drag_function.value,
+    ballistic_coefficient: Number(form.elements.ballistic_coefficient.value),
+    muzzle_velocity: readCanonical(form.elements.muzzle_velocity),
+    bullet_weight_gr: Number(form.elements.bullet_weight_gr.value),
+  };
+  const same = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(b));
+  const fits = (entry) => {
+    const load = ballisticsSolver.loadFromCatalogue(entry);
+    return (
+      load != null &&
+      load.drag_function === inForm.drag_function &&
+      same(inForm.ballistic_coefficient, load.ballistic_coefficient) &&
+      same(inForm.muzzle_velocity, load.muzzle_velocity) &&
+      same(inForm.bullet_weight_gr, load.bullet_weight_gr)
+    );
+  };
+  const picked = factoryLoads.find((l) => l.id === factoryLoadSelect.value);
+  if (picked && fits(picked)) return picked;
+  return factoryLoads.find(fits) ?? null;
+}
+
+/// Shows `entry` as the factory load, with its provenance note and its
+/// cartridge for the shortlist - or, given null, "Enter figures by hand"
+/// with neither. Changes nothing in the form itself.
+function showFactoryLoad(entry) {
+  factoryLoadSelect.value = entry?.id ?? "";
+  noteShortlistCartridge(entry?.cartridge ?? null);
+  if (entry) {
+    renderFactoryLoadNote(entry);
+  } else {
+    factoryLoadNote.hidden = true;
+    factoryLoadNote.textContent = "";
+  }
+}
+
+/// After a preset or a shared link has put its figures in the form, the
+/// factory load has to follow them: the box a preset was made from if the
+/// figures are still that box's, otherwise "Enter figures by hand". Left
+/// alone, the picker went on naming whatever load was there before, beside
+/// another load's numbers.
+function syncFactoryLoadToForm() {
+  showFactoryLoad(factoryLoadInForm());
+}
+
 factoryLoadSelect.addEventListener("change", () => {
   const entry = factoryLoads.find((l) => l.id === factoryLoadSelect.value);
   if (!entry) {
-    factoryLoadNote.hidden = true;
-    factoryLoadNote.textContent = "";
-    noteShortlistCartridge(null);
+    showFactoryLoad(null);
     return;
   }
   applyFactoryLoad(entry);
   noteShortlistCartridge(entry.cartridge);
   presetNameInput.value = `${entry.manufacturer} ${entry.cartridge} ${entry.bullet_weight_gr}gr`;
+  // The same confusion the other way round: a preset still named in the
+  // picker while a different load is in the form. The name typed for
+  // saving is the load's now, so Save makes a new preset rather than
+  // quietly overwriting the one that was selected.
+  if (presetSelect.value) {
+    presetSelect.value = "";
+    setPresetStatus("");
+  }
   if (lastPoints) form.requestSubmit();
 });
 
@@ -951,6 +1009,7 @@ presetSelect.addEventListener("change", () => {
   const preset = loadPresets()[name];
   if (!preset) return;
   applyPreset(preset);
+  syncFactoryLoadToForm();
   presetNameInput.value = name;
   setPresetStatus(`Loaded "${name}".`);
   // Recalculate straight away: a preset the user has to press a second
@@ -1088,6 +1147,8 @@ function applySharedPreset() {
   }
 
   applyPreset(preset);
+  // The factory-load picker is matched to these figures by loadAmmunition:
+  // this runs as the page starts, before the catalogue has arrived.
   presetNameInput.value = String(payload.name ?? "Shared load").trim().slice(0, 60);
   setPresetStatus("Loaded a shared load. Press Save to keep it.");
   pendingSharedPreset = true;
